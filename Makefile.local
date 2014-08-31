@@ -1,0 +1,31 @@
+CC=g++
+CFLAGS=-Wall -g -std=c++0x
+LDFLAGS=-Wall -I. -L. -pthread -g -lrt -std=c++0x #-ltcmalloc
+
+.SUFFIXES: .o .cpp .h
+
+DEPS = -I.
+CFLAGS += $(DEPS) -D NOGRAPHITE=1 #-D NDEBUG
+
+CPPS = $(wildcard *.cpp)
+OBJS = $(addprefix obj/, $(notdir $(CPPS:.cpp=.o)))
+
+#NOGRAPHITE=1
+
+all:rundb
+
+.PHONY: deps
+deps:$(CPPS)
+	$(CC) $(CFLAGS) -MM $^ > obj/deps
+	sed '/^[^ ]/s/^/obj\//g' obj/deps > obj/deps.tmp
+	mv obj/deps.tmp obj/deps
+-include obj/deps
+
+rundb : $(OBJS)
+	$(CC) -o $@ $^ $(LDFLAGS)
+./obj/%.o: %.cpp
+	$(CC) -c $(CFLAGS) -o $@ $<
+
+.PHONY: clean
+clean:
+	rm -f obj/*.o obj/.depend rundb

@@ -1,0 +1,81 @@
+obj/catalog.o: catalog.cpp catalog.h global.h config.h stats.h dl_detect.h \
+ helper.h
+obj/config.o: config.cpp config.h
+obj/dl_detect.o: dl_detect.cpp dl_detect.h config.h global.h stats.h helper.h \
+ txn.h manager.h mem_alloc.h
+obj/global.o: global.cpp global.h config.h stats.h dl_detect.h mem_alloc.h \
+ manager.h helper.h query.h plock.h occ.h row.h vll.h
+obj/helper.o: helper.cpp global.h config.h stats.h dl_detect.h helper.h \
+ mem_alloc.h
+obj/index_btree.o: index_btree.cpp mem_alloc.h global.h config.h stats.h \
+ dl_detect.h index_btree.h helper.h index_base.h row.h
+obj/index_hash.o: index_hash.cpp global.h config.h stats.h dl_detect.h \
+ index_hash.h helper.h index_base.h mem_alloc.h
+obj/main.o: main.cpp global.h config.h stats.h dl_detect.h ycsb.h wl.h txn.h \
+ helper.h tpcc.h test.h thread.h manager.h mem_alloc.h query.h plock.h \
+ occ.h row.h vll.h
+obj/manager.o: manager.cpp manager.h helper.h global.h config.h stats.h \
+ dl_detect.h row.h txn.h
+obj/mem_alloc.o: mem_alloc.cpp mem_alloc.h global.h config.h stats.h \
+ dl_detect.h helper.h
+obj/occ.o: occ.cpp global.h config.h stats.h dl_detect.h helper.h txn.h occ.h \
+ row.h manager.h mem_alloc.h row_occ.h
+obj/parser.o: parser.cpp global.h config.h stats.h dl_detect.h helper.h
+obj/plock.o: plock.cpp global.h config.h stats.h dl_detect.h helper.h plock.h \
+ mem_alloc.h txn.h
+obj/query.o: query.cpp query.h global.h config.h stats.h dl_detect.h helper.h \
+ mem_alloc.h wl.h table.h ycsb_query.h tpcc_query.h
+obj/row.o: row.cpp global.h config.h stats.h dl_detect.h table.h catalog.h \
+ helper.h row.h txn.h row_lock.h row_ts.h row_mvcc.h row_occ.h row_vll.h \
+ mem_alloc.h manager.h
+obj/row_lock.o: row_lock.cpp row.h global.h config.h stats.h dl_detect.h \
+ txn.h helper.h row_lock.h mem_alloc.h manager.h
+obj/row_mvcc.o: row_mvcc.cpp txn.h global.h config.h stats.h dl_detect.h \
+ helper.h row.h manager.h row_mvcc.h mem_alloc.h
+obj/row_occ.o: row_occ.cpp txn.h global.h config.h stats.h dl_detect.h \
+ helper.h row.h row_occ.h mem_alloc.h
+obj/row_ts.o: row_ts.cpp txn.h global.h config.h stats.h dl_detect.h helper.h \
+ row.h row_ts.h mem_alloc.h manager.h
+obj/row_vll.o: row_vll.cpp row.h global.h config.h stats.h dl_detect.h \
+ row_vll.h helper.h
+obj/stats.o: stats.cpp global.h config.h stats.h dl_detect.h helper.h \
+ mem_alloc.h
+obj/table.o: table.cpp global.h config.h stats.h dl_detect.h helper.h table.h \
+ catalog.h row.h mem_alloc.h
+obj/test_txn.o: test_txn.cpp test.h global.h config.h stats.h dl_detect.h \
+ txn.h helper.h wl.h row.h
+obj/test_wl.o: test_wl.cpp test.h global.h config.h stats.h dl_detect.h txn.h \
+ helper.h wl.h table.h row.h mem_alloc.h index_hash.h index_base.h \
+ index_btree.h thread.h
+obj/thread.o: thread.cpp global.h config.h stats.h dl_detect.h manager.h \
+ helper.h thread.h txn.h wl.h query.h plock.h occ.h row.h vll.h \
+ ycsb_query.h tpcc_query.h mem_alloc.h test.h
+obj/tpcc_helper.o: tpcc_helper.cpp tpcc_helper.h global.h config.h stats.h \
+ dl_detect.h helper.h
+obj/tpcc_query.o: tpcc_query.cpp query.h global.h config.h stats.h \
+ dl_detect.h helper.h tpcc_query.h tpcc.h wl.h txn.h tpcc_helper.h \
+ mem_alloc.h table.h
+obj/tpcc_txn.o: tpcc_txn.cpp tpcc.h wl.h global.h config.h stats.h \
+ dl_detect.h txn.h helper.h tpcc_query.h query.h tpcc_helper.h thread.h \
+ table.h row.h index_hash.h index_base.h index_btree.h tpcc_const.h
+obj/tpcc_wl.o: tpcc_wl.cpp global.h config.h stats.h dl_detect.h helper.h \
+ tpcc.h wl.h txn.h thread.h table.h index_hash.h index_base.h \
+ index_btree.h tpcc_helper.h row.h query.h mem_alloc.h tpcc_const.h
+obj/txn.o: txn.cpp txn.h global.h config.h stats.h dl_detect.h helper.h row.h \
+ wl.h ycsb.h thread.h mem_alloc.h occ.h table.h catalog.h index_btree.h \
+ index_base.h index_hash.h
+obj/vll.o: vll.cpp vll.h global.h config.h stats.h dl_detect.h helper.h \
+ query.h txn.h table.h row.h row_vll.h ycsb_query.h ycsb.h wl.h catalog.h \
+ mem_alloc.h
+obj/wl.o: wl.cpp global.h config.h stats.h dl_detect.h helper.h wl.h row.h \
+ table.h index_hash.h index_base.h index_btree.h catalog.h mem_alloc.h
+obj/ycsb_query.o: ycsb_query.cpp query.h global.h config.h stats.h \
+ dl_detect.h helper.h ycsb_query.h mem_alloc.h wl.h ycsb.h txn.h table.h
+obj/ycsb_txn.o: ycsb_txn.cpp global.h config.h stats.h dl_detect.h helper.h \
+ ycsb.h wl.h txn.h ycsb_query.h query.h thread.h table.h row.h \
+ index_hash.h index_base.h index_btree.h catalog.h manager.h row_lock.h \
+ row_ts.h row_mvcc.h mem_alloc.h
+obj/ycsb_wl.o: ycsb_wl.cpp global.h config.h stats.h dl_detect.h helper.h \
+ ycsb.h wl.h txn.h thread.h table.h row.h index_hash.h index_base.h \
+ index_btree.h catalog.h manager.h row_lock.h row_ts.h row_mvcc.h \
+ mem_alloc.h query.h

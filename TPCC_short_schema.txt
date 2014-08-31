@@ -1,0 +1,100 @@
+//size,type,name
+TABLE=WAREHOUSE
+	8,int64_t,W_ID
+	10,string,W_NAME
+	20,string,W_STREET_1
+	20,string,W_STREET_2
+	20,string,W_CITY
+	2,string,W_STATE
+	9,string,W_ZIP
+	8,double,W_TAX
+	8,double,W_YTD
+
+TABLE=DISTRICT
+	8,int64_t,D_ID
+	8,int64_t,D_W_ID
+	10,string,D_NAME
+	20,string,D_STREET_1
+	20,string,D_STREET_2
+	20,string,D_CITY
+	2,string,D_STATE
+	9,string,D_ZIP
+	8,double,D_TAX
+	8,double,D_YTD
+	8,int64_t,D_NEXT_O_ID
+
+TABLE=CUSTOMER
+	8,int64_t,C_ID
+	8,int64_t,C_D_ID
+	8,int64_t,C_W_ID
+	2,string,C_MIDDLE
+	16,string,C_LAST
+	2,string,C_STATE
+	2,string,C_CREDIT
+	8,int64_t,C_DISCOUNT
+	8,double,C_BALANCE
+	8,double,C_YTD_PAYMENT
+	8,uint64_t,C_PAYMENT_CNT
+	
+TABLE=HISTORY
+	8,int64_t,H_C_ID
+	8,int64_t,H_C_D_ID
+	8,int64_t,H_C_W_ID
+	8,int64_t,H_D_ID
+	8,int64_t,H_W_ID
+	8,int64_t,H_DATE
+	8,double,H_AMOUNT
+
+TABLE=NEW-ORDER
+	8,int64_t,NO_O_ID
+	8,int64_t,NO_D_ID
+	8,int64_t,NO_W_ID
+
+TABLE=ORDER
+	8,int64_t,O_ID
+	8,int64_t,O_C_ID
+	8,int64_t,O_D_ID
+	8,int64_t,O_W_ID
+	8,int64_t,O_ENTRY_D
+	8,int64_t,O_CARRIER_ID
+	8,int64_t,O_OL_CNT
+	8,int64_t,O_ALL_LOCAL
+
+TABLE=ORDER-LINE
+	8,int64_t,OL_O_ID
+	8,int64_t,OL_D_ID
+	8,int64_t,OL_W_ID
+	8,int64_t,OL_NUMBER
+	8,int64_t,OL_I_ID
+
+TABLE=ITEM
+	8,int64_t,I_ID
+	8,int64_t,I_IM_ID
+	24,string,I_NAME
+	8,int64_t,I_PRICE
+	50,string,I_DATA
+
+TABLE=STOCK
+	8,int64_t,S_I_ID
+	8,int64_t,S_W_ID
+	8,int64_t,S_QUANTITY
+	8,int64_t,S_REMOTE_CNT
+
+INDEX=ITEM_IDX
+	ITEM,0
+
+INDEX=WAREHOUSE_IDX
+	WAREHOUSE,0
+
+INDEX=DISTRICT_IDX
+	DISTRICT,0
+
+INDEX=CUSTOMER_ID_IDX
+	CUSTOMER,0
+
+INDEX=CUSTOMER_LAST_IDX
+	CUSTOMER,0
+
+INDEX=STOCK_IDX
+	STOCK,0
+
