@@ -35,11 +35,27 @@ RC workload::init_schema(const char * schema_file) {
 			for (int i = 0; i < lines.size(); i++) {
 				string line = lines[i];
 				vector<string> items;
-				boost::trim(line);
-				boost::split(items, line, boost::is_any_of(","));
-                int size = atoi(items[0].c_str());
-                char * type = (char *)items[1].c_str(); 
-				char * name = (char *)items[2].c_str(); 
+			    int pos = 0;
+				string token;
+				int elem_num = 0;
+				int size;
+				char * type;
+				char * name;
+				while (line.length() != 0) {
+					pos = line.find(","); // != std::string::npos) {
+					if (pos == string::npos)
+						pos = line.length();
+	    			token = line.substr(0, pos);
+			    	line.erase(0, pos + 1);
+					switch (elem_num) {
+					case 0: size = atoi(token.c_str()); break;
+					case 1: type = const_cast<char*> (token.c_str()); break;
+					case 2: name = const_cast<char*> (token.c_str()); break;
+					default: assert(false);
+					}
+					elem_num ++;
+				}
+				assert(elem_num == 3);
                 schema->add_col(name, size, type);
 				col_count ++;
 			} 
@@ -47,14 +63,22 @@ RC workload::init_schema(const char * schema_file) {
             table_t * cur_tab = (table_t *) (tmp + CL_SIZE);
 			cur_tab->init(schema);
 			tables[tname] = cur_tab;
-        } else if (boost::starts_with(line, "INDEX=")) {
+        } else if (!line.compare(0, 6, "INDEX=")) {
 			string iname(&line[6]);
 			getline(fin, line);
 
 			vector<string> items;
-			boost::split(items, line, boost::is_any_of(","));
-			boost::trim(items[0]);
-				
+			string token;
+			int pos;
+			while (line.length() != 0) {
+				pos = line.find(","); // != std::string::npos) {
+				if (pos == string::npos)
+					pos = line.length();
+	    		token = line.substr(0, pos);
+				items.push_back(token);
+		    	line.erase(0, pos + 1);
+			}
+			
 			string tname(items[0]);
 			int field_cnt = items.size() - 1;
 			uint64_t * fields = new uint64_t [field_cnt];

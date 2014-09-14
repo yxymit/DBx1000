@@ -20,7 +20,6 @@
 #include <time.h> 
 #include <sys/time.h>
 #include <math.h>
-#include <boost/algorithm/string.hpp>
 
 #include "pthread.h"
 #include "config.h"

@@ -9,7 +9,7 @@
 RC TestWorkload::init() {
 	workload::init();
 	string path;
-	path = "./TEST_schema.txt";
+	path = "./benchmarks/TEST_schema.txt";
 	init_schema( path.c_str() );
 
 	init_table();

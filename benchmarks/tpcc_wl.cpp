@@ -18,7 +18,7 @@ RC tpcc_wl::init() {
 	char * cpath = getenv("GRAPHITE_HOME");
 	string path;	
 	if (cpath == NULL) 
-		path = "./";
+		path = "./benchmarks/";
 	else { 
 		path = string(cpath);
 		path += "/tests/apps/dbms/";

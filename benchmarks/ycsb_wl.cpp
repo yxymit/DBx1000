@@ -23,7 +23,7 @@ RC ycsb_wl::init() {
 	char * cpath = getenv("GRAPHITE_HOME");
 	string path;
 	if (cpath == NULL) 
-		path = "./YCSB_schema.txt";
+		path = "./benchmarks/YCSB_schema.txt";
 	else { 
 		path = string(cpath);
 		path += "/tests/apps/dbms/YCSB_schema.txt";

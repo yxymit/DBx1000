@@ -3,8 +3,6 @@
 
 #include "global.h"
 #include <map>
-//#include <boost/map.hpp>
-#include <boost/unordered_map.hpp>
 
 const int SizeNum = 4;
 const int BlockSizes[] = {32, 64, 256, 1024};
