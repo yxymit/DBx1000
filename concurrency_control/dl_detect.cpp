@@ -60,7 +60,7 @@ DL_detect::nextNode(uint64_t txnid, DetectData * detect_data) {
 			break;
 		} 
 		if ( !detect_data->visited[nextthd] && 
-			dependency[nextthd].txnid == txnids[n] && 
+			dependency[nextthd].txnid == (SInt64) txnids[n] && 
 			nextNode(txnids[n], detect_data)
 			) {
 			break;
@@ -82,7 +82,6 @@ DL_detect::nextNode(uint64_t txnid, DetectData * detect_data) {
 // isCycle returns true if there is a loop AND the current txn holds the least 
 // number of locks on that loop.
 bool DL_detect::isCyclic(uint64_t txnid, DetectData * detect_data) {
-	int thd = get_thdid_from_txnid(txnid);
 	return nextNode(txnid, detect_data);
 }
 
@@ -114,7 +113,7 @@ DL_detect::detect_cycle(uint64_t txnid) {
 		deadlock = true;
 		INC_GLOB_STATS(deadlock, 1);
 		int thd_to_abort = get_thdid_from_txnid(detect_data->min_txnid);
-		if (dependency[thd_to_abort].txnid == detect_data->min_txnid) {
+		if (dependency[thd_to_abort].txnid == (SInt64) detect_data->min_txnid) {
 			txn_man * txn = glob_manager.get_txn_man(thd_to_abort);
 			txn->lock_abort = true;
 		}

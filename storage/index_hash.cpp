@@ -6,9 +6,9 @@ RC IndexHash::init(uint64_t bucket_cnt) {
 	_bucket_cnt = bucket_cnt;
 	_bucket_cnt_per_part = bucket_cnt / g_part_cnt;
 	_buckets = new BucketHeader * [g_part_cnt];
-	for (int i = 0; i < g_part_cnt; i++) {
+	for (UInt32 i = 0; i < g_part_cnt; i++) {
 		_buckets[i] = (BucketHeader *) mem_allocator.alloc(sizeof(BucketHeader) * _bucket_cnt_per_part, i);
-		for (int n = 0; n < _bucket_cnt_per_part; n ++)
+		for (UInt32 n = 0; n < _bucket_cnt_per_part; n ++)
 			_buckets[i][n].init();
 	}
 	return RCOK;
@@ -18,6 +18,7 @@ RC
 IndexHash::init(int part_cnt, table_t * table, uint64_t bucket_cnt) {
 	init(bucket_cnt);
 	this->table = table;
+	return RCOK;
 }
 
 bool IndexHash::index_exist(idx_key_t key) {

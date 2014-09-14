@@ -43,7 +43,7 @@ uint64_t key_to_part(uint64_t key) {
 uint64_t merge_idx_key(uint64_t key_cnt, uint64_t * keys) {
 	uint64_t len = 64 / key_cnt;
 	uint64_t key = 0;
-	for (int i = 0; i < len; i++) {
+	for (UInt32 i = 0; i < len; i++) {
 		assert(keys[i] < (1 << len));
 		key = (key << len) | keys[i];
 	}
@@ -51,7 +51,7 @@ uint64_t merge_idx_key(uint64_t key_cnt, uint64_t * keys) {
 }
 
 uint64_t merge_idx_key(uint64_t key1, uint64_t key2) {
-	assert(key1 < (1 << 32) && key2 < (1 << 32));
+	assert(key1 < (1UL << 32) && key2 < (1UL << 32));
 	return key1 << 32 | key2;
 }
 

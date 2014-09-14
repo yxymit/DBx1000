@@ -18,14 +18,13 @@ RC TestTxnMan::run_txn(int type, int access_num) {
 }
 
 RC TestTxnMan::testReadwrite(int access_num) {
-	RC rc;
+	RC rc = RCOK;
 	itemid_t * m_item;
 
 	m_item = index_read(_wl->the_index, 0, 0);
 	row_t * row = ((row_t *)m_item->location);
-	row_t * row_local; 
+	row_t * row_local = get_row(row, WR);
 	if (access_num == 0) {			
-		row_local = get_row(row, WR);
 		char str[] = "hello";
 		row_local->set_value(0, 1234);
 		row_local->set_value(1, 1234.5);

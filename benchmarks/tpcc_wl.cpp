@@ -30,11 +30,12 @@ RC tpcc_wl::init() {
 #endif
 	cout << "reading schema file: " << path << endl;
 	delivering = new bool * [g_num_wh + 1];
-	for (int wid = 1; wid <= g_num_wh; wid ++)
+	for (UInt32 wid = 1; wid <= g_num_wh; wid ++)
 		delivering[wid] = (bool *) mem_allocator.alloc(CL_SIZE, wid);
 	
 	init_schema( path.c_str() );
 	init_table();
+	return RCOK;
 }
 
 RC tpcc_wl::init_schema(const char * schema_file) {
@@ -57,6 +58,7 @@ RC tpcc_wl::init_schema(const char * schema_file) {
 	i_stock = indexes["STOCK_IDX"];
 //	i_order = indexes["ORDER_IDX"];
 //	i_orderline = indexes["ORDER-LINE_IDX"];
+	return RCOK;
 }
 
 RC tpcc_wl::init_table() {
@@ -108,7 +110,7 @@ RC tpcc_wl::get_txn_man(txn_man *& txn_manager, thread_t * h_thd) {
 void tpcc_wl::init_tab_item() {
 	if (WL_VERB)
 		printf("[init] loading item table\n");
-	for (int i = 1; i <= g_max_items; i++) {
+	for (UInt32 i = 1; i <= g_max_items; i++) {
 		row_t * row;
 		uint64_t row_id;
 		t_item->get_new_row(row, 0, row_id);
@@ -133,7 +135,7 @@ void tpcc_wl::init_tab_item() {
 void tpcc_wl::init_tab_wh() {
 	if (WL_VERB)
 		printf("[init] workload table.\n");
-	for (uint64_t wid = 1; wid <= g_num_wh; wid ++) {
+	for (UInt32 wid = 1; wid <= g_num_wh; wid ++) {
 		row_t * row;
 		uint64_t row_id;
 		t_warehouse->get_new_row(row, 0, row_id);
@@ -204,7 +206,7 @@ void tpcc_wl::init_tab_dist(uint64_t wid) {
 
 void tpcc_wl::init_tab_stock(uint64_t wid) {
 	
-	for (uint64_t sid = 1; sid <= g_max_items; sid++) {
+	for (UInt32 sid = 1; sid <= g_max_items; sid++) {
 		row_t * row;
 		uint64_t row_id;
 		t_stock->get_new_row(row, 0, row_id);
@@ -244,7 +246,7 @@ void tpcc_wl::init_tab_stock(uint64_t wid) {
 
 void tpcc_wl::init_tab_cust(uint64_t did, uint64_t wid) {
 	assert(g_cust_per_dist >= 1000);
-	for (uint64_t cid = 1; cid <= g_cust_per_dist; cid++) {
+	for (UInt32 cid = 1; cid <= g_cust_per_dist; cid++) {
 		row_t * row;
 		uint64_t row_id;
 		t_customer->get_new_row(row, 0, row_id);
@@ -290,10 +292,10 @@ void tpcc_wl::init_tab_cust(uint64_t did, uint64_t wid) {
 
 #endif
 		if (RAND(10) == 0) {
-			char * tmp = "GC";
+			char tmp[] = "GC";
 			row->set_value(C_CREDIT, tmp);
 		} else {
-			char * tmp = "BC";
+			char tmp[] = "BC";
 			row->set_value(C_CREDIT, tmp);
 		}
 		row->set_value(C_DISCOUNT, (double)RAND(5000) / 10000);
@@ -330,7 +332,7 @@ void tpcc_wl::init_tab_hist(uint64_t c_id, uint64_t d_id, uint64_t w_id) {
 
 void tpcc_wl::init_tab_order(uint64_t did, uint64_t wid) {
 	init_permutation(); /* initialize permutation of customer numbers */
-	for (uint64_t oid = 1; oid <= g_cust_per_dist; oid++) {
+	for (UInt32 oid = 1; oid <= g_cust_per_dist; oid++) {
 		row_t * row;
 		uint64_t row_id;
 		t_order->get_new_row(row, 0, row_id);
@@ -403,11 +405,11 @@ void tpcc_wl::init_tab_order(uint64_t did, uint64_t wid) {
 +==================================================================*/
 
 void tpcc_wl::init_permutation() {
-	int i;
+	UInt32 i;
 	perm_count = 0;
 	perm_c_id = new uint64_t[g_cust_per_dist];
 	// Init with consecutive values
-	for(i=0; i < g_cust_per_dist; i++) {
+	for(i = 0; i < g_cust_per_dist; i++) {
 		perm_c_id[i] = i+1;
 	}
 
@@ -438,23 +440,27 @@ uint64_t tpcc_wl::get_permutation() {
 void * tpcc_wl::threadInitItem(void * This) {
 	((tpcc_wl *)This)->init_tab_item();
 	printf("ITEM Done\n");
+	return NULL;
 }
 
 void * tpcc_wl::threadInitWh(void * This) {
 	((tpcc_wl *)This)->init_tab_wh();
 	printf("WAREHOUSE Done\n");
+	return NULL;
 }
 
 void * tpcc_wl::threadInitDist(void * This) {
 	for (uint64_t wid = 1; wid <= g_num_wh; wid ++)
 		((tpcc_wl *)This)->init_tab_dist(wid);
 	printf("DISTRICT Done\n");
+	return NULL;
 }
 
 void * tpcc_wl::threadInitStock(void * This) {
 	for (uint64_t wid = 1; wid <= g_num_wh; wid ++)
 		((tpcc_wl *)This)->init_tab_stock(wid);
 	printf("STOCK Done\n");
+	return NULL;
 }
 
 void * tpcc_wl::threadInitCust(void * This) {
@@ -462,6 +468,7 @@ void * tpcc_wl::threadInitCust(void * This) {
 		for (uint64_t did = 1; did <= DIST_PER_WARE; did++)
 			((tpcc_wl *)This)->init_tab_cust(did, wid);
 	printf("CUSTOMER Done\n");
+	return NULL;
 }
 	
 void * tpcc_wl::threadInitHist(void * This) {
@@ -470,6 +477,7 @@ void * tpcc_wl::threadInitHist(void * This) {
 			for (uint64_t cid = 1; cid <= g_cust_per_dist; cid++) 
 				((tpcc_wl *)This)->init_tab_hist(cid, did, wid);
 	printf("HISTORY Done\n");
+	return NULL;
 }
 
 void * tpcc_wl::threadInitOrder(void * This) {
@@ -477,6 +485,7 @@ void * tpcc_wl::threadInitOrder(void * This) {
 		for (uint64_t did = 1; did <= DIST_PER_WARE; did++)
 			((tpcc_wl *)This)->init_tab_order(did, wid);
 	printf("ORDER Done\n");
+	return NULL;
 }
 
 

@@ -16,7 +16,7 @@ private:
 	pthread_mutex_t latch;
 	txn_man * owner;
 	txn_man ** waiters;
-	int waiter_cnt;
+	UInt32 waiter_cnt;
 };
 
 // Partition Level Locking

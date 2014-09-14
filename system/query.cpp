@@ -13,7 +13,7 @@ void
 Query_queue::init(workload * h_wl) {
 	all_queries = new Query_thd * [g_thread_cnt];
 	_wl = h_wl;
-	for (int tid = 0; tid < g_thread_cnt; tid ++)
+	for (UInt32 tid = 0; tid < g_thread_cnt; tid ++)
 		init(tid);
 }
 
@@ -41,8 +41,7 @@ Query_thd::init(workload * h_wl, int thread_id) {
 	queries = (tpcc_query *) 
 		mem_allocator.alloc(sizeof(tpcc_query) * request_cnt, thread_id);
 #endif
-	void * pad = malloc(CL_SIZE);
-	for (int qid = 0; qid < request_cnt; qid ++) {
+	for (UInt32 qid = 0; qid < request_cnt; qid ++) {
 #if WORKLOAD == YCSB	
 		new(&queries[qid]) ycsb_query();
 #elif WORKLOAD == TPCC

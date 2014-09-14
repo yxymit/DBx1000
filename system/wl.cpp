@@ -10,6 +10,7 @@
 
 RC workload::init() {
 	sim_done = false;
+	return RCOK;
 }
 
 RC workload::init_schema(const char * schema_file) {
@@ -22,7 +23,7 @@ RC workload::init_schema(const char * schema_file) {
 		if (line.compare(0, 6, "TABLE=") == 0) {
 			string tname(&line[6]);
 			void * tmp = new char[CL_SIZE * 2 + sizeof(Catalog)];
-            schema = (Catalog *) (tmp + CL_SIZE);
+            schema = (Catalog *) ((UInt64)tmp + CL_SIZE);
 			getline(fin, line);
 			int col_count = 0;
 			// Read all fields for this table.
@@ -32,10 +33,10 @@ RC workload::init_schema(const char * schema_file) {
 				getline(fin, line);
 			}
 			schema->init( tname.c_str(), lines.size() );
-			for (int i = 0; i < lines.size(); i++) {
+			for (UInt32 i = 0; i < lines.size(); i++) {
 				string line = lines[i];
 				vector<string> items;
-			    int pos = 0;
+			    size_t pos = 0;
 				string token;
 				int elem_num = 0;
 				int size;
@@ -60,7 +61,7 @@ RC workload::init_schema(const char * schema_file) {
 				col_count ++;
 			} 
 			tmp = new char[CL_SIZE * 2 + sizeof(table_t)];
-            table_t * cur_tab = (table_t *) (tmp + CL_SIZE);
+            table_t * cur_tab = (table_t *) ((UInt64)tmp + CL_SIZE);
 			cur_tab->init(schema);
 			tables[tname] = cur_tab;
         } else if (!line.compare(0, 6, "INDEX=")) {
@@ -69,7 +70,7 @@ RC workload::init_schema(const char * schema_file) {
 
 			vector<string> items;
 			string token;
-			int pos;
+			size_t pos;
 			while (line.length() != 0) {
 				pos = line.find(","); // != std::string::npos) {
 				if (pos == string::npos)
@@ -95,6 +96,7 @@ RC workload::init_schema(const char * schema_file) {
 		}
     }
 	fin.close();
+	return RCOK;
 }
 
 

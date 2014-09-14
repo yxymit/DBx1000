@@ -53,7 +53,7 @@ private:
 	void init_tab_hist(uint64_t c_id, uint64_t d_id, uint64_t w_id);
 	void init_tab_order(uint64_t d_id, uint64_t w_id);
 	
-	uint64_t perm_count;
+	UInt32 perm_count;
 	uint64_t * perm_c_id;
 	void init_permutation();
 	uint64_t get_permutation();

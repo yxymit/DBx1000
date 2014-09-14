@@ -14,7 +14,8 @@ Build & Test
 
 To build the database.
 
-    make -f Makefile.local -j
+    make deps
+    make -j
 
 To test the database
 

@@ -77,14 +77,9 @@ void tpcc_query::gen_new_order(uint64_t thd_id) {
 	part_to_access[0] = wh_to_part(w_id);
 	part_num = 1;
 
-	for (int oid = 0; oid < ol_cnt; oid ++) {
-		// ol_i_id == 0 does not exist
-//		if (oid == ol_cnt - 1 && rbk == 1)
-//			items[oid].ol_i_id = 0;
-//		else 
-		// XXX assume all items are in the database. No data entry error
+	for (UInt32 oid = 0; oid < ol_cnt; oid ++) {
 		items[oid].ol_i_id = NURand(8191, 1, g_max_items);
-		int x = URand(1, 100);
+		UInt32 x = URand(1, 100);
 		if (x > 1 || g_num_wh == 1)
 			items[oid].ol_supply_w_id = w_id;
 		else  {
@@ -94,22 +89,22 @@ void tpcc_query::gen_new_order(uint64_t thd_id) {
 		items[oid].ol_quantity = URand(1, 10);
 	}
 	// Remove duplicate items
-	for (int i = 0; i < ol_cnt; i ++) {
-		for (int j = 0; j < i; j++) {
+	for (UInt32 i = 0; i < ol_cnt; i ++) {
+		for (UInt32 j = 0; j < i; j++) {
 			if (items[i].ol_i_id == items[j].ol_i_id) {
-				for (int k = i; k < ol_cnt - 1; k++)
+				for (UInt32 k = i; k < ol_cnt - 1; k++)
 					items[k] = items[k + 1];
 				ol_cnt --;
 				i--;
 			}
 		}
 	}
-	for (int i = 0; i < ol_cnt; i ++) 
-		for (int j = 0; j < i; j++) 
+	for (UInt32 i = 0; i < ol_cnt; i ++) 
+		for (UInt32 j = 0; j < i; j++) 
 			assert(items[i].ol_i_id != items[j].ol_i_id);
 	// update part_to_access
-	for (int i = 0; i < ol_cnt; i ++) {
-		int j;
+	for (UInt32 i = 0; i < ol_cnt; i ++) {
+		UInt32 j;
 		for (j = 0; j < part_num; j++ ) 
 			if (part_to_access[j] == wh_to_part(items[i].ol_supply_w_id))
 				break;

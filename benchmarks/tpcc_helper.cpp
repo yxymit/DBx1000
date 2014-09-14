@@ -19,7 +19,7 @@ uint64_t orderPrimaryKey(uint64_t w_id, uint64_t d_id, uint64_t o_id) {
 uint64_t custNPKey(char * c_last, uint64_t c_d_id, uint64_t c_w_id) {
 	uint64_t key = 0;
 	char offset = 'A';
-	for (int i = 0; i < strlen(c_last); i++) 
+	for (uint32_t i = 0; i < strlen(c_last); i++) 
 		key = (key << 1) + (c_last[i] - offset);
 	key = key << 10;
 	key += c_w_id * DIST_PER_WARE + c_d_id;
@@ -41,7 +41,6 @@ uint64_t olKey(uint64_t ol_o_id, uint64_t ol_d_id,
 }
 */
 uint64_t Lastname(uint64_t num, char* name) {
-  	int i;
   	static const char *n[] =
     	{"BAR", "OUGHT", "ABLE", "PRI", "PRES",
      	"ESE", "ANTI", "CALLY", "ATION", "EING"};
@@ -101,7 +100,7 @@ uint64_t MakeAlphaString(int min, int max, char* str) {
                         'B','C','D','E','F','G','H','I','J','K','L','M',
                         'N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
     uint64_t cnt = URand(min, max);
-    for (int i = 0; i < cnt; i++) 
+    for (uint32_t i = 0; i < cnt; i++) 
 		str[i] = char_list[URand(0L, 60L)];
     for (int i = cnt; i < max; i++)
 		str[i] = '\0';
@@ -112,7 +111,7 @@ uint64_t MakeAlphaString(int min, int max, char* str) {
 uint64_t MakeNumberString(int min, int max, char* str) {
 
   uint64_t cnt = URand(min, max);
-  for (int i = 0; i < cnt; i++) {
+  for (UInt32 i = 0; i < cnt; i++) {
     uint64_t r = URand(0L,9L);
     str[i] = '0' + r;
   }

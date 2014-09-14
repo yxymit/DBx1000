@@ -57,15 +57,18 @@ public:
 	void set_value(const char * col_name, void * ptr);
 	char * get_value(int id);
 	char * get_value(char * col_name);
+	
 	DECL_SET_VALUE(uint64_t);
 	DECL_SET_VALUE(int64_t);
 	DECL_SET_VALUE(double);
-	DECL_SET_VALUE(int);
+	DECL_SET_VALUE(UInt32);
+	DECL_SET_VALUE(SInt32);
 
 	DECL_GET_VALUE(uint64_t);
 	DECL_GET_VALUE(int64_t);
 	DECL_GET_VALUE(double);
-	DECL_GET_VALUE(int);
+	DECL_GET_VALUE(UInt32);
+	DECL_GET_VALUE(SInt32);
 
 
 	void set_data(char * data);

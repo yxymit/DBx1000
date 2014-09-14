@@ -1,7 +1,7 @@
 #ifndef _GLOBAL_H_
 #define _GLOBAL_H_
 
-#include <stdint.h>
+#include "stdint.h"
 #include <unistd.h>
 #include <cstddef>
 #include <cstdlib>
@@ -40,6 +40,13 @@ class Plock;
 class OptCC;
 class VLLMan;
 
+typedef uint32_t UInt32;
+typedef int32_t SInt32;
+typedef uint64_t UInt64;
+typedef int64_t SInt64;
+
+typedef uint64_t ts_t; // time stamp type
+
 /******************************************/
 // Global Data Structure 
 /******************************************/
@@ -67,42 +74,42 @@ extern carbon_barrier_t enable_barrier;
 extern bool g_part_alloc;
 extern bool g_mem_pad;
 extern bool g_prt_lat_distr;
-extern int g_part_cnt;
-extern int g_virtual_part_cnt;
-extern int g_thread_cnt;
-extern int g_abort_penalty; 
+extern UInt32 g_part_cnt;
+extern UInt32 g_virtual_part_cnt;
+extern UInt32 g_thread_cnt;
+extern ts_t g_abort_penalty; 
 extern bool g_central_man;
-extern int g_ts_alloc;
+extern UInt32 g_ts_alloc;
 extern bool g_key_order;
 extern bool g_no_dl;
-extern uint64_t g_timeout;
-extern int g_dl_loop_detect;
+extern ts_t g_timeout;
+extern ts_t g_dl_loop_detect;
 extern bool g_ts_batch_alloc;
-extern int g_ts_batch_num;
+extern UInt32 g_ts_batch_num;
 
 
 extern bool g_hw_migrate;
 
 // YCSB
-extern int g_cc_alg;
-extern int g_query_intvl;
-extern int g_part_per_txn;
+extern UInt32 g_cc_alg;
+extern ts_t g_query_intvl;
+extern UInt32 g_part_per_txn;
 extern double g_perc_multi_part;
 extern double g_read_perc;
 extern double g_write_perc;
 extern double g_zipf_theta;
-extern int g_synth_table_size;
-extern int g_req_per_query;
-extern int g_field_per_tuple;
-extern int g_init_parallelism;
+extern UInt64 g_synth_table_size;
+extern UInt32 g_req_per_query;
+extern UInt32 g_field_per_tuple;
+extern UInt32 g_init_parallelism;
 
 // TPCC
-extern int g_num_wh;
+extern UInt32 g_num_wh;
 extern double g_perc_payment;
 extern bool g_wh_update;
 extern char * output_file;
-extern int g_max_items;
-extern int g_cust_per_dist;
+extern UInt32 g_max_items;
+extern UInt32 g_cust_per_dist;
 
 enum RC { RCOK, Commit, Abort, WAIT, ERROR, FINISH};
 
@@ -115,7 +122,8 @@ typedef uint64_t txn_t;
 /* Table and Row */
 typedef uint64_t rid_t; // row id
 typedef uint64_t pgid_t; // page id
-typedef uint64_t ts_t; // time stamp type
+
+
 
 /* INDEX */
 enum latch_t {LATCH_EX, LATCH_SH, LATCH_NONE};
@@ -147,8 +155,8 @@ enum TsType {R_REQ, W_REQ, P_REQ, XP_REQ};
 /************************************************/
 // constants
 /************************************************/
-
-#define UINT64_MAX 		18446744073709551615
-
+#ifndef UINT64_MAX
+#define UINT64_MAX 		18446744073709551615UL
+#endif // UINT64_MAX
 
 #endif

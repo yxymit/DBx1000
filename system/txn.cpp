@@ -6,7 +6,7 @@
 #include "mem_alloc.h"
 #include "occ.h"
 #include "table.h"
-#include "catalog.h""
+#include "catalog.h"
 #include "index_btree.h"
 #include "index_hash.h"
 
@@ -51,7 +51,6 @@ ts_t txn_man::get_ts() {
 }
 
 void txn_man::cleanup(RC rc) {
-	int part_id;
 	for (int rid = row_cnt - 1; rid >= 0; rid --) {
 #if !NOGRAPHITE
 		part_id = accesses[rid]->orig_row->get_part_id();
@@ -84,7 +83,7 @@ void txn_man::cleanup(RC rc) {
 	}
 
 	if (rc == Abort) {
-		for (int i = 0; i < insert_cnt; i ++) {
+		for (UInt32 i = 0; i < insert_cnt; i ++) {
 			row_t * row = insert_rows[i];
 			assert(g_part_alloc == false);
 #if CC_ALG != HSTORE && CC_ALG != OCC

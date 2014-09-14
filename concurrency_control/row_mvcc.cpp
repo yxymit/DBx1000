@@ -28,8 +28,9 @@ row_t * Row_mvcc::clear_history(TsType type, ts_t ts) {
 	MVHisEntry ** queue;
 	MVHisEntry ** tail;
     switch (type) {
-        case R_REQ : queue = &readhis; tail = &readhistail; break;
-        case W_REQ : queue = &writehis; tail = &writehistail; break;
+    case R_REQ : queue = &readhis; tail = &readhistail; break;
+    case W_REQ : queue = &writehis; tail = &writehistail; break;
+	default: assert(false);
     }
 	MVHisEntry * his = *tail;
 	MVHisEntry * prev = NULL;
@@ -101,8 +102,9 @@ MVReqEntry * Row_mvcc::debuffer_req( TsType type, txn_man * txn) {
 	MVReqEntry ** queue;
 	MVReqEntry * return_queue = NULL;
 	switch (type) {
-		case R_REQ : queue = &readreq_mvcc; break;
-		case P_REQ : queue = &prereq_mvcc; break;
+	case R_REQ : queue = &readreq_mvcc; break;
+	case P_REQ : queue = &prereq_mvcc; break;
+	default: assert(false);
 	}
 	
 	MVReqEntry * req = *queue;
@@ -128,7 +130,7 @@ MVReqEntry * Row_mvcc::debuffer_req( TsType type, txn_man * txn) {
 		// should return all non-conflicting read requests
 		// TODO The following code makes the assumption that each write op
 		// must read the row first. i.e., there is no write-only operation.
-		uint64_t min_pts = UINT64_MAX;
+		uint64_t min_pts = (1UL << 32);
 		for (MVReqEntry * preq = prereq_mvcc; preq != NULL; preq = preq->next)
 			if (preq->ts < min_pts)
 				min_pts = preq->ts;
@@ -184,8 +186,8 @@ bool Row_mvcc::conflict(TsType type, ts_t ts) {
 	// else 
 	// 	 if exists writehis between them, NO conflict!!!!
 	// 	 else, CONFLICT!!!
-	int64_t rts;
-	int64_t pts;
+	ts_t rts;
+	ts_t pts;
 	if (type == R_REQ) {	
 		rts = ts;
 		pts = 0;
@@ -224,7 +226,6 @@ bool Row_mvcc::conflict(TsType type, ts_t ts) {
 
 RC Row_mvcc::access(txn_man * txn, TsType type, row_t * row) {
 	RC rc = RCOK;
-	uint64_t starttime = get_sys_clock();
 	ts_t ts = txn->get_ts();
 	if (g_central_man)
 		glob_manager.lock_row(_row);
@@ -276,7 +277,7 @@ RC Row_mvcc::access(txn_man * txn, TsType type, row_t * row) {
 		update_buffer(txn);
 	} else 
 		assert(false);
-final:
+	
 	if (rc == RCOK) {
 		if (whis_len > HIS_RECYCLE_LEN || rhis_len > HIS_RECYCLE_LEN) {
 			ts_t t_th = glob_manager.get_min_ts(txn->get_thd_id());
@@ -303,7 +304,6 @@ final:
 	else
 		pthread_mutex_unlock( latch );	
 		
-	uint64_t endtime = get_sys_clock();
 	return rc;
 }
 

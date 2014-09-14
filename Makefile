@@ -5,7 +5,8 @@ CFLAGS=-Wall -g -std=c++0x
 
 SRC_DIRS = ./ ./benchmarks/ ./concurrency_control/ ./storage/ ./system/
 DEPS = -I. -I./benchmarks -I./concurrency_control -I./storage -I./system
-CFLAGS += $(DEPS) -D NOGRAPHITE=1
+
+CFLAGS += $(DEPS) -D NOGRAPHITE=1 -Werror
 LDFLAGS = -Wall -L. -pthread -g -lrt -std=c++0x 
 LDFLAGS += $(CFLAGS)
 

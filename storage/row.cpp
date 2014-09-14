@@ -25,7 +25,8 @@ row_t::init(table_t * host_table, uint64_t part_id, uint64_t row_id) {
 
 RC 
 row_t::switch_schema(table_t * host_table) {
-	this->table = host_table;	
+	this->table = host_table;
+	return RCOK;
 }
 
 void row_t::init_manager(row_t * row) {
@@ -84,12 +85,14 @@ void row_t::set_value(const char * col_name, void * ptr) {
 SET_VALUE(uint64_t);
 SET_VALUE(int64_t);
 SET_VALUE(double);
-SET_VALUE(int);
+SET_VALUE(UInt32);
+SET_VALUE(SInt32);
 
 GET_VALUE(uint64_t);
 GET_VALUE(int64_t);
 GET_VALUE(double);
-GET_VALUE(int);
+GET_VALUE(UInt32);
+GET_VALUE(SInt32);
 
 char * row_t::get_value(int id) {
 	int pos = get_schema()->get_field_index(id);
@@ -117,10 +120,9 @@ void row_t::free_row() {
 }
 
 RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
-	uint64_t starttime = get_sys_clock();
 	RC rc = RCOK;
-	uint64_t thd_id = txn->get_thd_id();
 #if CC_ALG == WAIT_DIE || CC_ALG == NO_WAIT || CC_ALG == DL_DETECT
+	uint64_t thd_id = txn->get_thd_id();
 	lock_t lt = (type == RD || type == SCAN)? LOCK_SH : LOCK_EX;
 #if CC_ALG == DL_DETECT
 	uint64_t * txnids;
@@ -136,9 +138,9 @@ RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
 	else if (rc == WAIT) {
 		ASSERT(CC_ALG == WAIT_DIE || CC_ALG == DL_DETECT);
 		uint64_t starttime = get_sys_clock();
-		uint64_t last_detect = starttime;
-		uint64_t last_try = starttime;
+#if CC_ALG == DL_DETECT	
 		bool dep_added = false;
+#endif
 		uint64_t endtime;
 		txn->lock_abort = false;
 		INC_STATS(txn->get_thd_id(), wait_cnt, 1);
@@ -147,6 +149,9 @@ RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
 #if CC_ALG == WAIT_DIE 
 			continue;
 #elif CC_ALG == DL_DETECT	
+			uint64_t last_detect = starttime;
+			uint64_t last_try = starttime;
+
 			uint64_t now = get_sys_clock();
 			if (now - starttime > g_timeout ) {
 				txn->lock_abort = true;
@@ -188,6 +193,7 @@ RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
 	}
 	return rc;
 #elif CC_ALG == TIMESTAMP || CC_ALG == MVCC 
+	uint64_t thd_id = txn->get_thd_id();
 	// For TIMESTAMP RD, a new copy of the row will be returned.
 	// for MVCC RD, the version will be returned instead of a copy
 	// So for MVCC RD-WR, the version should be explicitly copied.
@@ -208,15 +214,13 @@ RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
 		if (rc != RCOK) 
 			return rc;
 	}
-	if (type == WR && rc == RCOK || type == RD || type == SCAN) {
+	if ((type == WR && rc == RCOK) || type == RD || type == SCAN) {
 		rc = this->manager->access(txn, R_REQ, NULL);
 		if (rc == RCOK ) {
 			row = txn->cur_row;
 		} else if (rc == WAIT) {
 			uint64_t t1 = get_sys_clock();
-			while (!txn->ts_ready) {
-				uint64_t now = get_sys_clock();
-			}
+			while (!txn->ts_ready) {}
 			uint64_t t2 = get_sys_clock();
 			INC_TMP_STATS(thd_id, time_wait, t2 - t1);
 			row = txn->cur_row;
@@ -242,7 +246,7 @@ RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
 	return rc;
 #elif CC_ALG == HSTORE || CC_ALG == VLL
 	row = this;
-	return RCOK;
+	return rc;
 #else
 	assert(false);
 #endif
@@ -256,7 +260,6 @@ RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
 // For TIMESTAMP, the row will be explicity deleted at the end of access().
 // (c.f. row_ts.cpp)
 void row_t::return_row(access_t type, txn_man * txn, row_t * row) {	
-	RC rc;
 #if CC_ALG == WAIT_DIE || CC_ALG == NO_WAIT || CC_ALG == DL_DETECT
 	assert (row == NULL || row == this || type == XP);
 	if (ROLL_BACK && type == XP) {// recover from previous writes.
@@ -278,7 +281,7 @@ void row_t::return_row(access_t type, txn_man * txn, row_t * row) {
 	} else if (type == WR) {
 		assert (type == WR && row != NULL);
 		assert (row->get_schema() == this->get_schema());
-		rc = this->manager->access(txn, W_REQ, row);
+		RC rc = this->manager->access(txn, W_REQ, row);
 		assert(rc == RCOK);
 	}
 #elif CC_ALG == OCC

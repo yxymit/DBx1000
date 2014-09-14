@@ -40,13 +40,10 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 	
 	uint64_t w_id = query->w_id;
     uint64_t d_id = query->d_id;
-    uint64_t d_w_id = query->d_w_id;
     uint64_t c_w_id = query->c_w_id;
     uint64_t c_d_id = query->c_d_id;
     uint64_t c_id = query->c_id;
-    char * c_last = query->c_last;
     double h_amount = query->h_amount;
-    bool by_last_name = query->by_last_name;
 	/*====================================================+
     	EXEC SQL UPDATE warehouse SET w_ytd = w_ytd + :h_amount
 		WHERE w_id=:w_id;
@@ -137,11 +134,9 @@ INC_STATS(get_thd_id(), debug3, tt3);
 		// XXX: the list is not sorted. But let's assume it's sorted... 
 		// The performance won't be much different.
 		INDEX * index = _wl->i_customer_last;
-		uint64_t thd_id = get_thd_id();
 		item = index_read(index, key, wh_to_part(c_w_id));
 		assert(item != NULL);
-//		rc = index->index_read(key, item, wh_to_part(c_w_id));
-//		assert(rc == RCOK);
+		
 		int cnt = 0;
 		itemid_t * it = item;
 		itemid_t * mid = item;
@@ -250,7 +245,6 @@ INC_STATS(get_thd_id(), debug3, tt3);
 	r_hist->set_value(H_AMOUNT, h_amount);
 	insert_row(r_hist, _wl->t_history);
 
-final:
 	assert( rc == RCOK );
 	return finish(rc);
 }
@@ -297,11 +291,11 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 		return finish(Abort); 
 	}
 	uint64_t c_discount;
-	char * c_last;
-	char * c_credit;
+	//char * c_last;
+	//char * c_credit;
 	r_cust_local->get_value(C_DISCOUNT, c_discount);
-	c_last = r_cust_local->get_value(C_LAST);
-	c_credit = r_cust_local->get_value(C_CREDIT);
+	//c_last = r_cust_local->get_value(C_LAST);
+	//c_credit = r_cust_local->get_value(C_CREDIT);
  	
 	/*==================================================+
 	EXEC SQL SELECT d_next_o_id, d_tax
@@ -320,9 +314,9 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 	if (r_dist_local == NULL) {
 		return finish(Abort);
 	}
-	double d_tax;
+	//double d_tax;
 	int64_t o_id;
-	d_tax = *(double *) r_dist_local->get_value(D_TAX);
+	//d_tax = *(double *) r_dist_local->get_value(D_TAX);
 	o_id = *(int64_t *) r_dist_local->get_value(D_NEXT_O_ID);
 	o_id ++;
 	r_dist_local->set_value(D_NEXT_O_ID, o_id);
@@ -353,7 +347,7 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 	r_no->set_value(NO_D_ID, d_id);
 	r_no->set_value(NO_W_ID, w_id);
 	insert_row(r_no, _wl->t_neworder);
-	for (int ol_number = 0; ol_number < ol_cnt; ol_number++) {
+	for (UInt32 ol_number = 0; ol_number < ol_cnt; ol_number++) {
 
 		uint64_t ol_i_id = query->items[ol_number].ol_i_id;
 		uint64_t ol_supply_w_id = query->items[ol_number].ol_supply_w_id;
@@ -376,12 +370,12 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 			return finish(Abort);
 		}
 		int64_t i_price;
-		char * i_name;
-		char * i_data;
+		//char * i_name;
+		//char * i_data;
 		
 		r_item_local->get_value(I_PRICE, i_price);
-		i_name = r_item_local->get_value(I_NAME);
-		i_data = r_item_local->get_value(I_DATA);
+		//i_name = r_item_local->get_value(I_NAME);
+		//i_data = r_item_local->get_value(I_DATA);
 
 		/*===================================================================+
 		EXEC SQL SELECT s_quantity, s_data,
@@ -410,7 +404,7 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 		}
 		
 		// XXX s_dist_xx are not retrieved.
-		int64_t s_quantity;
+		UInt64 s_quantity;
 		int64_t s_remote_cnt;
 		s_quantity = *(int64_t *)r_stock_local->get_value(S_QUANTITY);
 #if !TPCC_SMALL
@@ -424,7 +418,6 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 		s_data = r_stock_local->get_value(S_DATA);
 #endif
 		if (remote) {
-			int64_t s_rmote_cnt;
 			s_remote_cnt = *(int64_t*)r_stock_local->get_value(S_REMOTE_CNT);
 			s_remote_cnt ++;
 			r_stock_local->set_value(S_REMOTE_CNT, &s_remote_cnt);
@@ -447,8 +440,7 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 				:ol_quantity, :ol_amount, :ol_dist_info);
 		+====================================================*/
 		// XXX district info is not inserted.
-		int64_t ol_amount = ol_quantity * i_price * \
-			(1 + w_tax + d_tax) * (1 - c_discount);
+		//int64_t ol_amount = ol_quantity * i_price * (1 + w_tax + d_tax) * (1 - c_discount);
 		row_t * r_ol;
 		uint64_t row_id;
 		_wl->t_orderline->get_new_row(r_ol, 0, row_id);
@@ -464,7 +456,6 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 #endif		
 		insert_row(r_ol, _wl->t_orderline);
 	}
-final:
 	assert( rc == RCOK );
 	return finish(rc);
 }

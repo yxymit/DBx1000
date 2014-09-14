@@ -22,24 +22,22 @@ void ycsb_txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 }
 
 RC ycsb_txn_man::run_txn(base_query * query) {
-	uint64_t starttime = get_sys_clock();
 	RC rc;
 	ycsb_query * m_query = (ycsb_query *) query;
 	ycsb_wl * wl = (ycsb_wl *) h_wl;
 	itemid_t * m_item;
   	row_cnt = 0;
 
-	Catalog * schema = _wl->the_table->get_schema();
-	for (int rid = 0; rid < m_query->request_cnt; rid ++) {
+//	Catalog * schema = _wl->the_table->get_schema();
+	for (UInt32 rid = 0; rid < m_query->request_cnt; rid ++) {
 		ycsb_request * req = &m_query->requests[rid];
 		int part_id = wl->key_to_part( req->key );
 #if !NOGRAPHITE
 		if (g_hw_migrate && part_id != CarbonGetHostTileId()) 
 			CarbonMigrateThread(part_id);
 #endif  
-		int average = 0;
 		bool finish_req = false;
-		int iteration = 0;
+		UInt32 iteration = 0;
 		while ( !finish_req ) {
 			if (iteration == 0) {
 				m_item = index_read(_wl->the_index, req->key, part_id);

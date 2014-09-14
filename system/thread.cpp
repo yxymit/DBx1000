@@ -51,9 +51,8 @@ RC thread_t::run() {
 
 	base_query * m_query = NULL;
 	uint64_t thd_txn_id = 0;
-	int txn_cnt = 0;
+	UInt64 txn_cnt = 0;
 
-	ts_t curr_ts = 0;
 	while (true) {
 		ts_t starttime = get_sys_clock();
 		if (WORKLOAD != TEST)
@@ -69,7 +68,7 @@ RC thread_t::run() {
 			m_txn->set_txn_id(get_thd_id() + thd_txn_id * g_thread_cnt);
 			thd_txn_id ++;
 
-			if (CC_ALG == HSTORE && !HSTORE_LOCAL_TS 
+			if ((CC_ALG == HSTORE && !HSTORE_LOCAL_TS)
 					|| CC_ALG == MVCC 
 					|| CC_ALG == TIMESTAMP 
 					|| CC_ALG == WAIT_DIE) {
@@ -190,7 +189,6 @@ thread_t::get_next_ts() {
 RC thread_t::runTest(txn_man * txn)
 {
 	RC rc = RCOK;
-	int access_num = 0;
 	if (g_test_case == READ_WRITE) {
 		rc = ((TestTxnMan *)txn)->run_txn(g_test_case, 0);
 		rc = ((TestTxnMan *)txn)->run_txn(g_test_case, 1);
@@ -198,7 +196,6 @@ RC thread_t::runTest(txn_man * txn)
 		return FINISH;
 	}
 	else if (g_test_case == CONFLICT) {
-		int abort_cnt = 0;
 		rc = ((TestTxnMan *)txn)->run_txn(g_test_case, 0);
 		printf("ts = %ld, tid=%ld, rc=%d\n", txn->get_ts(), get_thd_id(), rc);
 		if (rc == RCOK)
@@ -206,4 +203,6 @@ RC thread_t::runTest(txn_man * txn)
 		else 
 			return rc;
 	}
+	assert(false);
+	return RCOK;
 }

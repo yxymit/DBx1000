@@ -42,7 +42,7 @@ OptCC::per_row_validate(txn_man * txn) {
 		for (int j = 0; j < i; j ++) {
 			int tabcmp = strcmp(txn->accesses[j]->orig_row->get_table_name(), 
 				txn->accesses[j+1]->orig_row->get_table_name());
-			if (tabcmp > 0 || tabcmp == 0 && txn->accesses[j]->orig_row->get_primary_key() > txn->accesses[j+1]->orig_row->get_primary_key()) {
+			if (tabcmp > 0 || (tabcmp == 0 && txn->accesses[j]->orig_row->get_primary_key() > txn->accesses[j+1]->orig_row->get_primary_key())) {
 					Access * tmp = txn->accesses[j]; 
 					txn->accesses[j] = txn->accesses[j+1];
 					txn->accesses[j+1] = tmp;
@@ -109,7 +109,6 @@ RC OptCC::central_validate(txn_man * txn) {
 		finish_active[n++] = ent;
 		ent = ent->next;
 	}
-	assert(n == active_len);
 	if ( !readonly ) {
 		active_len ++;
 		STACK_PUSH(active, wset);
@@ -127,7 +126,7 @@ RC OptCC::central_validate(txn_man * txn) {
 		}
 	}
 
-	for (int i = 0; i < f_active_len; i++) {
+	for (UInt32 i = 0; i < f_active_len; i++) {
 		set_ent * wact = finish_active[i];
 		valid = test_valid(wact, rset);
 		if (valid) {
@@ -185,7 +184,7 @@ RC OptCC::get_rw_set(txn_man * txn, set_ent * &rset, set_ent *& wset) {
 	wset->txn = txn;
 	rset->txn = txn;
 
-	int n = 0, m = 0;
+	UInt32 n = 0, m = 0;
 	for (int i = 0; i < txn->row_cnt; i++) {
 		if (txn->accesses[i]->type == WR)
 			wset->rows[n ++] = txn->accesses[i]->orig_row;
@@ -199,8 +198,8 @@ RC OptCC::get_rw_set(txn_man * txn, set_ent * &rset, set_ent *& wset) {
 }
 
 bool OptCC::test_valid(set_ent * set1, set_ent * set2) {
-	for (int i = 0; i < set1->set_size; i++)
-		for (int j = 0; j < set2->set_size; j++) {
+	for (UInt32 i = 0; i < set1->set_size; i++)
+		for (UInt32 j = 0; j < set2->set_size; j++) {
 			if (set1->rows[i] == set2->rows[j]) {
 				return false;
 			}

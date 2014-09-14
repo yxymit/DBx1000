@@ -30,8 +30,8 @@ for (jobname, v) in jobs.iteritems():
 		pattern = r"\#define\s*" + re.escape(param) + r'.*'
 		replacement = "#define " + param + ' ' + str(value)
 		replace(dbms_cfg[1], pattern, replacement)
-	os.system("make Makefile.local clean > temp.out 2>&1")
-	ret = os.system("make -f Makefile.local -j > temp.out 2>&1")
+	os.system("make clean > temp.out 2>&1")
+	ret = os.system("make -j > temp.out 2>&1")
 	if ret != 0:
 		print "ERROR %d" % ret
 		exit(0)
@@ -52,4 +52,4 @@ for (jobname, v) in jobs.iteritems():
 			print "%s %s FAILED" % (v["CC_ALG"], test)
 
 os.system('cp config-std.h config.h')
-os.system('make -f Makefile.local clean')
+os.system('make clean')

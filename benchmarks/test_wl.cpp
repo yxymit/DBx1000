@@ -24,7 +24,7 @@ RC TestWorkload::init_schema(const char * schema_file) {
 }
 
 RC TestWorkload::init_table() {
-	RC rc;
+	RC rc = RCOK;
 	for (int rid = 0; rid < 10; rid ++) {
 		row_t * new_row = NULL;
 		uint64_t row_id;
@@ -45,6 +45,7 @@ RC TestWorkload::init_table() {
         rc = the_index->index_insert(idx_key, m_item, 0);
         assert(rc == RCOK);
     }
+	return rc;
 }
 
 RC TestWorkload::get_txn_man(txn_man *& txn_manager, thread_t * h_thd) {
@@ -60,7 +61,7 @@ void TestWorkload::summarize() {
 	if (g_test_case == CONFLICT) {
 		assert(curr_time - time > g_thread_cnt * 1e9);
 		int total_wait_cnt = 0;
-		for (int tid = 0; tid < g_thread_cnt; tid ++) {
+		for (UInt32 tid = 0; tid < g_thread_cnt; tid ++) {
 			total_wait_cnt += stats._stats[tid]->wait_cnt;
 		}
 		printf("CONFLICT TEST. PASSED.\n");

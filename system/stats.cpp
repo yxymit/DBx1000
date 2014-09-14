@@ -10,7 +10,6 @@ void Stats_thd::init(uint64_t thd_id) {
 //	all_lat = new uint64_t [MAX_TXN_PER_PART]; 
 	all_lat = (uint64_t *)
 		mem_allocator.alloc(sizeof(uint64_t) * MAX_TXN_PER_PART, thd_id);
-	char * pad = new char[CL_SIZE];
 }
 
 void Stats_thd::clear() {
@@ -134,7 +133,7 @@ void Stats::print() {
 		total_latency += _stats[tid]->latency;
 		total_time_query += _stats[tid]->time_query;
 		
-		printf("[tid=%lld] txn_cnt=%lld,abort_cnt=%lld\n", 
+		printf("[tid=%ld] txn_cnt=%ld,abort_cnt=%ld\n", 
 			tid,
 			_stats[tid]->txn_cnt,
 			_stats[tid]->abort_cnt
@@ -143,10 +142,10 @@ void Stats::print() {
 	FILE * outf;
 	if (output_file != NULL) {
 		outf = fopen(output_file, "w");
-		fprintf(outf, "[summary] txn_cnt=%lld,abort_cnt=%lld"
+		fprintf(outf, "[summary] txn_cnt=%ld,abort_cnt=%ld"
 			",run_time=%f,time_wait=%f,time_ts_alloc=%f"
 			",time_man=%f,time_index=%f,time_abort=%f,time_cleanup=%f,latency=%f"
-			",deadlock_cnt=%lld,cycle_detect=%lld,dl_detect_time=%f,dl_wait_time=%f"
+			",deadlock_cnt=%ld,cycle_detect=%ld,dl_detect_time=%f,dl_wait_time=%f"
 			",time_query=%f,debug1=%f,debug2=%f,debug3=%f,debug4=%f,debug5=%f\n",
 			total_txn_cnt, 
 			total_abort_cnt,
@@ -171,10 +170,10 @@ void Stats::print() {
 		);
 		fclose(outf);
 	}
-	printf("[summary] txn_cnt=%lld, abort_cnt=%lld"
+	printf("[summary] txn_cnt=%ld, abort_cnt=%ld"
 		", run_time=%f, time_wait=%f, time_ts_alloc=%f"
 		", time_man=%f, time_index=%f, time_abort=%f, time_cleanup=%f, latency=%f"
-		", deadlock_cnt=%lld, cycle_detect=%lld, dl_detect_time=%f, dl_wait_time=%f"
+		", deadlock_cnt=%ld, cycle_detect=%ld, dl_detect_time=%f, dl_wait_time=%f"
 		", time_query=%f, debug1=%f, debug2=%f, debug3=%f, debug4=%f, debug5=%f\n", 
 		total_txn_cnt, 
 		total_abort_cnt,
@@ -205,17 +204,17 @@ void Stats::print_lat_distr() {
 	FILE * outf;
 	if (output_file != NULL) {
 		outf = fopen(output_file, "a");
-		for (int tid = 0; tid < g_thread_cnt; tid ++) {
+		for (UInt32 tid = 0; tid < g_thread_cnt; tid ++) {
 			fprintf(outf, "[all_lat thd=%d] ", tid);
-			for (int tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
+			for (UInt32 tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
 				fprintf(outf, "%f,", (double)_stats[tid]->all_lat[tnum] / BILLION);
 			fprintf(outf, "\n");
 		}
 		fclose(outf);
 	} 
-	for (int tid = 0; tid < g_thread_cnt; tid ++) {
+	for (UInt32 tid = 0; tid < g_thread_cnt; tid ++) {
 		printf("[all_lat thd=%d] ", tid);
-		for (int tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
+		for (UInt32 tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
 			printf("%f,", (double)_stats[tid]->all_lat[tnum] / BILLION);
 		printf("\n");
 	}

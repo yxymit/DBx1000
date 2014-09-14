@@ -13,14 +13,14 @@ class workload;
 
 class ycsb_request {
 public:
-	char * table_name;
+//	char table_name[80];
 	access_t rtype; 
 	uint64_t key;
 	// for each field (string) in the row, shift the string to left by 1 character
 	// and fill the right most character with value
 	char value;
 	// only for (qtype == SCAN)
-	uint64_t scan_len;
+	UInt32 scan_len;
 };
 
 class ycsb_query : public base_query {

@@ -6,7 +6,6 @@
 
 void Row_lock::init(row_t * row) {
 	_row = row;
-	uint64_t part_id = get_part_id(row);
 	owners = NULL;
 	waiters_head = NULL;
 	waiters_tail = NULL;
@@ -159,7 +158,6 @@ final:
 	else
 		pthread_mutex_unlock( latch );
 
-	uint64_t endtime = get_sys_clock();
 	return rc;
 }
 
@@ -171,11 +169,9 @@ RC Row_lock::lock_release(txn_man * txn) {
 	else 
 		pthread_mutex_lock( latch );
 
-	uint64_t thd_id = txn->get_thd_id();
 	// Try to find the entry in the owners
 	LockEntry * en = owners;
 	LockEntry * prev = NULL;
-	bool find = false;
 
 	while (en != NULL && en->txn != txn) {
 		prev = en;
@@ -223,13 +219,11 @@ RC Row_lock::lock_release(txn_man * txn) {
 	} 
 	ASSERT((owners == NULL) == (owner_cnt == 0));
 
-final:
 	if (g_central_man)
 		glob_manager.release_row(_row);
 	else
 		pthread_mutex_unlock( latch );
 
-	uint64_t endtime = get_sys_clock();
 	return RCOK;
 }
 

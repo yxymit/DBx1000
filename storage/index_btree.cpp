@@ -9,13 +9,12 @@ RC index_btree::init(uint64_t part_cnt) {
 	roots = (bt_node **) malloc(part_cnt * sizeof(bt_node *));
 	// "cur_xxx_per_thd" is only for SCAN queries.
 	ARR_PTR(bt_node *, cur_leaf_per_thd, g_thread_cnt);
-	ARR_PTR(int, cur_idx_per_thd, g_thread_cnt);
+	ARR_PTR(UInt32, cur_idx_per_thd, g_thread_cnt);
 	// the index tree of each partition musted be mapped to corresponding l2 slices
-	for (int part_id = 0; part_id < part_cnt; part_id ++) {
+	for (UInt32 part_id = 0; part_id < part_cnt; part_id ++) {
 		RC rc;
 		rc = make_lf(part_id, roots[part_id]);
 		assert (rc == RCOK);
-		bt_node * root = roots[part_id];
 	}
 	return RCOK;
 }
@@ -23,6 +22,7 @@ RC index_btree::init(uint64_t part_cnt) {
 RC index_btree::init(uint64_t part_cnt, table_t * table) {
 	this->table = table;
 	init(part_cnt);
+	return RCOK;
 }
 
 bt_node * index_btree::find_root(uint64_t part_id) {
@@ -38,7 +38,7 @@ bool index_btree::index_exist(idx_key_t key) {
 	// does not matter which thread check existence
 	find_leaf(params, key, INDEX_NONE, leaf);
 	if (leaf == NULL) return false;
-	for (int i = 0; i < leaf->num_keys; i++)
+	for (UInt32 i = 0; i < leaf->num_keys; i++)
     	if (leaf->keys[i] == key) {
             // the record is found!
 			return true;
@@ -93,7 +93,7 @@ RC index_btree::index_read(idx_key_t key, itemid_t *& item,
 	find_leaf(params, key, INDEX_READ, leaf);
 	if (leaf == NULL)
 		M_ASSERT(false, "the leaf does not exist!");
-	for (int i = 0; i < leaf->num_keys; i++) 
+	for (UInt32 i = 0; i < leaf->num_keys; i++) 
 		if (leaf->keys[i] == key) {
 			item = (itemid_t *)leaf->pointers[i];
 			release_latch(leaf);
@@ -102,32 +102,29 @@ RC index_btree::index_read(idx_key_t key, itemid_t *& item,
 			return RCOK;
 		}
 	// release the latch after reading the node
-final:
-	printf("key = %lld\n", key);
+
+	printf("key = %ld\n", key);
 	M_ASSERT(false, "the key does not exist!");
+	return rc;
 }
 
 RC index_btree::index_insert(idx_key_t key, itemid_t * item, int part_id) {
 	glob_param params;
 	if (WORKLOAD == TPCC) assert(part_id != -1);
 	assert(part_id != -1);
-//	if (part_id == -1)
-//		params.part_id = key_to_part(key) % part_cnt;
-//	else 
 	params.part_id = part_id;
 	// create a tree if there does not exist one already
 	RC rc = RCOK;
 	bt_node * root = find_root(params.part_id);
 	assert(root != NULL);
 	int depth = 0;
-	bt_node * ex_list[100]; // the depth of btree should not be larger then 20
+	// TODO tree depth < 100
+	bt_node * ex_list[100];
 	bt_node * leaf = NULL;
 	bt_node * last_ex = NULL;
 	rc = find_leaf(params, key, INDEX_INSERT, leaf, last_ex);
-	int a = 0;
 	assert(rc == RCOK);
-//	if (rc != RCOK) 
-//		return rc;
+	
 	bt_node * tmp_node = leaf;
 	if (last_ex != NULL) {
 		while (tmp_node != last_ex) {
@@ -295,7 +292,7 @@ RC index_btree::cleanup(bt_node * node, bt_node * last_ex) {
 		do {
 			node = node->parent;
 //			assert(release_latch(node) == LATCH_EX);
-			release_latch(node) == LATCH_EX;
+			release_latch(node);
 		}
 		while (node != last_ex);
 	}
@@ -312,7 +309,7 @@ RC index_btree::find_leaf(glob_param params, idx_key_t key, idx_acc_t access_typ
 RC index_btree::find_leaf(glob_param params, idx_key_t key, idx_acc_t access_type, bt_node *& leaf, bt_node  *& last_ex) 
 {
 //	RC rc;
-	int i;
+	UInt32 i;
 	bt_node * c = find_root(params.part_id);
 	assert(c != NULL);
 	bt_node * child;
@@ -382,7 +379,7 @@ RC index_btree::find_leaf(glob_param params, idx_key_t key, idx_acc_t access_typ
 }
 
 RC index_btree::insert_into_leaf(glob_param params, bt_node * leaf, idx_key_t key, itemid_t * item) {
-	int i, insertion_point;
+	UInt32 i, insertion_point;
     insertion_point = 0;
 	int idx = leaf_has_key(leaf, key);	
 	if (idx >= 0) {
@@ -405,7 +402,7 @@ RC index_btree::insert_into_leaf(glob_param params, bt_node * leaf, idx_key_t ke
 
 RC index_btree::split_lf_insert(glob_param params, bt_node * leaf, idx_key_t key, itemid_t * item) {
     RC rc;
-	int insertion_index, split, i, j;
+	UInt32 insertion_index, split, i, j;
 	idx_key_t new_key;
 
 	uint64_t part_id = params.part_id;
@@ -489,12 +486,12 @@ RC index_btree::insert_into_parent(
     if (parent == NULL)
         return insert_into_new_root(params, left, key, right);
     
-	int insert_idx = 0;
+	UInt32 insert_idx = 0;
 	while (parent->keys[insert_idx] < key && insert_idx < parent->num_keys)
 		insert_idx ++;
 	// the parent has enough space, just insert into it
     if (parent->num_keys < order - 1) {
-		for (int i = parent->num_keys-1; i >= insert_idx; i--) {
+		for (UInt32 i = parent->num_keys-1; i >= insert_idx; i--) {
 			parent->keys[i + 1] = parent->keys[i];
 			parent->pointers[i+2] = parent->pointers[i+1];
 		}
@@ -540,7 +537,7 @@ RC index_btree::insert_into_new_root(
 RC index_btree::split_nl_insert(
 	glob_param params,
 	bt_node * old_node, 
-	int left_index, 
+	UInt32 left_index, 
 	idx_key_t key, 
 	bt_node * right) 
 {
@@ -548,7 +545,7 @@ RC index_btree::split_nl_insert(
 	uint64_t i, j, split, k_prime;
     bt_node * new_node, * child;
 //    idx_key_t * temp_keys;
-//    bt_node ** temp_pointers;
+//    btUInt32 temp_pointers;
 	uint64_t part_id = params.part_id;
     rc = make_node(part_id, new_node);
 
@@ -632,13 +629,13 @@ RC index_btree::split_nl_insert(
 }
 
 int index_btree::leaf_has_key(bt_node * leaf, idx_key_t key) {
-	for (int i = 0; i < leaf->num_keys; i++) 
+	for (UInt32 i = 0; i < leaf->num_keys; i++) 
 		if (leaf->keys[i] == key)
 			return i;
 	return -1;
 }
 
-int index_btree::cut(int length) {
+UInt32 index_btree::cut(UInt32 length) {
 	if (length % 2 == 0)
         return length/2;
     else

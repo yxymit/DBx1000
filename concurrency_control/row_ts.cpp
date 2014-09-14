@@ -4,6 +4,7 @@
 #include "row_ts.h"
 #include "mem_alloc.h"
 #include "manager.h"
+#include "stdint.h"
 
 void Row_ts::init(row_t * row) {
 	_row = row;
@@ -88,12 +89,12 @@ TsReqEntry * Row_ts::debuffer_req( TsType type, txn_man * txn, ts_t ts ) {
 		case R_REQ : queue = &readreq; break;
 		case P_REQ : queue = &prereq; break;
 		case W_REQ : queue = &writereq; break;
+		default: assert(false);
 	}
 
 	TsReqEntry * req = *queue;
 	TsReqEntry * prev_req = NULL;
 	if (txn != NULL) {
-		TsReqEntry * the_req = NULL;		
 		while (req != NULL && req->txn != txn) {		
 			prev_req = req;
 			req = req->next;
@@ -136,6 +137,7 @@ ts_t Row_ts::cal_min(TsType type) {
 		case R_REQ : queue = readreq; break;
 		case P_REQ : queue = prereq; break;
 		case W_REQ : queue = writereq; break;
+		default: assert(false);
 	}
 	ts_t new_min_pts = UINT64_MAX;
 	TsReqEntry * req = queue;
@@ -149,7 +151,6 @@ ts_t Row_ts::cal_min(TsType type) {
 
 RC Row_ts::access(txn_man * txn, TsType type, row_t * row) {
 	RC rc;
-	uint64_t starttime = get_sys_clock();	
 	ts_t ts = txn->get_ts();
 	if (g_central_man)
 		glob_manager.lock_row(_row);
@@ -240,7 +241,6 @@ final:
 }
 
 void Row_ts::update_buffer() {
-uint64_t t4 = get_sys_clock();
 	while (true) {
 		ts_t new_min_pts = cal_min(P_REQ);
 		assert(new_min_pts >= min_pts);

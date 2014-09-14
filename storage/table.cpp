@@ -6,7 +6,6 @@
 #include "mem_alloc.h"
 
 void table_t::init(Catalog * schema) {
-	uint64_t field_cnt = schema->field_cnt;
 	this->table_name = schema->table_name;
 	this->schema = schema;
 	cur_tab_size = new uint64_t; 

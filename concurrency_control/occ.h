@@ -16,9 +16,9 @@ class txn_man;
 class set_ent{
 public:
 	set_ent();
-	uint64_t tn;
+	UInt64 tn;
 	txn_man * txn;
-	uint64_t set_size;
+	UInt32 set_size;
 	row_t ** rows; //[MAX_WRITE_SET];
 	set_ent * next;
 };
