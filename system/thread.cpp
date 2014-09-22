@@ -191,13 +191,16 @@ RC thread_t::runTest(txn_man * txn)
 	RC rc = RCOK;
 	if (g_test_case == READ_WRITE) {
 		rc = ((TestTxnMan *)txn)->run_txn(g_test_case, 0);
+#if CC_ALG == OCC
+		txn->start_ts = get_next_ts(); 
+#endif
 		rc = ((TestTxnMan *)txn)->run_txn(g_test_case, 1);
 		printf("READ_WRITE TEST PASSED\n");
 		return FINISH;
 	}
 	else if (g_test_case == CONFLICT) {
 		rc = ((TestTxnMan *)txn)->run_txn(g_test_case, 0);
-		printf("ts = %ld, tid=%ld, rc=%d\n", txn->get_ts(), get_thd_id(), rc);
+//		printf("ts = %ld, tid=%ld, rc=%d\n", txn->get_ts(), get_thd_id(), rc);
 		if (rc == RCOK)
 			return FINISH;
 		else 

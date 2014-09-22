@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
 	int64_t endtime = get_server_clock();
 	
 	if (WORKLOAD != TEST) {
-		printf("Sim Done! SimTime = %ld\n", endtime - starttime);
+		printf("PASS! SimTime = %ld\n", endtime - starttime);
 		if (STATS_ENABLE)
 			stats.print();
 	} else {
