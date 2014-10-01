@@ -29,7 +29,7 @@ def test_compile(job):
 		pattern = r"\#define\s*" + re.escape(param) + r'.*'
 		replacement = "#define " + param + ' ' + str(value)
 		replace(dbms_cfg[1], pattern, replacement)
-	os.system("make clean > test.out 2>&1")
+	os.system("make clean > temp.out 2>&1")
 	ret = os.system("make -j > temp.out 2>&1")
 	if ret != 0:
 		print "ERROR in compiling job="
@@ -74,7 +74,7 @@ def run_all_test(jobs) :
 		test_compile(job)
 		if job['WORKLOAD'] == 'TEST':
 			test_run('read_write', job)
-			test_run('conflict', job)
+			#test_run('conflict', job)
 		else :
 			test_run('', job)
 	jobs = {}
@@ -99,3 +99,4 @@ run_all_test(jobs)
 
 os.system('cp config-std.h config.h')
 os.system('make clean > temp.out 2>&1')
+os.system('rm temp.out')
