@@ -118,8 +118,8 @@ void * ycsb_wl::init_table_slice() {
 	RC rc;
 	assert(g_synth_table_size % g_init_parallelism == 0);
 	assert(tid < g_init_parallelism);
-	while (ATOM_FETCH_ADD(next_tid, 0) < g_init_parallelism) {}
-	assert(ATOM_FETCH_ADD(next_tid, 0) == g_init_parallelism);
+	while ((UInt32)ATOM_FETCH_ADD(next_tid, 0) < g_init_parallelism) {}
+	assert((UInt32)ATOM_FETCH_ADD(next_tid, 0) == g_init_parallelism);
 	uint64_t slice_size = g_synth_table_size / g_init_parallelism;
 	for (uint64_t key = slice_size * tid; 
 			key < slice_size * (tid + 1); 
