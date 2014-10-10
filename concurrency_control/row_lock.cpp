@@ -42,7 +42,7 @@ RC Row_lock::lock_get(lock_t type, txn_man * txn, uint64_t* &txnids, int &txncnt
 	else 
 		assert(lock_type == LOCK_NONE);
 	LockEntry * en = owners;
-	int cnt = 0;
+	UInt32 cnt = 0;
 	while (en) {
 		assert(en->txn->get_thd_id() != txn->get_thd_id());
 		cnt ++;
@@ -60,7 +60,7 @@ RC Row_lock::lock_get(lock_t type, txn_man * txn, uint64_t* &txnids, int &txncnt
 
 	bool conflict = conflict_lock(lock_type, type);
 	if (CC_ALG == WAIT_DIE && !conflict) {
-		if (waiters_head && txn->get_ts() > waiters_head->txn->get_ts())
+		if (waiters_head && txn->get_ts() < waiters_head->txn->get_ts())
 			conflict = true;
 	}
 	// Some txns coming earlier is waiting. Should also wait.
@@ -92,7 +92,7 @@ RC Row_lock::lock_get(lock_t type, txn_man * txn, uint64_t* &txnids, int &txncnt
 			bool canwait = true;
 			LockEntry * en = owners;
 			while (en != NULL) {
-                if (en->txn->get_ts() > txn->get_ts()) {
+                if (en->txn->get_ts() < txn->get_ts()) {
 					canwait = false;
 					break;
 				}
@@ -105,7 +105,7 @@ RC Row_lock::lock_get(lock_t type, txn_man * txn, uint64_t* &txnids, int &txncnt
 				entry->txn = txn;
 				entry->type = type;
 				en = waiters_head;
-				while (en != NULL && txn->get_ts() > en->txn->get_ts()) 
+				while (en != NULL && txn->get_ts() < en->txn->get_ts()) 
 					en = en->next;
 				if (en) {
 					LIST_INSERT_BEFORE(en, entry);
@@ -203,7 +203,7 @@ RC Row_lock::lock_release(txn_man * txn) {
 		ASSERT(lock_type == LOCK_NONE);
 #if DEBUG_ASSERT && CC_ALG == WAIT_DIE 
 		for (en = waiters_head; en != NULL && en->next != NULL; en = en->next)
-			assert(en->next->txn->get_ts() > en->txn->get_ts());
+			assert(en->next->txn->get_ts() < en->txn->get_ts());
 #endif
 
 	LockEntry * entry;

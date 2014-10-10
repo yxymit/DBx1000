@@ -68,10 +68,10 @@ RC thread_t::run() {
 			m_txn->set_txn_id(get_thd_id() + thd_txn_id * g_thread_cnt);
 			thd_txn_id ++;
 
+			// for WAIT_DIE, the timestamp is not renewed after abort
 			if ((CC_ALG == HSTORE && !HSTORE_LOCAL_TS)
 					|| CC_ALG == MVCC 
-					|| CC_ALG == TIMESTAMP 
-					|| CC_ALG == WAIT_DIE) {
+					|| CC_ALG == TIMESTAMP) { 
 				m_txn->set_ts(get_next_ts());
 			}
 
