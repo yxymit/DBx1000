@@ -13,7 +13,7 @@
 struct DepThd {
     std::list<uint64_t> adj;    // Pointer to an array containing adjacency lists
 	pthread_mutex_t lock; 
-	int64_t txnid; 				// -1 means invalid
+	volatile int64_t txnid; 				// -1 means invalid
 	int num_locks;				// the # of locks that txn is currently holding
 	char pad[2 * CL_SIZE - sizeof(int64_t) - sizeof(pthread_mutex_t) - sizeof(std::list<uint64_t>) - sizeof(int)];
 };
@@ -53,6 +53,7 @@ private:
 	///////////////////////////////////////////
 	// dl_lock is the global lock. Only used when deadlock detection happens
 	pthread_mutex_t _lock;
+	// return value: whether a loop is detected.
 	bool nextNode(uint64_t txnid, DetectData * detect_data);
 	bool isCyclic(uint64_t txnid, DetectData * detect_data); // return if "thd" is causing a cycle
 };

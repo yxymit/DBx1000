@@ -2,8 +2,10 @@
 #include "global.h"
 #include "helper.h"
 #include "txn.h"
+#include "row.h"
 #include "manager.h"
 #include "mem_alloc.h"
+
 /********************************************************/
 // The current txn aborts itself only if it holds less
 // locks than all the other txns on the loop. 
@@ -23,9 +25,10 @@ DL_detect::add_dep(uint64_t txnid1, uint64_t * txnids, int cnt, int num_locks) {
 	pthread_mutex_lock( &dependency[thd1].lock );
 	dependency[thd1].txnid = txnid1;
 	dependency[thd1].num_locks = num_locks;
-	for (int i = 0; i < cnt; i++) {
+	
+	for (int i = 0; i < cnt; i++) 
 		dependency[thd1].adj.push_back(txnids[i]);
-	}
+	
 	pthread_mutex_unlock( &dependency[thd1].lock );
 	return 0;
 }
@@ -43,6 +46,13 @@ DL_detect::nextNode(uint64_t txnid, DetectData * detect_data) {
 	int txnid_num = dependency[thd].adj.size();
 	uint64_t txnids[ txnid_num ];
 	int n = 0;
+	
+	if (dependency[thd].txnid != (SInt64)txnid) {
+		detect_data->recStack[thd] = false;
+		pthread_mutex_unlock( &dependency[thd].lock );
+		return false;
+	}
+	
 	for(list<uint64_t>::iterator i = dependency[thd].adj.begin(); i != dependency[thd].adj.end(); ++i) {
 		txnids[n++] = *i;
 	}
@@ -54,15 +64,17 @@ DL_detect::nextNode(uint64_t txnid, DetectData * detect_data) {
 
 		// next node not visited and txnid is not stale
 		if ( detect_data->recStack[nextthd] ) {
-			detect_data->loop = true;
-			detect_data->onloop = true;
-			detect_data->loopstart = nextthd;
-			break;
+			if ((SInt32)txnids[n] == dependency[nextthd].txnid) {
+				detect_data->loop = true;
+				detect_data->onloop = true;
+				detect_data->loopstart = nextthd;
+				break;
+			}
 		} 
 		if ( !detect_data->visited[nextthd] && 
 			dependency[nextthd].txnid == (SInt64) txnids[n] && 
-			nextNode(txnids[n], detect_data)
-			) {
+			nextNode(txnids[n], detect_data)) 
+		{
 			break;
 		}
 	}
@@ -118,6 +130,7 @@ DL_detect::detect_cycle(uint64_t txnid) {
 			txn->lock_abort = true;
 		}
 	} 
+	
 	mem_allocator.free(detect_data->visited, sizeof(bool)*V);
 	mem_allocator.free(detect_data->recStack, sizeof(bool)*V);
 	mem_allocator.free(detect_data, sizeof(DetectData));
