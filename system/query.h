@@ -1,5 +1,4 @@
-#ifndef _QUERY_H_
-#define _QUERY_H_
+#pragma once 
 
 #include "global.h"
 #include "helper.h"
@@ -28,6 +27,7 @@ public:
 	tpcc_query * queries;
 #endif
 	char pad[CL_SIZE - sizeof(void *) - sizeof(int)];
+	drand48_data buffer;
 };
 
 // TODO we assume a separate task queue for each thread in order to avoid 
@@ -36,12 +36,13 @@ public:
 class Query_queue {
 public:
 	void init(workload * h_wl);
-	void init(int thread_id);
+	void init_per_thread(int thread_id);
 	base_query * get_next_query(uint64_t thd_id); 
 	
 private:
+	static void * threadInitQuery(void * This);
+
 	Query_thd ** all_queries;
 	workload * _wl;
+	static int _next_tid;
 };
-
-#endif

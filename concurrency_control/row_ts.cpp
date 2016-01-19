@@ -1,4 +1,3 @@
-//#include "timestamp.h"
 #include "txn.h"
 #include "row.h"
 #include "row_ts.h"
@@ -150,10 +149,10 @@ ts_t Row_ts::cal_min(TsType type) {
 }
 
 RC Row_ts::access(txn_man * txn, TsType type, row_t * row) {
-	RC rc;
+	RC rc = RCOK;
 	ts_t ts = txn->get_ts();
 	if (g_central_man)
-		glob_manager.lock_row(_row);
+		glob_manager->lock_row(_row);
 	else
 		pthread_mutex_lock( latch );
 	if (type == R_REQ) {
@@ -234,7 +233,7 @@ RC Row_ts::access(txn_man * txn, TsType type, row_t * row) {
 	
 final:
 	if (g_central_man)
-		glob_manager.release_row(_row);
+		glob_manager->release_row(_row);
 	else
 		pthread_mutex_unlock( latch );
 	return rc;

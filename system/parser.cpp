@@ -22,10 +22,7 @@ void print_usage() {
 	printf("\t-GuINT      ; TS_BATCH_NUM\n");
 	
 	printf("\t-o STRING   ; output file\n\n");
-	printf("------ Migration ----\n");
-	printf("\t-MeINT      ; HW_MIGRATE\n");
 	printf("  [YCSB]:\n");
-//	printf("\t-cINT     ; CC_ALG (1:NO_WAIT, 2:WAIT_DIE, 3:DL_DETECT, 4:TIMESTAMP, 5:MVCC, 6:HSTORE)\n");
 	printf("\t-cINT       ; PART_PER_TXN\n");
 	printf("\t-eINT       ; PERC_MULTI_PART\n");
 	printf("\t-rFLOAT     ; READ_PERC\n");
@@ -44,6 +41,11 @@ void print_usage() {
 }
 
 void parser(int argc, char * argv[]) {
+	g_params["abort_buffer_enable"] = ABORT_BUFFER_ENABLE? "true" : "false";
+	g_params["write_copy_form"] = WRITE_COPY_FORM;
+	g_params["validation_lock"] = VALIDATION_LOCK;
+	g_params["pre_abort"] = PRE_ABORT;
+	g_params["atomic_timestamp"] = ATOMIC_TIMESTAMP;
 
 	for (int i = 1; i < argc; i++) {
 		assert(argv[i][0] == '-');
@@ -98,9 +100,6 @@ void parser(int argc, char * argv[]) {
 				g_ts_batch_alloc = atoi( &argv[i][3] );
 			else if (argv[i][2] == 'u')
 				g_ts_batch_num = atoi( &argv[i][3] );
-		} else if (argv[i][1] == 'M') {
-			if (argv[i][2] == 'e')
-				g_hw_migrate = atoi( &argv[i][3] );
 		} else if (argv[i][1] == 'T') {
 			if (argv[i][2] == 'p')
 				g_perc_payment = atof( &argv[i][3] );
@@ -119,7 +118,17 @@ void parser(int argc, char * argv[]) {
 		else if (argv[i][1] == 'h') {
 			print_usage();
 			exit(0);
-		} else
+		} 
+		else if (argv[i][1] == '-') {
+			string line(&argv[i][2]);
+			size_t pos = line.find("="); 
+			assert(pos != string::npos);
+			string name = line.substr(0, pos);
+			string value = line.substr(pos + 1, line.length());
+			assert(g_params.find(name) != g_params.end());
+			g_params[name] = value;
+		}
+		else
 			assert(false);
 	}
 	if (g_thread_cnt < g_init_parallelism)

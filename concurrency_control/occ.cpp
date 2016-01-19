@@ -41,20 +41,20 @@ OptCC::per_row_validate(txn_man * txn) {
 	for (int i = txn->row_cnt - 1; i > 0; i--) {
 		for (int j = 0; j < i; j ++) {
 			int tabcmp = strcmp(txn->accesses[j]->orig_row->get_table_name(), 
-				txn->accesses[j+1]->orig_row->get_table_name());
+			txn->accesses[j+1]->orig_row->get_table_name());
 			if (tabcmp > 0 || (tabcmp == 0 && txn->accesses[j]->orig_row->get_primary_key() > txn->accesses[j+1]->orig_row->get_primary_key())) {
-					Access * tmp = txn->accesses[j]; 
-					txn->accesses[j] = txn->accesses[j+1];
-					txn->accesses[j+1] = tmp;
+				Access * tmp = txn->accesses[j]; 
+				txn->accesses[j] = txn->accesses[j+1];
+				txn->accesses[j+1] = tmp;
 			}
 		}
 	}
 #if DEBUG_ASSERT
 	for (int i = txn->row_cnt - 1; i > 0; i--) {
 		int tabcmp = strcmp(txn->accesses[i-1]->orig_row->get_table_name(), 
-			txn->accesses[i]->orig_row->get_table_name());
+		txn->accesses[i]->orig_row->get_table_name());
 		assert(tabcmp < 0 || tabcmp == 0 && txn->accesses[i]->orig_row->get_primary_key() > 
-			txn->accesses[i-1]->orig_row->get_primary_key());
+		txn->accesses[i-1]->orig_row->get_primary_key());
 	}
 #endif
 	// lock all rows in the readset and writeset.
@@ -69,7 +69,7 @@ OptCC::per_row_validate(txn_man * txn) {
 	if (ok) {
 		// Validation passed.
 		// advance the global timestamp and get the end_ts
-		txn->end_ts = glob_manager.get_ts( txn->get_thd_id() );
+		txn->end_ts = glob_manager->get_ts( txn->get_thd_id() );
 		// write to each row and update wts
 		txn->cleanup(RCOK);
 		rc = RCOK;
@@ -155,7 +155,6 @@ final:
 			active = act->next;
 		active_len --;
 		if (valid) {
-			// TODO remove the assert for performance
 			if (history)
 				assert(history->tn == tnc);
 			tnc ++;

@@ -1,8 +1,6 @@
-#ifndef _OCC_H_
-#define _OCC_H_
+#pragma once 
 
 #include "row.h"
-
 
 // TODO For simplicity, the txn hisotry for OCC is oganized as follows:
 // 1. history is never deleted.
@@ -19,7 +17,7 @@ public:
 	UInt64 tn;
 	txn_man * txn;
 	UInt32 set_size;
-	row_t ** rows; //[MAX_WRITE_SET];
+	row_t ** rows;
 	set_ent * next;
 };
 
@@ -47,5 +45,3 @@ private:
 	volatile uint64_t tnc; // transaction number counter
 	pthread_mutex_t latch;
 };
-
-#endif

@@ -63,8 +63,8 @@ uint64_t merge_idx_key(uint64_t key1, uint64_t key2, uint64_t key3) {
 /****************************************************/
 // Global Clock!
 /****************************************************/
-
-uint64_t get_server_clock() {
+/*
+inline uint64_t get_server_clock() {
 #if defined(__i386__)
     uint64_t ret;
     __asm__ __volatile__("rdtsc" : "=A" (ret));
@@ -81,7 +81,7 @@ uint64_t get_server_clock() {
     return ret;
 }
 
-uint64_t get_sys_clock() {
+inline uint64_t get_sys_clock() {
 #ifndef NOGRAPHITE
 	static volatile uint64_t fake_clock = 0;
 	if (warmup_finish)
@@ -95,7 +95,7 @@ uint64_t get_sys_clock() {
 	return 0;
 #endif
 }
-
+*/
 void myrand::init(uint64_t seed) {
 	this->seed = seed;
 }

@@ -126,7 +126,7 @@ DL_detect::detect_cycle(uint64_t txnid) {
 		INC_GLOB_STATS(deadlock, 1);
 		int thd_to_abort = get_thdid_from_txnid(detect_data->min_txnid);
 		if (dependency[thd_to_abort].txnid == (SInt64) detect_data->min_txnid) {
-			txn_man * txn = glob_manager.get_txn_man(thd_to_abort);
+			txn_man * txn = glob_manager->get_txn_man(thd_to_abort);
 			txn->lock_abort = true;
 		}
 	} 

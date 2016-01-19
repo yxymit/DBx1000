@@ -1,14 +1,12 @@
-#ifndef _THREAD_H_
-#define _THREAD_H_
+#pragma once 
 
 #include "global.h"
 
 class workload;
+class base_query;
 
 class thread_t {
 public:
-//	thread_t();
-//	~thread_t();
 	uint64_t _thd_id;
 	workload * _wl;
 
@@ -32,6 +30,15 @@ private:
 	ts_t 		get_next_ts();
 
 	RC	 		runTest(txn_man * txn);
-};
+	drand48_data buffer;
 
-#endif
+	// A restart buffer for aborted txns.
+	struct AbortBufferEntry	{
+		ts_t ready_time;
+		base_query * query;
+	};
+	AbortBufferEntry * _abort_buffer;
+	int _abort_buffer_size;
+	int _abort_buffer_empty_slots;
+	bool _abort_buffer_enable;
+};

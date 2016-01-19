@@ -84,7 +84,7 @@ void Plock::init() {
 }
 
 RC Plock::lock(txn_man * txn, uint64_t * parts, uint64_t part_cnt) {
-	RC rc;
+	RC rc = RCOK;
 	ts_t starttime = get_sys_clock();
 	UInt32 i;
 	for (i = 0; i < part_cnt; i ++) {

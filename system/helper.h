@@ -1,14 +1,8 @@
-#ifndef _HELPER_H_
-#define _HELPER_H_
+#pragma once 
 
 #include <cstdlib>
 #include <iostream>
 #include <stdint.h>
-//#ifdef NOGRAPHITE
-//#include <ctime>
-//#include <ratio>
-//#include <chrono>
-//#endif
 #include "global.h"
 
 
@@ -29,14 +23,21 @@
 #define ATOM_SUB_FETCH(dest, value) \
 	__sync_sub_and_fetch(&(dest), value)
 
+#define COMPILER_BARRIER asm volatile("" ::: "memory");
+//#define PAUSE { __asm__ ( "pause;" ); }
+#define PAUSE usleep(1);
+
 /************************************************/
 // ASSERT Helper
 /************************************************/
-#define M_ASSERT(cond, str) \
+#define M_ASSERT(cond, ...) \
 	if (!(cond)) {\
-		printf("ASSERTION FAILURE [%s : %d] msg:%s\n", __FILE__, __LINE__, str);\
-		exit(0); \
+		printf("ASSERTION FAILURE [%s : %d] ", \
+		__FILE__, __LINE__); \
+		printf(__VA_ARGS__);\
+		assert(false);\
 	}
+
 #define ASSERT(cond) assert(cond)
 
 
@@ -167,9 +168,39 @@ uint64_t merge_idx_key(uint64_t key1, uint64_t key2);
 uint64_t merge_idx_key(uint64_t key1, uint64_t key2, uint64_t key3);
 
 extern timespec * res;
-uint64_t get_server_clock();
-uint64_t get_sys_clock(); // return: in ns
+inline uint64_t get_server_clock() {
+#if defined(__i386__)
+    uint64_t ret;
+    __asm__ __volatile__("rdtsc" : "=A" (ret));
+#elif defined(__x86_64__)
+    unsigned hi, lo;
+    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+    uint64_t ret = ( (uint64_t)lo)|( ((uint64_t)hi)<<32 );
+	ret = (uint64_t) ((double)ret / CPU_FREQ);
+#else 
+	timespec * tp = new timespec;
+    clock_gettime(CLOCK_REALTIME, tp);
+    uint64_t ret = tp->tv_sec * 1000000000 + tp->tv_nsec;
+#endif
+    return ret;
+}
 
+inline uint64_t get_sys_clock() {
+#ifndef NOGRAPHITE
+	static volatile uint64_t fake_clock = 0;
+	if (warmup_finish)
+		return CarbonGetTime();   // in ns
+	else {
+		return ATOM_ADD_FETCH(fake_clock, 100);
+	}
+#else
+  #if TIME_ENABLE
+	return get_server_clock();
+  #else
+	return 0;
+  #endif
+#endif
+}
 class myrand {
 public:
 	void init(uint64_t seed);
@@ -178,4 +209,19 @@ private:
 	uint64_t seed;
 };
 
-#endif
+inline void set_affinity(uint64_t thd_id) {
+	return;
+	/*
+	// TOOD. the following mapping only works for swarm
+	// which has 4-socket, 10 physical core per socket, 
+	// 80 threads in total with hyper-threading
+	uint64_t a = thd_id % 40;
+	uint64_t processor_id = a / 10 + (a % 10) * 4;
+	processor_id += (thd_id / 40) * 40;
+	
+	cpu_set_t  mask;
+	CPU_ZERO(&mask);
+	CPU_SET(processor_id, &mask);
+	sched_setaffinity(0, sizeof(cpu_set_t), &mask);
+	*/
+}

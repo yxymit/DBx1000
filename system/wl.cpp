@@ -13,7 +13,7 @@ RC workload::init() {
 	return RCOK;
 }
 
-RC workload::init_schema(const char * schema_file) {
+RC workload::init_schema(string schema_file) {
     assert(sizeof(uint64_t) == 8);
     assert(sizeof(double) == 8);	
 	string line;
@@ -21,9 +21,9 @@ RC workload::init_schema(const char * schema_file) {
     Catalog * schema;
     while (getline(fin, line)) {
 		if (line.compare(0, 6, "TABLE=") == 0) {
-			string tname(&line[6]);
-			void * tmp = new char[CL_SIZE * 2 + sizeof(Catalog)];
-            schema = (Catalog *) ((UInt64)tmp + CL_SIZE);
+			string tname;
+			tname = &line[6];
+			schema = (Catalog *) _mm_malloc(sizeof(Catalog), CL_SIZE);
 			getline(fin, line);
 			int col_count = 0;
 			// Read all fields for this table.
@@ -35,44 +35,43 @@ RC workload::init_schema(const char * schema_file) {
 			schema->init( tname.c_str(), lines.size() );
 			for (UInt32 i = 0; i < lines.size(); i++) {
 				string line = lines[i];
-				vector<string> items;
 			    size_t pos = 0;
 				string token;
 				int elem_num = 0;
-				int size;
-				char * type;
-				char * name;
+				int size = 0;
+				string type;
+				string name;
 				while (line.length() != 0) {
-					pos = line.find(","); // != std::string::npos) {
+					pos = line.find(",");
 					if (pos == string::npos)
 						pos = line.length();
 	    			token = line.substr(0, pos);
 			    	line.erase(0, pos + 1);
 					switch (elem_num) {
 					case 0: size = atoi(token.c_str()); break;
-					case 1: type = const_cast<char*> (token.c_str()); break;
-					case 2: name = const_cast<char*> (token.c_str()); break;
+					case 1: type = token; break;
+					case 2: name = token; break;
 					default: assert(false);
 					}
 					elem_num ++;
 				}
 				assert(elem_num == 3);
-                schema->add_col(name, size, type);
+                schema->add_col((char *)name.c_str(), size, (char *)type.c_str());
 				col_count ++;
-			} 
-			tmp = new char[CL_SIZE * 2 + sizeof(table_t)];
-            table_t * cur_tab = (table_t *) ((UInt64)tmp + CL_SIZE);
+			}
+			table_t * cur_tab = (table_t *) _mm_malloc(sizeof(table_t), CL_SIZE);
 			cur_tab->init(schema);
 			tables[tname] = cur_tab;
         } else if (!line.compare(0, 6, "INDEX=")) {
-			string iname(&line[6]);
+			string iname;
+			iname = &line[6];
 			getline(fin, line);
 
 			vector<string> items;
 			string token;
 			size_t pos;
 			while (line.length() != 0) {
-				pos = line.find(","); // != std::string::npos) {
+				pos = line.find(",");
 				if (pos == string::npos)
 					pos = line.length();
 	    		token = line.substr(0, pos);
@@ -81,14 +80,18 @@ RC workload::init_schema(const char * schema_file) {
 			}
 			
 			string tname(items[0]);
-			int field_cnt = items.size() - 1;
-			uint64_t * fields = new uint64_t [field_cnt];
-			for (int i = 0; i < field_cnt; i++) 
-				fields[i] = atoi(items[i + 1].c_str());
-			INDEX * index = new INDEX;
+			INDEX * index = (INDEX *) _mm_malloc(sizeof(INDEX), 64);
+			new(index) INDEX();
 			int part_cnt = (CENTRAL_INDEX)? 1 : g_part_cnt;
+			if (tname == "ITEM")
+				part_cnt = 1;
 #if INDEX_STRUCT == IDX_HASH
-			index->init(part_cnt, tables[tname], g_synth_table_size);
+	#if WORKLOAD == YCSB
+			index->init(part_cnt, tables[tname], g_synth_table_size * 2);
+	#elif WORKLOAD == TPCC
+			assert(tables[tname] != NULL);
+			index->init(part_cnt, tables[tname], stoi( items[1] ) * part_cnt);
+	#endif
 #else
 			index->init(part_cnt, tables[tname]);
 #endif

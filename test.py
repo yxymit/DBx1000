@@ -13,8 +13,7 @@ def replace(filename, pattern, replacement):
 
 jobs = {}
 dbms_cfg = ["config-std.h", "config.h"]
-algs = ['DL_DETECT', 'TIMESTAMP', 'HSTORE', 'NO_WAIT', 'WAIT_DIE', 'MVCC', 'OCC']
-
+algs = ['DL_DETECT', 'NO_WAIT', 'HEKATON', 'SILO', 'TICTOC']
 def insert_job(alg, workload):
 	jobs[alg + '_' + workload] = {
 		"WORKLOAD"			: workload,
@@ -78,12 +77,6 @@ def run_all_test(jobs) :
 		else :
 			test_run('', job)
 	jobs = {}
-
-# run all tests
-jobs = {}
-for alg in algs: 
-	insert_job(alg, 'TEST')
-run_all_test(jobs)
 
 # run YCSB tests
 jobs = {}

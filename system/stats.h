@@ -1,5 +1,4 @@
-#ifndef _STATS_H_
-#define _STATS_H_
+#pragma once 
 
 class Stats_thd {
 public:
@@ -25,7 +24,8 @@ public:
 	uint64_t debug5;
 	
 	uint64_t latency;
-	uint64_t * all_lat;
+	uint64_t * all_debug1;
+	uint64_t * all_debug2;
 	char _pad[CL_SIZE];
 };
 
@@ -56,11 +56,9 @@ public:
 	void init();
 	void init(uint64_t thread_id);
 	void clear(uint64_t tid);
-	void add_lat(uint64_t thd_id, uint64_t latency);
+	void add_debug(uint64_t thd_id, uint64_t value, uint32_t select);
 	void commit(uint64_t thd_id);
 	void abort(uint64_t thd_id);
 	void print();
 	void print_lat_distr();
 };
-
-#endif

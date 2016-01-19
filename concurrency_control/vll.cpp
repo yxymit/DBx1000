@@ -33,7 +33,6 @@ VLLMan::vllMainLoop(txn_man * txn, base_query * query) {
 		// the following line adds the read/write sets to txn->accesses
 		txn->get_row(row, req->rtype);
 		int cs = row->manager->get_cs();
-		INC_STATS(txn->get_thd_id(), debug1, cs);
 	}
 
 	bool done = false;
@@ -110,7 +109,6 @@ uint64_t t3 = get_sys_clock();
 			for (int fid = 0; fid < schema->get_field_cnt(); fid++) {
 				char * data = row->get_data();
 				uint64_t fval = *(uint64_t *)(&data[fid * 100]);
-				INC_STATS(txn->get_thd_id(), debug1, fval);
            	}
 		} else {
 			assert(type == WR);

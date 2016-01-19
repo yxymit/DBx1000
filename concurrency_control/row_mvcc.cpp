@@ -4,331 +4,346 @@
 #include "manager.h"
 #include "row_mvcc.h"
 #include "mem_alloc.h"
+#include <mm_malloc.h>
+
+#if CC_ALG == MVCC
 
 void Row_mvcc::init(row_t * row) {
 	_row = row;
-	uint64_t part_id = row->get_part_id();
-	readreq_mvcc = NULL;
-	prereq_mvcc = NULL;
-	readhis = NULL;
-	writehis = NULL;
-	readhistail = NULL;
-	writehistail = NULL;
+	_his_len = 4;
+	_req_len = _his_len;
+
+	_write_history = (WriteHisEntry *) _mm_malloc(sizeof(WriteHisEntry) * _his_len, 64);
+	_requests = (ReqEntry *) _mm_malloc(sizeof(ReqEntry) * _req_len, 64);
+	for (uint32_t i = 0; i < _his_len; i++) {
+		_requests[i].valid = false;
+		_write_history[i].valid = false;
+		_write_history[i].row = NULL;
+	}
+	_latest_row = _row;
+	_latest_wts = 0;
+	_oldest_wts = 0;
+
+	_num_versions = 0;
+	_exists_prewrite = false;
+	_max_served_rts = 0;
+	
 	blatch = false;
-	latch = (pthread_mutex_t *) 
-		mem_allocator.alloc(sizeof(pthread_mutex_t), part_id);
+	latch = (pthread_mutex_t *) _mm_malloc(sizeof(pthread_mutex_t), 64);
 	pthread_mutex_init(latch, NULL);
-	whis_len = 0;
-	rhis_len = 0;
-	rreq_len = 0;
-	preq_len = 0;
 }
 
-row_t * Row_mvcc::clear_history(TsType type, ts_t ts) {
-	MVHisEntry ** queue;
-	MVHisEntry ** tail;
-    switch (type) {
-    case R_REQ : queue = &readhis; tail = &readhistail; break;
-    case W_REQ : queue = &writehis; tail = &writehistail; break;
-	default: assert(false);
-    }
-	MVHisEntry * his = *tail;
-	MVHisEntry * prev = NULL;
-	row_t * row = NULL;
-	while (his && his->prev && his->prev->ts < ts) {
-		prev = his->prev;
-		assert(prev->ts > his->ts);
-		if (row != NULL) {
-			row->free_row();
-			mem_allocator.free(row, sizeof(row_t));
-		}
-		row = his->row;
-		his->row = NULL;
-		return_his_entry(his);
-		his = prev;
-		if (type == R_REQ) rhis_len --;
-		else whis_len --;
-	}
-	*tail = his;
-	if (*tail)
-		(*tail)->next = NULL;
-	if (his == NULL) 
-		*queue = NULL;
-	return row;
-}
-
-MVReqEntry * Row_mvcc::get_req_entry() {
-	uint64_t part_id = get_part_id(_row);
-	return (MVReqEntry *) mem_allocator.alloc(sizeof(MVReqEntry), part_id);
-}
-
-void Row_mvcc::return_req_entry(MVReqEntry * entry) {
-	mem_allocator.free(entry, sizeof(MVReqEntry));
-}
-
-MVHisEntry * Row_mvcc::get_his_entry() {
-	uint64_t part_id = _row->get_part_id();
-	return (MVHisEntry *) mem_allocator.alloc(sizeof(MVHisEntry), part_id);
-}
-
-void Row_mvcc::return_his_entry(MVHisEntry * entry) {
-	if (entry->row != NULL) {
-		entry->row->free_row();
-		mem_allocator.free(entry->row, sizeof(row_t));
-	}
-	mem_allocator.free(entry, sizeof(MVHisEntry));
-}
-
-void Row_mvcc::buffer_req(TsType type, txn_man * txn)
+void Row_mvcc::buffer_req(TsType type, txn_man * txn, bool served)
 {
-	MVReqEntry * req_entry = get_req_entry();
-	assert(req_entry != NULL);
-	req_entry->txn = txn;
-	req_entry->ts = txn->get_ts();
-	if (type == R_REQ) {
-		rreq_len ++;
-		STACK_PUSH(readreq_mvcc, req_entry);
-	} else if (type == P_REQ) {
-		preq_len ++;
-		STACK_PUSH(prereq_mvcc, req_entry);
+	uint32_t access_num = 1;
+	while (true) {
+		for (uint32_t i = 0; i < _req_len; i++) {
+			// TODO No need to keep all read history.
+			// in some sense, only need to keep the served read request with the max ts.
+			// 
+			if (!_requests[i].valid) {
+				_requests[i].valid = true;
+				_requests[i].type = type;
+				_requests[i].ts = txn->get_ts();
+				_requests[i].txn = txn;
+				_requests[i].time = get_sys_clock();
+				return;
+			}
+		}
+		assert(access_num == 1);
+		double_list(1);
+		access_num ++;
 	}
 }
 
-// for type == R_REQ 
-//	 debuffer all non-conflicting requests
-// for type == P_REQ
-//   debuffer the request with matching txn.
-MVReqEntry * Row_mvcc::debuffer_req( TsType type, txn_man * txn) {
-	MVReqEntry ** queue;
-	MVReqEntry * return_queue = NULL;
-	switch (type) {
-	case R_REQ : queue = &readreq_mvcc; break;
-	case P_REQ : queue = &prereq_mvcc; break;
-	default: assert(false);
-	}
-	
-	MVReqEntry * req = *queue;
-	MVReqEntry * prev_req = NULL;
-	if (txn != NULL) {
-		assert(type == P_REQ);
-		while (req != NULL && req->txn != txn) {		
-			prev_req = req;
-			req = req->next;
+
+void 
+Row_mvcc::double_list(uint32_t list)
+{
+	if (list == 0) {
+		WriteHisEntry * temp = (WriteHisEntry *) _mm_malloc(sizeof(WriteHisEntry) * _his_len * 2, 64);
+		for (uint32_t i = 0; i < _his_len; i++) {
+			temp[i].valid = _write_history[i].valid;
+			temp[i].reserved = _write_history[i].reserved;
+			temp[i].ts = _write_history[i].ts;
+			temp[i].row = _write_history[i].row;
 		}
-		assert(req != NULL);
-		if (prev_req != NULL)
-			prev_req->next = req->next;
-		else {
-			assert( req == *queue );
-			*queue = req->next;
+		for (uint32_t i = _his_len; i < _his_len * 2; i++) {
+			temp[i].valid = false;
+			temp[i].reserved = false;
+			temp[i].row = NULL;
 		}
-		preq_len --;
-		req->next = return_queue;
-		return_queue = req;
+		_mm_free(_write_history);
+		_write_history = temp;
+		_his_len = _his_len * 2;
 	} else {
-		assert(type == R_REQ);
-		// should return all non-conflicting read requests
-		// TODO The following code makes the assumption that each write op
-		// must read the row first. i.e., there is no write-only operation.
-		uint64_t min_pts = (1UL << 32);
-		for (MVReqEntry * preq = prereq_mvcc; preq != NULL; preq = preq->next)
-			if (preq->ts < min_pts)
-				min_pts = preq->ts;
-		while (req != NULL) {
-			if (req->ts <= min_pts) {
-				if (prev_req == NULL) {
-					assert(req == *queue);
-					*queue = (*queue)->next;
-				} else 
-					prev_req->next = req->next;
-				rreq_len --;
-				req->next = return_queue;
-				return_queue = req;
-				req = (prev_req == NULL)? *queue : prev_req->next;
-			} else {
-				prev_req = req;
-				req = req->next;
-			}
+		assert(list == 1);
+		ReqEntry * temp = (ReqEntry *) _mm_malloc(sizeof(ReqEntry) * _req_len * 2, 64);
+		for (uint32_t i = 0; i < _req_len; i++) {
+			temp[i].valid = _requests[i].valid;
+			temp[i].type = _requests[i].type;
+			temp[i].ts = _requests[i].ts;
+			temp[i].txn = _requests[i].txn;
+			temp[i].time = _requests[i].time;
 		}
+		for (uint32_t i = _req_len; i < _req_len * 2; i++) 
+			temp[i].valid = false;
+		_mm_free(_requests);
+		_requests = temp;
+		_req_len = _req_len * 2;
 	}
-	
-	return return_queue;
-}
-
-void Row_mvcc::insert_history( ts_t ts, row_t * row) 
-{
-	MVHisEntry * new_entry = get_his_entry(); 
-	new_entry->ts = ts;
-	new_entry->row = row;
-	if (row != NULL)
-		whis_len ++;
-	else rhis_len ++;
-	MVHisEntry ** queue = (row == NULL)? 
-		&(readhis) : &(writehis);
-	MVHisEntry ** tail = (row == NULL)?
-		&(readhistail) : &(writehistail);
-	MVHisEntry * his = *queue;
-	while (his != NULL && ts < his->ts) {
-		his = his->next;
-	}
-
-	if (his) {
-		LIST_INSERT_BEFORE(his, new_entry);					
-		if (his == *queue)
-			*queue = new_entry;
-	} else 
-		LIST_PUT_TAIL((*queue), (*tail), new_entry);
-}
-
-bool Row_mvcc::conflict(TsType type, ts_t ts) {
-	// find the unique prewrite-read couple (prewrite before read)
-	// if no such couple found, no conflict. 
-	// else 
-	// 	 if exists writehis between them, NO conflict!!!!
-	// 	 else, CONFLICT!!!
-	ts_t rts;
-	ts_t pts;
-	if (type == R_REQ) {	
-		rts = ts;
-		pts = 0;
-		MVReqEntry * req = prereq_mvcc;
-		while (req != NULL) {
-			if (req->ts < ts && req->ts > pts) { 
-				pts = req->ts;
-			}
-			req = req->next;
-		}
-		if (pts == 0) // no such couple exists
-			return false;
-	} else if (type == P_REQ) {
-		rts = 0;
-		pts = ts;
-		MVHisEntry * his = readhis;
-		while (his != NULL) {
-			if (his->ts > ts) {
-				rts = his->ts;
-			} else 
-				break;
-			his = his->next;
-		}
-		if (rts == 0) // no couple exists
-			return false;
-		assert(rts > pts);
-	}
-	MVHisEntry * whis = writehis;
-    while (whis != NULL && whis->ts > pts) {
-		if (whis->ts < rts) 
-			return false;
-		whis = whis->next;
-	}
-	return true;
 }
 
 RC Row_mvcc::access(txn_man * txn, TsType type, row_t * row) {
 	RC rc = RCOK;
 	ts_t ts = txn->get_ts();
+uint64_t t1 = get_sys_clock();
 	if (g_central_man)
-		glob_manager.lock_row(_row);
+		glob_manager->lock_row(_row);
 	else
-		pthread_mutex_lock( latch );
+		while (!ATOM_CAS(blatch, false, true))
+			PAUSE
+		//pthread_mutex_lock( latch );
+uint64_t t2 = get_sys_clock();
+INC_STATS(txn->get_thd_id(), debug4, t2 - t1);
+
+#if DEBUG_CC
+	for (uint32_t i = 0; i < _req_len; i++)
+		if (_requests[i].valid) {
+			assert(_requests[i].ts > _latest_wts);
+			if (_exists_prewrite)
+				assert(_prewrite_ts < _requests[i].ts);
+		}
+#endif
 	if (type == R_REQ) {
-		// figure out if ts is in interval(prewrite(x))
-		bool conf = conflict(type, ts);
-		if ( conf && rreq_len < MAX_READ_REQ) {
-			rc = WAIT;
-			buffer_req(R_REQ, txn);
-			txn->ts_ready = false;
-		} else if (conf) { 
+		if (ts < _oldest_wts)
+			// the version was already recycled... This should be very rare
 			rc = Abort;
-			printf("\nshould never happen. rreq_len=%ld", rreq_len);
+		else if (ts > _latest_wts) {
+			if (_exists_prewrite && _prewrite_ts < ts)
+			{
+				// exists a pending prewrite request before the current read. should wait.
+				rc = WAIT;
+				buffer_req(R_REQ, txn, false);
+				txn->ts_ready = false;
+			} else { 
+				// should just read
+				rc = RCOK;
+				txn->cur_row = _latest_row;
+				if (ts > _max_served_rts)
+					_max_served_rts = ts;
+			}
 		} else {
-			// return results immediately.
 			rc = RCOK;
-			MVHisEntry * whis = writehis;
-			while (whis != NULL && whis->ts > ts) 
-				whis = whis->next;
-			row_t * ret = (whis == NULL)? 
-				_row : whis->row;
-			txn->cur_row = ret;
-			insert_history(ts, NULL);
-			assert(strstr(_row->get_table_name(), ret->get_table_name()));
+			// ts is between _oldest_wts and _latest_wts, should find the correct version
+			uint32_t the_ts = 0;
+		   	uint32_t the_i = _his_len;
+	   		for (uint32_t i = 0; i < _his_len; i++) {
+		   		if (_write_history[i].valid 
+					&& _write_history[i].ts < ts 
+			   		&& _write_history[i].ts > the_ts) 
+	   			{
+		   			the_ts = _write_history[i].ts;
+			  		the_i = i;
+				}
+			}
+			if (the_i == _his_len) 
+				txn->cur_row = _row;
+   			else 
+	   			txn->cur_row = _write_history[the_i].row;
 		}
 	} else if (type == P_REQ) {
-		if ( conflict(type, ts) ) {
+		if (ts < _latest_wts || ts < _max_served_rts || (_exists_prewrite && _prewrite_ts > ts))
 			rc = Abort;
-		} else if (preq_len < MAX_PRE_REQ){
-			buffer_req(P_REQ, txn);
+		else if (_exists_prewrite) {  // _prewrite_ts < ts
+			rc = WAIT;
+			buffer_req(P_REQ, txn, false);
+			txn->ts_ready = false;
+		} else {
 			rc = RCOK;
-		} else  {
-			rc = Abort;
+			row_t * res_row = reserveRow(ts, txn);
+			assert(res_row);
+			res_row->copy(_latest_row);
+			txn->cur_row = res_row;
 		}
 	} else if (type == W_REQ) {
 		rc = RCOK;
-		// the corresponding prewrite request is debuffered.
-		insert_history(ts, row);
-		MVReqEntry * req = debuffer_req(P_REQ, txn);
-		assert(req != NULL);
-		return_req_entry(req);
-		update_buffer(txn);
+		assert(ts > _latest_wts);
+		assert(row == _write_history[_prewrite_his_id].row);
+		_write_history[_prewrite_his_id].valid = true;
+		_write_history[_prewrite_his_id].ts = ts;
+		_latest_wts = ts;
+		_latest_row = row;
+		_exists_prewrite = false;
+		_num_versions ++;
+		update_buffer(txn, W_REQ);
 	} else if (type == XP_REQ) {
-		MVReqEntry * req = debuffer_req(P_REQ, txn);
-		assert (req != NULL);
-		return_req_entry(req);
-		update_buffer(txn);
+		assert(row == _write_history[_prewrite_his_id].row);
+		_write_history[_prewrite_his_id].valid = false;
+		_write_history[_prewrite_his_id].reserved = false;
+		_exists_prewrite = false;
+		update_buffer(txn, XP_REQ);
 	} else 
 		assert(false);
+INC_STATS(txn->get_thd_id(), debug3, get_sys_clock() - t2);
+	if (g_central_man)
+		glob_manager->release_row(_row);
+	else
+		blatch = false;
+		//pthread_mutex_unlock( latch );	
+		
+	return rc;
+}
+
+row_t *
+Row_mvcc::reserveRow(ts_t ts, txn_man * txn)
+{
+	assert(!_exists_prewrite);
 	
-	if (rc == RCOK) {
-		if (whis_len > HIS_RECYCLE_LEN || rhis_len > HIS_RECYCLE_LEN) {
-			ts_t t_th = glob_manager.get_min_ts(txn->get_thd_id());
-			if (readhistail && readhistail->ts < t_th)
-				clear_history(R_REQ, t_th);
-			// TODO. Here is a tricky bug. The oldest transaction might be 
-			// reading an even older version whose timestamp < t_th.
-			// But we cannot recycle that version because it is still being used.
-			// So the HACK here is to make sure that the first version older than
-			// t_th not be recycled.
-			if (whis_len > 1 && 
-				writehistail->prev->ts < t_th) {
-				row_t * latest_row = clear_history(W_REQ, t_th);
-				if (latest_row != NULL) {
-					assert(_row != latest_row);
-					_row->copy(latest_row);
+	// Garbage Collection
+	ts_t min_ts = glob_manager->get_min_ts(txn->get_thd_id());
+	if (_oldest_wts < min_ts && 
+		_num_versions == _his_len)
+	{
+		ts_t max_recycle_ts = 0;
+		ts_t idx = _his_len;
+		for (uint32_t i = 0; i < _his_len; i++) {
+			if (_write_history[i].valid
+				&& _write_history[i].ts < min_ts
+				&& _write_history[i].ts > max_recycle_ts)		
+			{
+				max_recycle_ts = _write_history[i].ts;
+				idx = i;
+			}
+		}
+		// some entries can be garbage collected.
+		if (idx != _his_len) {
+			row_t * temp = _row;
+			_row = _write_history[idx].row;
+			_write_history[idx].row = temp;
+			_oldest_wts = max_recycle_ts;
+			for (uint32_t i = 0; i < _his_len; i++) {
+				if (_write_history[i].valid
+					&& _write_history[i].ts <= max_recycle_ts)
+				{
+					_write_history[i].valid = false;
+					_write_history[i].reserved = false;
+					assert(_write_history[i].row);
+					_num_versions --;
 				}
 			}
 		}
 	}
 	
-	if (g_central_man)
-		glob_manager.release_row(_row);
-	else
-		pthread_mutex_unlock( latch );	
-		
-	return rc;
+#if DEBUG_CC
+	uint32_t his_size = 0;
+	uint64_t max_ts = 0;
+	for (uint32_t i = 0; i < _his_len; i++) 
+		if (_write_history[i].valid) {
+			his_size ++;
+			if (_write_history[i].ts > max_ts)
+				max_ts = _write_history[i].ts;
+		}
+	assert(his_size == _num_versions);
+	if (_num_versions > 0)
+		assert(max_ts == _latest_wts);
+#endif
+	uint32_t idx = _his_len;
+	// _write_history is not full, find an unused entry for P_REQ.
+	if (_num_versions < _his_len) {
+		for (uint32_t i = 0; i < _his_len; i++) {
+			if (!_write_history[i].valid 
+				&& !_write_history[i].reserved 
+				&& _write_history[i].row != NULL) 
+			{
+				idx = i;
+				break;
+			}
+			else if (!_write_history[i].valid 
+				 	 && !_write_history[i].reserved)
+				idx = i;
+		}
+		assert(idx < _his_len);
+	}
+	row_t * row;
+	if (idx == _his_len) { 
+		if (_his_len >= g_thread_cnt) {
+			// all entries are taken. recycle the oldest version if _his_len is too long already
+			ts_t min_ts = UINT64_MAX; 
+			for (uint32_t i = 0; i < _his_len; i++) {
+				if (_write_history[i].valid && _write_history[i].ts < min_ts) {
+					min_ts = _write_history[i].ts;
+					idx = i;
+				}
+			}
+			assert(min_ts > _oldest_wts);
+			assert(_write_history[idx].row);
+			row = _row;
+			_row = _write_history[idx].row;
+			_write_history[idx].row = row;
+			_oldest_wts = min_ts;
+			_num_versions --;
+		} else {
+			// double the history size. 
+			double_list(0);
+			_prewrite_ts = ts;
+#if DEBUG_CC
+			for (uint32_t i = 0; i < _his_len / 2; i++)
+				assert(_write_history[i].valid);
+			assert(!_write_history[_his_len / 2].valid);
+#endif
+			idx = _his_len / 2;
+		}
+	} 
+	assert(idx != _his_len);
+	// some entries are not taken. But the row of that entry is NULL.
+	if (!_write_history[idx].row) {
+		_write_history[idx].row = (row_t *) _mm_malloc(sizeof(row_t), 64);
+		_write_history[idx].row->init(MAX_TUPLE_SIZE);
+	}
+	_write_history[idx].valid = false;
+	_write_history[idx].reserved = true;
+	_write_history[idx].ts = ts;
+	_exists_prewrite = true;
+	_prewrite_his_id = idx;
+	_prewrite_ts = ts;
+	return _write_history[idx].row;
 }
 
-void Row_mvcc::update_buffer(txn_man * txn) {
-	MVReqEntry * ready_read = debuffer_req(R_REQ, NULL);
-	MVReqEntry * req = ready_read;
-	MVReqEntry * tofree = NULL;
-
-	while (req != NULL) {
-		// find the version for the request
-		MVHisEntry * whis = writehis;
-		while (whis != NULL && whis->ts > req->ts) 
-			whis = whis->next;
-		row_t * row = (whis == NULL)? 
-			_row : whis->row;
-		req->txn->cur_row = row;
-		insert_history(req->ts, NULL);
-		assert(row->get_data() != NULL);
-		assert(row->get_table() != NULL);
-		assert(row->get_schema() == _row->get_schema());
-
-		req->txn->ts_ready = true;
-		tofree = req;
-		req = req->next;
-		// free ready_read
-		return_req_entry(tofree);
+void Row_mvcc::update_buffer(txn_man * txn, TsType type) {
+	// the current txn performs WR or XP.
+	// immediate following R_REQ and P_REQ should return.
+	ts_t ts = txn->get_ts();
+	// figure out the ts for the next pending P_REQ
+	ts_t next_pre_ts = UINT64_MAX ;
+	for (uint32_t i = 0; i < _req_len; i++)	
+		if (_requests[i].valid && _requests[i].type == P_REQ
+			&& _requests[i].ts > ts
+			&& _requests[i].ts < next_pre_ts)
+			next_pre_ts = _requests[i].ts;
+	// return all pending quests between txn->ts and next_pre_ts
+	for (uint32_t i = 0; i < _req_len; i++)	{
+		if (_requests[i].valid)	
+			assert(_requests[i].ts > ts);
+		// return pending R_REQ 
+		if (_requests[i].valid && _requests[i].type == R_REQ && _requests[i].ts < next_pre_ts) {
+			if (_requests[i].ts > _max_served_rts)
+				_max_served_rts = _requests[i].ts;
+			_requests[i].valid = false;
+			_requests[i].txn->cur_row = _latest_row;
+			_requests[i].txn->ts_ready = true;
+		}
+		// return one pending P_REQ
+		else if (_requests[i].valid && _requests[i].ts == next_pre_ts) {
+			assert(_requests[i].type == P_REQ);
+			row_t * res_row = reserveRow(_requests[i].ts, txn);
+			assert(res_row);
+			res_row->copy(_latest_row);
+			_requests[i].valid = false;
+			_requests[i].txn->cur_row = res_row;
+			_requests[i].txn->ts_ready = true;
+		}
 	}
 }
+
+#endif

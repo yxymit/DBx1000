@@ -25,17 +25,12 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 	RC rc;
 	ycsb_query * m_query = (ycsb_query *) query;
 	ycsb_wl * wl = (ycsb_wl *) h_wl;
-	itemid_t * m_item;
+	itemid_t * m_item = NULL;
   	row_cnt = 0;
 
-//	Catalog * schema = _wl->the_table->get_schema();
-	for (UInt32 rid = 0; rid < m_query->request_cnt; rid ++) {
+	for (uint32_t rid = 0; rid < m_query->request_cnt; rid ++) {
 		ycsb_request * req = &m_query->requests[rid];
 		int part_id = wl->key_to_part( req->key );
-#if !NOGRAPHITE
-		if (g_hw_migrate && part_id != CarbonGetHostTileId()) 
-			CarbonMigrateThread(part_id);
-#endif  
 		bool finish_req = false;
 		UInt32 iteration = 0;
 		while ( !finish_req ) {
@@ -63,18 +58,17 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 			// Only do computation when there are more than 1 requests.
             if (m_query->request_cnt > 1) {
                 if (req->rtype == RD || req->rtype == SCAN) {
-//                    for (int fid = 0; fid < schema->get_field_cnt(); fid++) {
+//                  for (int fid = 0; fid < schema->get_field_cnt(); fid++) {
 						int fid = 0;
 						char * data = row_local->get_data();
-						uint64_t fval = *(uint64_t *)(&data[fid * 100]);
-						INC_STATS(get_thd_id(), debug1, fval);
-  //                  }
+						__attribute__((unused)) uint64_t fval = *(uint64_t *)(&data[fid * 10]);
+//                  }
                 } else {
                     assert(req->rtype == WR);
 //					for (int fid = 0; fid < schema->get_field_cnt(); fid++) {
 						int fid = 0;
 						char * data = row->get_data();
-						*(uint64_t *)(&data[fid * 100]) = 0;
+						*(uint64_t *)(&data[fid * 10]) = 0;
 //					}
                 } 
             }

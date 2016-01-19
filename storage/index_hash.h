@@ -1,5 +1,4 @@
-#ifndef _INDEX_HASH_H_
-#define _INDEX_HASH_H_
+#pragma once 
 
 #include "global.h"
 #include "helper.h"
@@ -27,19 +26,17 @@ class BucketHeader {
 public:
 	void init();
 	void insert_item(idx_key_t key, itemid_t * item, int part_id);
-	void read_item(idx_key_t key, itemid_t * &item);
+	void read_item(idx_key_t key, itemid_t * &item, const char * tname);
 	BucketNode * 	first_node;
 	uint64_t 		node_cnt;
 	bool 			locked;
-//	latch_t latch_type;
-//	uint32_t share_cnt;
 };
 
 // TODO Hash index does not support partition yet.
 class IndexHash  : public index_base
 {
 public:
-	RC 			init(uint64_t bucket_cnt);
+	RC 			init(uint64_t bucket_cnt, int part_cnt);
 	RC 			init(int part_cnt, 
 					table_t * table, 
 					uint64_t bucket_cnt);
@@ -49,18 +46,10 @@ public:
 	RC	 		index_read(idx_key_t key, itemid_t * &item, int part_id=-1);	
 	RC	 		index_read(idx_key_t key, itemid_t * &item,
 							int part_id=-1, int thd_id=0);
-
-	// the following call returns a list of items
-//	RC 			index_read(idx_key_t key, Link_Item * &li, uint64_t &item_cnt);
-
-	// TODO implement index_remove
-//	RC 			index_remove(idx_key_t key);
-
 private:
-//	bool get_latch(BucketHeader * bucket, latch_t latch_type);
-//	bool release_latch(BucketHeader * bucket, latch_t latch_type);
 	void get_latch(BucketHeader * bucket);
 	void release_latch(BucketHeader * bucket);
+	
 	// TODO implement more complex hash function
 	uint64_t hash(idx_key_t key) {	return key % _bucket_cnt_per_part; }
 	
@@ -68,5 +57,3 @@ private:
 	uint64_t	 		_bucket_cnt;
 	uint64_t 			_bucket_cnt_per_part;
 };
-
-#endif

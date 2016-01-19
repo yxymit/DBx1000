@@ -1,5 +1,4 @@
-#ifndef _CATALOG_H_
-#define _CATALOG_H_
+#pragma once 
 
 #include <map>
 #include <vector>
@@ -56,8 +55,5 @@ public:
 	void 			print_schema();
 	Column * 		_columns;
 	UInt32 			tuple_size;
-private:
-	char pad[CL_SIZE - sizeof(uint64_t)*2 - sizeof(int) - sizeof(char *)*2];
 };
 
-#endif

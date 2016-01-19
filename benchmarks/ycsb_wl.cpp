@@ -1,3 +1,4 @@
+#include <sched.h>
 #include "global.h"
 #include "helper.h"
 #include "ycsb.h"
@@ -28,14 +29,14 @@ RC ycsb_wl::init() {
 		path = string(cpath);
 		path += "/tests/apps/dbms/YCSB_schema.txt";
 	}
-	init_schema( path.c_str() );
+	init_schema( path );
 	
 	init_table_parallel();
 //	init_table();
 	return RCOK;
 }
 
-RC ycsb_wl::init_schema(const char * schema_file) {
+RC ycsb_wl::init_schema(string schema_file) {
 	workload::init_schema(schema_file);
 	the_table = tables["MAIN_TABLE"]; 	
 	the_index = indexes["MAIN_INDEX"];
@@ -61,7 +62,6 @@ RC ycsb_wl::init_table() {
             // TODO insertion of last row may fail after the table_size
             // is updated. So never access the last record in a table
 			assert(rc == RCOK);
-//			uint64_t value = rand();
 			uint64_t primary_key = total_row;
 			new_row->set_primary_key(primary_key);
             new_row->set_value(0, &primary_key);
@@ -73,7 +73,7 @@ RC ycsb_wl::init_table() {
 					value[i] = (char)rand() % (1<<8) ;
 				new_row->set_value(fid, value);
 			}
-            itemid_t * m_item =
+            itemid_t * m_item = 
                 (itemid_t *) mem_allocator.alloc( sizeof(itemid_t), part_id );
 			assert(m_item != NULL);
             m_item->type = DT_row;
@@ -94,15 +94,13 @@ ins_done:
 // init table in parallel
 void ycsb_wl::init_table_parallel() {
 	enable_thread_mem_pool = true;
-	pthread_t * p_thds = new pthread_t[g_init_parallelism - 1];
-	for (UInt32 i = 0; i < g_init_parallelism - 1; i++) {
+	pthread_t p_thds[g_init_parallelism - 1];
+	for (UInt32 i = 0; i < g_init_parallelism - 1; i++) 
 		pthread_create(&p_thds[i], NULL, threadInitTable, this);
-	}
 	threadInitTable(this);
 
 	for (uint32_t i = 0; i < g_init_parallelism - 1; i++) {
 		int rc = pthread_join(p_thds[i], NULL);
-		printf("thread %d complete\n", i);
 		if (rc) {
 			printf("ERROR; return code from pthread_join() is %d\n", rc);
 			exit(-1);
@@ -114,6 +112,9 @@ void ycsb_wl::init_table_parallel() {
 
 void * ycsb_wl::init_table_slice() {
 	UInt32 tid = ATOM_FETCH_ADD(next_tid, 1);
+	// set cpu affinity
+	set_affinity(tid);
+
 	mem_allocator.register_thread(tid);
 	RC rc;
 	assert(g_synth_table_size % g_init_parallelism == 0);
@@ -125,24 +126,17 @@ void * ycsb_wl::init_table_slice() {
 			key < slice_size * (tid + 1); 
 			key ++
 	) {
-
-//		printf("tid=%d. key=%ld\n", tid, key);
 		row_t * new_row = NULL;
 		uint64_t row_id;
-		int part_id = key_to_part(key); // % g_part_cnt;
+		int part_id = key_to_part(key);
 		rc = the_table->get_new_row(new_row, part_id, row_id); 
 		assert(rc == RCOK);
-//		uint64_t value = rand();
 		uint64_t primary_key = key;
 		new_row->set_primary_key(primary_key);
 		new_row->set_value(0, &primary_key);
 		Catalog * schema = the_table->get_schema();
 		
 		for (UInt32 fid = 0; fid < schema->get_field_cnt(); fid ++) {
-//			int field_size = schema->get_field_size(fid);
-//			char value[field_size];
-//			for (int i = 0; i < field_size; i++) 
-//				value[i] = (char)rand() % (1<<8) ;
 			char value[6] = "hello";
 			new_row->set_value(fid, value);
 		}
@@ -163,7 +157,7 @@ void * ycsb_wl::init_table_slice() {
 
 RC ycsb_wl::get_txn_man(txn_man *& txn_manager, thread_t * h_thd){
 	txn_manager = (ycsb_txn_man *)
-		mem_allocator.alloc( sizeof(ycsb_txn_man), h_thd->get_thd_id() );
+		_mm_malloc( sizeof(ycsb_txn_man), 64 );
 	new(txn_manager) ycsb_txn_man();
 	txn_manager->init(h_thd, this, h_thd->get_thd_id());
 	return RCOK;

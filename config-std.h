@@ -5,37 +5,27 @@
 // Simulation + Hardware
 /***********************************************/
 #define THREAD_CNT					4
-#define PART_CNT					1 //CORE_CNT
-// each transaction only accesses only 1 virtual partition. But the lock/ts manager and index are not aware of such partitioning. VIRTUAL_PART_CNT describes the request distribution and is only used to generate queries. For HSTORE, VIRTUAL_PART_CNT should be the same as PART_CNT.
+#define PART_CNT					1 
+// each transaction only accesses 1 virtual partition. But the lock/ts manager and index are not aware of such partitioning. VIRTUAL_PART_CNT describes the request distribution and is only used to generate queries. For HSTORE, VIRTUAL_PART_CNT should be the same as PART_CNT.
 #define VIRTUAL_PART_CNT			1
 #define PAGE_SIZE					4096 
 #define CL_SIZE						64
-#define CPU_FREQ 					2.6
-// enable hardware migration.
-#define HW_MIGRATE					false
+// CPU_FREQ is used to get accurate timing info 
+#define CPU_FREQ 					2 	// in GHz/s
 
 // # of transactions to run for warmup
 #define WARMUP						0
 // YCSB or TPCC
-#define WORKLOAD YCSB
+#define WORKLOAD 					YCSB
 // print the transaction latency distribution
 #define PRT_LAT_DISTR				false
 #define STATS_ENABLE				true
-#define TIME_ENABLE					true //STATS_ENABLE
+#define TIME_ENABLE					true 
 
-/***********************************************/
-// Memory System
-/***********************************************/
-// Three different memory allocation methods are supported.
-// 1. default libc malloc
-// 2. per-thread malloc. each thread has a private local memory
-//    pool
-// 3. per-partition malloc. each partition has its own memory pool
-//    which is mapped to a unique tile on the chip.
 #define MEM_ALLIGN					8 
 
 // [THREAD_ALLOC]
-#define THREAD_ALLOC				true
+#define THREAD_ALLOC				false
 #define THREAD_ARENA_SIZE			(1UL << 22) 
 #define MEM_PAD 					true
 
@@ -47,8 +37,10 @@
 /***********************************************/
 // Concurrency Control
 /***********************************************/
-// WAIT_DIE, NO_WAIT, DL_DETECT, TIMESTAMP, MVCC, HSTORE, OCC, VLL
-#define CC_ALG 						DL_DETECT
+// WAIT_DIE, NO_WAIT, DL_DETECT, TIMESTAMP, MVCC, HEKATON, HSTORE, OCC, VLL, TICTOC, SILO
+// TODO TIMESTAMP does not work at this moment
+#define CC_ALG 						TICTOC
+#define ISOLATION_LEVEL 			SERIALIZABLE
 
 // all transactions acquire tuples according to the primary key order.
 #define KEY_ORDER					false
@@ -57,7 +49,9 @@
 // per-row lock/ts management or central lock/ts management
 #define CENTRAL_MAN					false
 #define BUCKET_CNT					31
-#define ABORT_PENALTY				1000000UL    // in ns.
+#define ABORT_PENALTY 				100000
+#define ABORT_BUFFER_SIZE			10
+#define ABORT_BUFFER_ENABLE			true
 // [ INDEX ]
 #define ENABLE_LATCH				false
 #define CENTRAL_INDEX				false
@@ -66,10 +60,10 @@
 #define BTREE_ORDER 				16
 
 // [DL_DETECT] 
-#define DL_LOOP_DETECT				100000 	// 100 us
-#define DL_LOOP_TRIAL				1000	// 1 us
+#define DL_LOOP_DETECT				1000 	// 100 us
+#define DL_LOOP_TRIAL				100	// 1 us
 #define NO_DL						KEY_ORDER
-#define TIMEOUT						100000000000
+#define TIMEOUT						1000000 // 1ms
 // [TIMESTAMP]
 #define TS_TWR						false
 #define TS_ALLOC					TS_CAS
@@ -78,13 +72,23 @@
 // [MVCC]
 // when read/write history is longer than HIS_RECYCLE_LEN
 // the history should be recycled.
-#define HIS_RECYCLE_LEN				10
-#define MAX_PRE_REQ					1024
-#define MAX_READ_REQ				1024
-#define MIN_TS_INTVL				10000000 //10 ms
+//#define HIS_RECYCLE_LEN				10
+//#define MAX_PRE_REQ					1024
+//#define MAX_READ_REQ				1024
+#define MIN_TS_INTVL				5000000 //5 ms. In nanoseconds
 // [OCC]
 #define MAX_WRITE_SET				10
 #define PER_ROW_VALID				true
+// [TICTOC]
+#define WRITE_COPY_FORM				"data" // ptr or data
+#define TICTOC_MV					false
+#define WR_VALIDATION_SEPARATE		true
+#define WRITE_PERMISSION_LOCK		false
+#define ATOMIC_TIMESTAMP			"false"
+// [TICTOC, SILO]
+#define VALIDATION_LOCK				"no-wait" // no-wait or waiting
+#define PRE_ABORT					"true"
+#define ATOMIC_WORD					true
 // [HSTORE]
 // when set to true, hstore will not access the global timestamp.
 // This is fine for single partition transactions. 
@@ -97,6 +101,7 @@
 /***********************************************/
 #define LOG_COMMAND					false
 #define LOG_REDO					false
+#define LOG_BATCH_TIME				10 // in ms
 
 /***********************************************/
 // Benchmark
@@ -108,11 +113,11 @@
 #define FIRST_PART_LOCAL 			true
 #define MAX_TUPLE_SIZE				1024 // in bytes
 // ==== [YCSB] ====
-#define INIT_PARALLELISM			16
-#define SYNTH_TABLE_SIZE 			(THREAD_CNT*1024)
-#define ZIPF_THETA 					0
-#define READ_PERC 					0.5
-#define WRITE_PERC 					0.5
+#define INIT_PARALLELISM			40
+#define SYNTH_TABLE_SIZE 			(1024 * 40)
+#define ZIPF_THETA 					0.6
+#define READ_PERC 					0.9
+#define WRITE_PERC 					0.1
 #define SCAN_PERC 					0
 #define SCAN_LEN					20
 #define PART_PER_TXN 				1
@@ -122,13 +127,13 @@
 // ==== [TPCC] ====
 // For large warehouse count, the tables do not fit in memory
 // small tpcc schemas shrink the table size.
-#define TPCC_SMALL					true
+#define TPCC_SMALL					false
 // Some of the transactions read the data but never use them. 
 // If TPCC_ACCESS_ALL == fales, then these parts of the transactions
 // are not modeled.
 #define TPCC_ACCESS_ALL 			false 
 #define WH_UPDATE					true
-#define NUM_WH 						4
+#define NUM_WH 						1
 //
 enum TPCCTxnType {TPCC_ALL, 
 				TPCC_PAYMENT, 
@@ -176,6 +181,7 @@ extern TestCases					g_test_case;
 #define DEBUG_TIMESTAMP				false
 #define DEBUG_SYNTH					false
 #define DEBUG_ASSERT				false
+#define DEBUG_CC					false //true
 
 /***********************************************/
 // Constant
@@ -195,7 +201,14 @@ extern TestCases					g_test_case;
 #define MVCC						5
 #define HSTORE						6
 #define OCC							7
-#define VLL							8
+#define TICTOC						8
+#define SILO						9
+#define VLL							10
+#define HEKATON 					11
+//Isolation Levels 
+#define SERIALIZABLE				1
+#define SNAPSHOT					2
+#define REPEATABLE_READ				3
 // TIMESTAMP allocation method.
 #define TS_MUTEX					1
 #define TS_CAS						2

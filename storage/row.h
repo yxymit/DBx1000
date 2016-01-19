@@ -1,5 +1,4 @@
-#ifndef _ROW_H_
-#define _ROW_H_
+#pragma once 
 
 #include <cassert>
 #include "global.h"
@@ -26,8 +25,11 @@ class Catalog;
 class txn_man;
 class Row_lock;
 class Row_mvcc;
+class Row_hekaton;
 class Row_ts;
 class Row_occ;
+class Row_tictoc;
+class Row_silo;
 class Row_vll;
 
 class row_t
@@ -35,6 +37,7 @@ class row_t
 public:
 
 	RC init(table_t * host_table, uint64_t part_id, uint64_t row_id = 0);
+	void init(int size);
 	RC switch_schema(table_t * host_table);
 	// not every row has a manager
 	void init_manager(row_t * row);
@@ -71,7 +74,7 @@ public:
 	DECL_GET_VALUE(SInt32);
 
 
-	void set_data(char * data);
+	void set_data(char * data, uint64_t size);
 	char * get_data();
 
 	void free_row();
@@ -79,15 +82,21 @@ public:
 	// for concurrency control. can be lock, timestamp etc.
 	RC get_row(access_t type, txn_man * txn, row_t *& row);
 	void return_row(access_t type, txn_man * txn, row_t * row);
-
+	
   #if CC_ALG == DL_DETECT || CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE
     Row_lock * manager;
   #elif CC_ALG == TIMESTAMP
    	Row_ts * manager;
   #elif CC_ALG == MVCC
   	Row_mvcc * manager;
+  #elif CC_ALG == HEKATON
+  	Row_hekaton * manager;
   #elif CC_ALG == OCC
   	Row_occ * manager;
+  #elif CC_ALG == TICTOC
+  	Row_tictoc * manager;
+  #elif CC_ALG == SILO
+  	Row_silo * manager;
   #elif CC_ALG == VLL
   	Row_vll * manager;
   #endif
@@ -97,8 +106,5 @@ private:
 	// primary key should be calculated from the data stored in the row.
 	uint64_t 		_primary_key;
 	uint64_t		_part_id;
-	bool part_info;
-	uint64_t _row_id;
+	uint64_t 		_row_id;
 };
-
-#endif

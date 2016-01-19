@@ -1,14 +1,15 @@
 #include "global.h"	
 #include "index_hash.h"
 #include "mem_alloc.h"
-	
-RC IndexHash::init(uint64_t bucket_cnt) {
+#include "table.h"
+
+RC IndexHash::init(uint64_t bucket_cnt, int part_cnt) {
 	_bucket_cnt = bucket_cnt;
-	_bucket_cnt_per_part = bucket_cnt / g_part_cnt;
-	_buckets = new BucketHeader * [g_part_cnt];
-	for (UInt32 i = 0; i < g_part_cnt; i++) {
-		_buckets[i] = (BucketHeader *) mem_allocator.alloc(sizeof(BucketHeader) * _bucket_cnt_per_part, i);
-		for (UInt32 n = 0; n < _bucket_cnt_per_part; n ++)
+	_bucket_cnt_per_part = bucket_cnt / part_cnt;
+	_buckets = new BucketHeader * [part_cnt];
+	for (int i = 0; i < part_cnt; i++) {
+		_buckets[i] = (BucketHeader *) _mm_malloc(sizeof(BucketHeader) * _bucket_cnt_per_part, 64);
+		for (uint32_t n = 0; n < _bucket_cnt_per_part; n ++)
 			_buckets[i][n].init();
 	}
 	return RCOK;
@@ -16,7 +17,7 @@ RC IndexHash::init(uint64_t bucket_cnt) {
 
 RC 
 IndexHash::init(int part_cnt, table_t * table, uint64_t bucket_cnt) {
-	init(bucket_cnt);
+	init(bucket_cnt, part_cnt);
 	this->table = table;
 	return RCOK;
 }
@@ -60,9 +61,7 @@ RC IndexHash::index_read(idx_key_t key, itemid_t * &item, int part_id) {
 	RC rc = RCOK;
 	// 1. get the sh latch
 //	get_latch(cur_bkt);
-
-	cur_bkt->read_item(key, item);
-	
+	cur_bkt->read_item(key, item, table->get_table_name());
 	// 3. release the latch
 //	release_latch(cur_bkt);
 	return rc;
@@ -77,10 +76,7 @@ RC IndexHash::index_read(idx_key_t key, itemid_t * &item,
 	RC rc = RCOK;
 	// 1. get the sh latch
 //	get_latch(cur_bkt);
-
-	
-	cur_bkt->read_item(key, item);
-	
+	cur_bkt->read_item(key, item, table->get_table_name());
 	// 3. release the latch
 //	release_latch(cur_bkt);
 	return rc;
@@ -108,7 +104,7 @@ void BucketHeader::insert_item(idx_key_t key,
 	}
 	if (cur_node == NULL) {		
 		BucketNode * new_node = (BucketNode *) 
-			mem_allocator.alloc(sizeof(BucketNode), part_id );		
+			mem_allocator.alloc(sizeof(BucketNode), part_id );
 		new_node->init(key);
 		new_node->items = item;
 		if (prev_node != NULL) {
@@ -124,7 +120,7 @@ void BucketHeader::insert_item(idx_key_t key,
 	}
 }
 
-void BucketHeader::read_item(idx_key_t key, itemid_t * &item) 
+void BucketHeader::read_item(idx_key_t key, itemid_t * &item, const char * tname) 
 {
 	BucketNode * cur_node = first_node;
 	while (cur_node != NULL) {

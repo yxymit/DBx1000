@@ -37,7 +37,6 @@ dbms benchmark has the following parameters in the config file. Parameters with 
   PAGE_SIZE		: memory page size
   CL_SIZE		: cache line size
   WARMUP		: number of transactions to run for warmup
-  HW_MIGRATE	: enable execution migration
 
   WORKLOAD		: workload supported (TPCC or YCSB)
   

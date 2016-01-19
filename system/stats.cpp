@@ -7,9 +7,10 @@
 
 void Stats_thd::init(uint64_t thd_id) {
 	clear();
-//	all_lat = new uint64_t [MAX_TXN_PER_PART]; 
-	all_lat = (uint64_t *)
-		mem_allocator.alloc(sizeof(uint64_t) * MAX_TXN_PER_PART, thd_id);
+	all_debug1 = (uint64_t *)
+		_mm_malloc(sizeof(uint64_t) * MAX_TXN_PER_PART, 64);
+	all_debug2 = (uint64_t *)
+		_mm_malloc(sizeof(uint64_t) * MAX_TXN_PER_PART, 64);
 }
 
 void Stats_thd::clear() {
@@ -44,8 +45,10 @@ void Stats_tmp::clear() {
 void Stats::init() {
 	if (!STATS_ENABLE) 
 		return;
-	_stats = new Stats_thd * [g_thread_cnt];
-	tmp_stats = new Stats_tmp * [g_thread_cnt];
+	_stats = (Stats_thd**) 
+			_mm_malloc(sizeof(Stats_thd*) * g_thread_cnt, 64);
+	tmp_stats = (Stats_tmp**) 
+			_mm_malloc(sizeof(Stats_tmp*) * g_thread_cnt, 64);
 	dl_detect_time = 0;
 	dl_wait_time = 0;
 	deadlock = 0;
@@ -56,9 +59,9 @@ void Stats::init(uint64_t thread_id) {
 	if (!STATS_ENABLE) 
 		return;
 	_stats[thread_id] = (Stats_thd *) 
-		mem_allocator.alloc(sizeof(Stats_thd), thread_id);
+		_mm_malloc(sizeof(Stats_thd), 64);
 	tmp_stats[thread_id] = (Stats_tmp *)
-		mem_allocator.alloc(sizeof(Stats_tmp), thread_id);
+		_mm_malloc(sizeof(Stats_tmp), 64);
 
 	_stats[thread_id]->init(thread_id);
 	tmp_stats[thread_id]->init();
@@ -76,10 +79,13 @@ void Stats::clear(uint64_t tid) {
 	}
 }
 
-void Stats::add_lat(uint64_t thd_id, uint64_t latency) {
+void Stats::add_debug(uint64_t thd_id, uint64_t value, uint32_t select) {
 	if (g_prt_lat_distr && warmup_finish) {
 		uint64_t tnum = _stats[thd_id]->txn_cnt;
-		_stats[thd_id]->all_lat[tnum] = latency;
+		if (select == 1)
+			_stats[thd_id]->all_debug1[tnum] = value;
+		else if (select == 2)
+			_stats[thd_id]->all_debug2[tnum] = value;
 	}
 }
 
@@ -142,11 +148,11 @@ void Stats::print() {
 	FILE * outf;
 	if (output_file != NULL) {
 		outf = fopen(output_file, "w");
-		fprintf(outf, "[summary] txn_cnt=%ld,abort_cnt=%ld"
-			",run_time=%f,time_wait=%f,time_ts_alloc=%f"
-			",time_man=%f,time_index=%f,time_abort=%f,time_cleanup=%f,latency=%f"
-			",deadlock_cnt=%ld,cycle_detect=%ld,dl_detect_time=%f,dl_wait_time=%f"
-			",time_query=%f,debug1=%f,debug2=%f,debug3=%f,debug4=%f,debug5=%f\n",
+		fprintf(outf, "[summary] txn_cnt=%ld, abort_cnt=%ld"
+			", run_time=%f, time_wait=%f, time_ts_alloc=%f"
+			", time_man=%f, time_index=%f, time_abort=%f, time_cleanup=%f, latency=%f"
+			", deadlock_cnt=%ld, cycle_detect=%ld, dl_detect_time=%f, dl_wait_time=%f"
+			", time_query=%f, debug1=%f, debug2=%f, debug3=%f, debug4=%f, debug5=%f\n",
 			total_txn_cnt, 
 			total_abort_cnt,
 			total_run_time / BILLION,
@@ -162,10 +168,10 @@ void Stats::print() {
 			dl_detect_time / BILLION,
 			dl_wait_time / BILLION,
 			total_time_query / BILLION,
-			total_debug1 / BILLION,
-			total_debug2 / BILLION,
-			total_debug3 / BILLION,
-			total_debug4 / BILLION,
+			total_debug1, // / BILLION,
+			total_debug2, // / BILLION,
+			total_debug3, // / BILLION,
+			total_debug4, // / BILLION,
 			total_debug5 / BILLION
 		);
 		fclose(outf);
@@ -191,10 +197,10 @@ void Stats::print() {
 		dl_wait_time / BILLION,
 		total_time_query / BILLION,
 		total_debug1 / BILLION,
-		total_debug2 / BILLION,
-		total_debug3 / BILLION,
-		total_debug4 / BILLION,
-		total_debug5 / BILLION 
+		total_debug2, // / BILLION,
+		total_debug3, // / BILLION,
+		total_debug4, // / BILLION,
+		total_debug5  // / BILLION 
 	);
 	if (g_prt_lat_distr)
 		print_lat_distr();
@@ -205,17 +211,14 @@ void Stats::print_lat_distr() {
 	if (output_file != NULL) {
 		outf = fopen(output_file, "a");
 		for (UInt32 tid = 0; tid < g_thread_cnt; tid ++) {
-			fprintf(outf, "[all_lat thd=%d] ", tid);
-			for (UInt32 tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
-				fprintf(outf, "%f,", (double)_stats[tid]->all_lat[tnum] / BILLION);
+			fprintf(outf, "[all_debug1 thd=%d] ", tid);
+			for (uint32_t tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
+				fprintf(outf, "%ld,", _stats[tid]->all_debug1[tnum]);
+			fprintf(outf, "\n[all_debug2 thd=%d] ", tid);
+			for (uint32_t tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
+				fprintf(outf, "%ld,", _stats[tid]->all_debug2[tnum]);
 			fprintf(outf, "\n");
 		}
 		fclose(outf);
 	} 
-	for (UInt32 tid = 0; tid < g_thread_cnt; tid ++) {
-		printf("[all_lat thd=%d] ", tid);
-		for (UInt32 tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
-			printf("%f,", (double)_stats[tid]->all_lat[tnum] / BILLION);
-		printf("\n");
-	}
 }

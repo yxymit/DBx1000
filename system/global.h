@@ -1,5 +1,4 @@
-#ifndef _GLOBAL_H_
-#define _GLOBAL_H_
+#pragma once 
 
 #include "stdint.h"
 #include <unistd.h>
@@ -12,6 +11,7 @@
 #include <string.h>
 #include <typeinfo>
 #include <list>
+#include <mm_malloc.h>
 #include <map>
 #include <set>
 #include <string>
@@ -53,8 +53,8 @@ typedef uint64_t ts_t; // time stamp type
 extern mem_alloc mem_allocator;
 extern Stats stats;
 extern DL_detect dl_detector;
-extern Manager glob_manager;
-extern Query_queue query_queue;
+extern Manager * glob_manager;
+extern Query_queue * query_queue;
 extern Plock part_lock_man;
 extern OptCC occ_man;
 #if CC_ALG == VLL
@@ -87,8 +87,7 @@ extern ts_t g_dl_loop_detect;
 extern bool g_ts_batch_alloc;
 extern UInt32 g_ts_batch_num;
 
-
-extern bool g_hw_migrate;
+extern map<string, string> g_params;
 
 // YCSB
 extern UInt32 g_cc_alg;
@@ -159,4 +158,3 @@ enum TsType {R_REQ, W_REQ, P_REQ, XP_REQ};
 #define UINT64_MAX 		18446744073709551615UL
 #endif // UINT64_MAX
 
-#endif

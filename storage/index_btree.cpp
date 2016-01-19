@@ -269,7 +269,7 @@ RC index_btree::upgrade_latch(bt_node * node) {
 		while ( !ATOM_CAS(node->latch, false, true) ) {}
 //		pthread_mutex_lock(&node->locked);
 //		while (!ATOM_CAS(node->locked, false, true)) {}
-	M_ASSERT( (node->latch_type == LATCH_SH), "" );
+	M_ASSERT( (node->latch_type == LATCH_SH), "Error" );
 	if (node->share_cnt > 1) 
 		success = false;
 	else { // share_cnt == 1
