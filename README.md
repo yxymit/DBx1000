@@ -7,7 +7,7 @@ The concurrency control scalability study is described in the following paper.
 
     Staring into the Abyss: An Evaluation of Concurrency Control with One Thousand Cores
     Xiangyao Yu, George Bezerra, Andrew Pavlo, Srinivas Devadas, Michael Stonebraker
-    http://voltdb.com/downloads/datasheets_collateral/vdb_whitepaper_staring_into_the_abyss.pdf
+    http://www.vldb.org/pvldb/vol8/p209-yu.pdf
     
 Build & Test
 ------------
