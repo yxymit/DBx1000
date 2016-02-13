@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-Wall -g -std=c++0x
+CFLAGS=-Wall -g #-std=c++0x
 
 .SUFFIXES: .o .cpp .h
 

@@ -17,7 +17,7 @@ RC workload::init_schema(string schema_file) {
     assert(sizeof(uint64_t) == 8);
     assert(sizeof(double) == 8);	
 	string line;
-	ifstream fin(schema_file);
+	ifstream fin(schema_file.c_str());
     Catalog * schema;
     while (getline(fin, line)) {
 		if (line.compare(0, 6, "TABLE=") == 0) {
