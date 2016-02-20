@@ -30,7 +30,8 @@ private:
 	ts_t 		get_next_ts();
 
 	RC	 		runTest(txn_man * txn);
-	drand48_data buffer;
+	//drand48_data buffer;
+	unsigned short buffer[3];
 
 	// A restart buffer for aborted txns.
 	struct AbortBufferEntry	{

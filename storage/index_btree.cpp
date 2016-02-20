@@ -103,7 +103,7 @@ RC index_btree::index_read(idx_key_t key, itemid_t *& item,
 		}
 	// release the latch after reading the node
 
-	printf("key = %ld\n", key);
+	//printf("key = %ld\n", key);
 	M_ASSERT(false, "the key does not exist!");
 	return rc;
 }

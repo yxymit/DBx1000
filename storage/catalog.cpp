@@ -50,7 +50,9 @@ uint64_t Catalog::get_field_index(char * name) {
 void Catalog::print_schema() {
 	printf("\n[Catalog] %s\n", table_name);
 	for (UInt32 i = 0; i < field_cnt; i++) {
-		printf("\t%s\t%s\t%ld\n", get_field_name(i), 
-			get_field_type(i), get_field_size(i));
+        cout << get_field_name(i) << "\t" << get_field_type(i)
+             << "\t" << get_field_size(i) << endl;
+		//printf("\t%s\t%s\t%ld\n", get_field_name(i), 
+		//	get_field_type(i), get_field_size(i));
 	}
 }

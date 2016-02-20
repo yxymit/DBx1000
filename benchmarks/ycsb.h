@@ -24,7 +24,7 @@ private:
 		((ycsb_wl *)This)->init_table_slice(); 
 		return NULL;
 	}
-	pthread_mutex_t insert_lock;
+	//pthread_mutex_t insert_lock;
 	//  For parallel initialization
 	static int next_tid;
 };

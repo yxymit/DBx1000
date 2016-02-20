@@ -52,7 +52,7 @@ private:
 	// For deadlock detection
 	///////////////////////////////////////////
 	// dl_lock is the global lock. Only used when deadlock detection happens
-	pthread_mutex_t _lock;
+	//pthread_mutex_t _lock;
 	// return value: whether a loop is detected.
 	bool nextNode(uint64_t txnid, DetectData * detect_data);
 	bool isCyclic(uint64_t txnid, DetectData * detect_data); // return if "thd" is causing a cycle

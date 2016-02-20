@@ -138,20 +138,21 @@ void Stats::print() {
 		total_time_ts_alloc += _stats[tid]->time_ts_alloc;
 		total_latency += _stats[tid]->latency;
 		total_time_query += _stats[tid]->time_query;
-		
-		printf("[tid=%ld] txn_cnt=%ld,abort_cnt=%ld\n", 
-			tid,
-			_stats[tid]->txn_cnt,
-			_stats[tid]->abort_cnt
-		);
+	
+        cout << "[tid=" << tid << "] txn_cnt=" << _stats[tid]->txn_cnt 
+             << ",abort_cnt=" << _stats[tid]->abort_cnt << endl; 
+		//printf("[tid=%ld] txn_cnt=%ld,abort_cnt=%ld\n", 
+		//	tid,
+		//	_stats[tid]->txn_cnt,
+		//	_stats[tid]->abort_cnt);
 	}
 	FILE * outf;
 	if (output_file != NULL) {
 		outf = fopen(output_file, "w");
-		fprintf(outf, "[summary] txn_cnt=%ld, abort_cnt=%ld"
+		fprintf(outf, "[summary] txn_cnt=%lld, abort_cnt=%lld"
 			", run_time=%f, time_wait=%f, time_ts_alloc=%f"
 			", time_man=%f, time_index=%f, time_abort=%f, time_cleanup=%f, latency=%f"
-			", deadlock_cnt=%ld, cycle_detect=%ld, dl_detect_time=%f, dl_wait_time=%f"
+			", deadlock_cnt=%lld, cycle_detect=%lld, dl_detect_time=%f, dl_wait_time=%f"
 			", time_query=%f, debug1=%f, debug2=%f, debug3=%f, debug4=%f, debug5=%f\n",
 			total_txn_cnt, 
 			total_abort_cnt,
@@ -176,10 +177,10 @@ void Stats::print() {
 		);
 		fclose(outf);
 	}
-	printf("[summary] txn_cnt=%ld, abort_cnt=%ld"
+	printf("[summary] txn_cnt=%lld, abort_cnt=%lld"
 		", run_time=%f, time_wait=%f, time_ts_alloc=%f"
 		", time_man=%f, time_index=%f, time_abort=%f, time_cleanup=%f, latency=%f"
-		", deadlock_cnt=%ld, cycle_detect=%ld, dl_detect_time=%f, dl_wait_time=%f"
+		", deadlock_cnt=%lld, cycle_detect=%lld, dl_detect_time=%f, dl_wait_time=%f"
 		", time_query=%f, debug1=%f, debug2=%f, debug3=%f, debug4=%f, debug5=%f\n", 
 		total_txn_cnt, 
 		total_abort_cnt,
@@ -213,10 +214,10 @@ void Stats::print_lat_distr() {
 		for (UInt32 tid = 0; tid < g_thread_cnt; tid ++) {
 			fprintf(outf, "[all_debug1 thd=%d] ", tid);
 			for (uint32_t tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
-				fprintf(outf, "%ld,", _stats[tid]->all_debug1[tnum]);
+				fprintf(outf, "%lld,", _stats[tid]->all_debug1[tnum]);
 			fprintf(outf, "\n[all_debug2 thd=%d] ", tid);
 			for (uint32_t tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
-				fprintf(outf, "%ld,", _stats[tid]->all_debug2[tnum]);
+				fprintf(outf, "%lld,", _stats[tid]->all_debug2[tnum]);
 			fprintf(outf, "\n");
 		}
 		fclose(outf);

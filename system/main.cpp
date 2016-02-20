@@ -1,7 +1,6 @@
 #include "global.h"
 #include "ycsb.h"
 #include "tpcc.h"
-#include "test.h"
 #include "thread.h"
 #include "manager.h"
 #include "mem_alloc.h"
@@ -35,8 +34,7 @@ int main(int argc, char* argv[])
 		case TPCC :
 			m_wl = new tpcc_wl; break;
 		case TEST :
-			m_wl = new TestWorkload; 
-			((TestWorkload *)m_wl)->tick();
+            assert(false);
 			break;
 		default:
 			assert(false);
@@ -96,14 +94,10 @@ int main(int argc, char* argv[])
 		pthread_join(p_thds[i], NULL);
 	int64_t endtime = get_server_clock();
 	
-	if (WORKLOAD != TEST) {
-		printf("PASS! SimTime = %ld\n", endtime - starttime);
-		if (STATS_ENABLE)
-			stats.print();
-	} else {
-		((TestWorkload *)m_wl)->summarize();
-	}
-	return 0;
+	cout << "PASS! SimTime = " << endtime - starttime << endl;
+	if (STATS_ENABLE)
+		stats.print();
+    return 0;
 }
 
 void * f(void * id) {

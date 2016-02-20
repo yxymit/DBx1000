@@ -11,12 +11,11 @@
 #include "ycsb_query.h"
 #include "tpcc_query.h"
 #include "mem_alloc.h"
-#include "test.h"
 
 void thread_t::init(uint64_t thd_id, workload * workload) {
 	_thd_id = thd_id;
 	_wl = workload;
-	srand48_r((_thd_id + 1) * get_sys_clock(), &buffer);
+	//srand48_r((_thd_id + 1) * get_sys_clock(), &buffer);
 	_abort_buffer_size = ABORT_BUFFER_SIZE;
 	_abort_buffer = (AbortBufferEntry *) _mm_malloc(sizeof(AbortBufferEntry) * _abort_buffer_size, 64); 
 	for (int i = 0; i < _abort_buffer_size; i++)
@@ -79,7 +78,8 @@ RC thread_t::run() {
 					}
 					if (m_query == NULL && _abort_buffer_empty_slots == 0) {
 						assert(trial == 0);
-						M_ASSERT(min_ready_time >= curr_time, "min_ready_time=%ld, curr_time=%ld\n", min_ready_time, curr_time);
+						//M_ASSERT(min_ready_time >= curr_time, "min_ready_time=%ld, curr_time=%ld\n", min_ready_time, curr_time);
+						assert(min_ready_time >= curr_time);
 						usleep(min_ready_time - curr_time);
 					}
 					else if (m_query == NULL)
@@ -126,10 +126,7 @@ RC thread_t::run() {
 		if (rc == RCOK) 
 		{
 #if CC_ALG != VLL
-			if (WORKLOAD == TEST)
-				rc = runTest(m_txn);
-			else 
-				rc = m_txn->run_txn(m_query);
+			rc = m_txn->run_txn(m_query);
 #endif
 #if CC_ALG == HSTORE
 			if (WORKLOAD == TEST) {
@@ -143,7 +140,8 @@ RC thread_t::run() {
 			uint64_t penalty = 0;
 			if (ABORT_PENALTY != 0)  {
 				double r;
-				drand48_r(&buffer, &r);
+				//drand48_r(&buffer, &r);
+				r = erand48(buffer);
 				penalty = r * ABORT_PENALTY;
 			}
 			if (!_abort_buffer_enable)
@@ -214,25 +212,4 @@ thread_t::get_next_ts() {
 	}
 }
 
-RC thread_t::runTest(txn_man * txn)
-{
-	RC rc = RCOK;
-	if (g_test_case == READ_WRITE) {
-		rc = ((TestTxnMan *)txn)->run_txn(g_test_case, 0);
-#if CC_ALG == OCC
-		txn->start_ts = get_next_ts(); 
-#endif
-		rc = ((TestTxnMan *)txn)->run_txn(g_test_case, 1);
-		printf("READ_WRITE TEST PASSED\n");
-		return FINISH;
-	}
-	else if (g_test_case == CONFLICT) {
-		rc = ((TestTxnMan *)txn)->run_txn(g_test_case, 0);
-		if (rc == RCOK)
-			return FINISH;
-		else 
-			return rc;
-	}
-	assert(false);
-	return RCOK;
-}
+

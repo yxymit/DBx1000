@@ -29,7 +29,7 @@ RC tpcc_wl::init() {
 	return RCOK;
 }
 
-RC tpcc_wl::init_schema(const char * schema_file) {
+RC tpcc_wl::init_schema(string schema_file) {
 	workload::init_schema(schema_file);
 	t_warehouse = tables["WAREHOUSE"];
 	t_district = tables["DISTRICT"];
@@ -65,7 +65,8 @@ RC tpcc_wl::init_table() {
 //		- new order
 //		- order line
 /**********************************/
-	tpcc_buffer = new drand48_data * [g_num_wh];
+	//tpcc_buffer = new drand48_data * [g_num_wh];
+    tpcc_buffer = new unsigned short * [g_num_wh];
 	pthread_t * p_thds = new pthread_t[g_num_wh - 1];
 	for (uint32_t i = 0; i < g_num_wh - 1; i++) 
 		pthread_create(&p_thds[i], NULL, threadInitWarehouse, this);
@@ -389,9 +390,10 @@ void * tpcc_wl::threadInitWarehouse(void * This) {
 	tpcc_wl * wl = (tpcc_wl *) This;
 	int tid = ATOM_FETCH_ADD(wl->next_tid, 1);
 	uint32_t wid = tid + 1;
-	tpcc_buffer[tid] = (drand48_data *) _mm_malloc(sizeof(drand48_data), 64);
+	//tpcc_buffer[tid] = (drand48_data *) _mm_malloc(sizeof(drand48_data), 64);
+	tpcc_buffer[tid] = (unsigned short *) _mm_malloc(sizeof(unsigned short) * 3, 64);
 	assert((uint64_t)tid < g_num_wh);
-	srand48_r(wid, tpcc_buffer[tid]);
+	//srand48_r(wid, tpcc_buffer[tid]);
 	
 	if (tid == 0)
 		wl->init_tab_item();

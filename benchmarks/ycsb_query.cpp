@@ -49,7 +49,8 @@ uint64_t ycsb_query::zipf(uint64_t n, double theta) {
 	double eta = (1 - pow(2.0 / n, 1 - theta)) / 
 		(1 - zeta_2_theta / zetan);
 	double u; 
-	drand48_r(&_query_thd->buffer, &u);
+	//drand48_r(&_query_thd->buffer, &u);
+    u = erand48(_query_thd->buffer);
 	double uz = u * zetan;
 	if (uz < 1) return 1;
 	if (uz < 1 + pow(0.5, theta)) return 2;
@@ -65,8 +66,10 @@ void ycsb_query::gen_requests(uint64_t thd_id, workload * h_wl) {
 	part_num = 0;
 	double r = 0;
 	int64_t rint64 = 0;
-	drand48_r(&_query_thd->buffer, &r);
-	lrand48_r(&_query_thd->buffer, &rint64);
+	//drand48_r(&_query_thd->buffer, &r);
+	//lrand48_r(&_query_thd->buffer, &rint64);
+    r = erand48( _query_thd->buffer );
+    rint64 = nrand48( _query_thd->buffer );
 	if (r < g_perc_multi_part) {
 		for (UInt32 i = 0; i < g_part_per_txn; i++) {
 			if (i == 0 && FIRST_PART_LOCAL)
@@ -92,7 +95,8 @@ void ycsb_query::gen_requests(uint64_t thd_id, workload * h_wl) {
 	int rid = 0;
 	for (UInt32 tmp = 0; tmp < g_req_per_query; tmp ++) {		
 		double r;
-		drand48_r(&_query_thd->buffer, &r);
+		//drand48_r(&_query_thd->buffer, &r);
+		r = erand48(_query_thd->buffer);
 		ycsb_request * req = &requests[rid];
 		if (r < g_read_perc) {
 			req->rtype = RD;
@@ -113,7 +117,8 @@ void ycsb_query::gen_requests(uint64_t thd_id, workload * h_wl) {
 		uint64_t primary_key = row_id * g_virtual_part_cnt + part_id;
 		req->key = primary_key;
 		int64_t rint64;
-		lrand48_r(&_query_thd->buffer, &rint64);
+		//lrand48_r(&_query_thd->buffer, &rint64);
+		rint64 = nrand48(_query_thd->buffer);
 		req->value = rint64 % (1<<8);
 		// Make sure a single row is not accessed twice
 		if (req->rtype == RD || req->rtype == WR) {

@@ -27,7 +27,8 @@ public:
 	tpcc_query * queries;
 #endif
 	char pad[CL_SIZE - sizeof(void *) - sizeof(int)];
-	drand48_data buffer;
+    unsigned short buffer[3];
+	//drand48_data buffer;
 };
 
 // TODO we assume a separate task queue for each thread in order to avoid 

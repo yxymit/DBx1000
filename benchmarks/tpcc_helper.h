@@ -12,7 +12,8 @@ uint64_t stockKey(uint64_t s_i_id, uint64_t s_w_id);
 
 uint64_t Lastname(uint64_t num, char* name);
 
-extern drand48_data ** tpcc_buffer;
+//extern drand48_data ** tpcc_buffer;
+extern unsigned short ** tpcc_buffer;
 // return random data from [0, max-1]
 uint64_t RAND(uint64_t max, uint64_t thd_id);
 // random number from [x, y]

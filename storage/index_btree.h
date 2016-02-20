@@ -34,6 +34,8 @@ public:
 					uint64_t thd_id, int64_t part_id = -1);
 	RC	 		index_read(idx_key_t key, itemid_t * &item, int part_id = -1);
 	RC	 		index_read(idx_key_t key, itemid_t * &item);
+	RC	 		index_read(idx_key_t key, itemid_t * &item,
+							int part_id=-1, int thd_id=0) { assert(false); return RCOK; };
 	RC 			index_next(uint64_t thd_id, itemid_t * &item, bool samekey = false);
 
 private:

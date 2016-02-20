@@ -12,7 +12,7 @@ class tpcc_wl : public workload {
 public:
 	RC init();
 	RC init_table();
-	RC init_schema(const char * schema_file);
+	RC init_schema(string schema_file);
 	RC get_txn_man(txn_man *& txn_manager, thread_t * h_thd);
 	table_t * 		t_warehouse;
 	table_t * 		t_district;

@@ -29,6 +29,8 @@
 #include "carbon_user.h"
 #endif
 
+#include "barrier.h"
+
 using namespace std;
 
 class mem_alloc;

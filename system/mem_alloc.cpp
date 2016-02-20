@@ -11,7 +11,7 @@ void mem_alloc::init(uint64_t part_cnt, uint64_t bytes_per_part) {
 		_bucket_cnt = g_thread_cnt * 4 + 1;
 	pid_arena = new std::pair<pthread_t, int>[_bucket_cnt];
 	for (int i = 0; i < _bucket_cnt; i ++)
-		pid_arena[i] = std::make_pair(0, 0);
+		pid_arena[i] = make_pair((pthread_t)0, (int)0);
 
 	if (THREAD_ALLOC) {
 		assert( !g_part_alloc );
@@ -74,9 +74,10 @@ void mem_alloc::register_thread(int thd_id) {
 	if (THREAD_ALLOC) {
 		pthread_mutex_lock( &map_lock );
 		pthread_t pid = pthread_self();
-		int entry = pid % _bucket_cnt;
+		int entry = (uint64_t)pid % _bucket_cnt;
 		while (pid_arena[ entry ].first != 0) {
-			printf("conflict at entry %d (pid=%ld)\n", entry, pid);
+			//printf("conflict at entry %d (pid=%ld)\n", entry, pid);
+            cout << "conflict at entry" << entry << endl;
 			entry = (entry + 1) % _bucket_cnt;
 		}
 		pid_arena[ entry ].first = pid;
@@ -101,7 +102,7 @@ mem_alloc::get_arena_id() {
 	int arena_id; 
 #if NOGRAPHITE
 	pthread_t pid = pthread_self();
-	int entry = pid % _bucket_cnt;
+	int entry = (uint64_t) pid % _bucket_cnt;
 	while (pid_arena[entry].first != pid) {
 		if (pid_arena[entry].first == 0)
 			break;
