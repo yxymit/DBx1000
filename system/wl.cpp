@@ -90,7 +90,8 @@ RC workload::init_schema(string schema_file) {
 			index->init(part_cnt, tables[tname], g_synth_table_size * 2);
 	#elif WORKLOAD == TPCC
 			assert(tables[tname] != NULL);
-			index->init(part_cnt, tables[tname], stoi( items[1] ) * part_cnt);
+			//index->init(part_cnt, tables[tname], stoi( items[1] ) * part_cnt);			
+			index->init(part_cnt, tables[tname], atoi( items[1].c_str() ) * part_cnt);
 	#endif
 #else
 			index->init(part_cnt, tables[tname]);
