@@ -2,6 +2,7 @@
 #include "helper.h"
 #include "stats.h"
 #include "mem_alloc.h"
+#include <inttypes.h>
 
 #define BILLION 1000000000UL
 
@@ -149,10 +150,10 @@ void Stats::print() {
 	FILE * outf;
 	if (output_file != NULL) {
 		outf = fopen(output_file, "w");
-		fprintf(outf, "[summary] txn_cnt=%lld, abort_cnt=%lld"
+		fprintf(outf, "[summary] txn_cnt=%" PRIu64 ", abort_cnt=%" PRIu64
 			", run_time=%f, time_wait=%f, time_ts_alloc=%f"
 			", time_man=%f, time_index=%f, time_abort=%f, time_cleanup=%f, latency=%f"
-			", deadlock_cnt=%lld, cycle_detect=%lld, dl_detect_time=%f, dl_wait_time=%f"
+			", deadlock_cnt=%" PRIu64 ", cycle_detect=%" PRIu64 ", dl_detect_time=%f, dl_wait_time=%f"
 			", time_query=%f, debug1=%f, debug2=%f, debug3=%f, debug4=%f, debug5=%f\n",
 			total_txn_cnt, 
 			total_abort_cnt,
@@ -177,10 +178,10 @@ void Stats::print() {
 		);
 		fclose(outf);
 	}
-	printf("[summary] txn_cnt=%lld, abort_cnt=%lld"
+	printf("[summary] txn_cnt=%" PRIu64 ", abort_cnt=%" PRIu64
 		", run_time=%f, time_wait=%f, time_ts_alloc=%f"
 		", time_man=%f, time_index=%f, time_abort=%f, time_cleanup=%f, latency=%f"
-		", deadlock_cnt=%lld, cycle_detect=%lld, dl_detect_time=%f, dl_wait_time=%f"
+		", deadlock_cnt=%" PRIu64 ", cycle_detect=%" PRIu64 ", dl_detect_time=%f, dl_wait_time=%f"
 		", time_query=%f, debug1=%f, debug2=%f, debug3=%f, debug4=%f, debug5=%f\n", 
 		total_txn_cnt, 
 		total_abort_cnt,
@@ -214,10 +215,10 @@ void Stats::print_lat_distr() {
 		for (UInt32 tid = 0; tid < g_thread_cnt; tid ++) {
 			fprintf(outf, "[all_debug1 thd=%d] ", tid);
 			for (uint32_t tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
-				fprintf(outf, "%lld,", _stats[tid]->all_debug1[tnum]);
+				fprintf(outf, "%" PRIu64 ",", _stats[tid]->all_debug1[tnum]);
 			fprintf(outf, "\n[all_debug2 thd=%d] ", tid);
 			for (uint32_t tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
-				fprintf(outf, "%lld,", _stats[tid]->all_debug2[tnum]);
+				fprintf(outf, "%" PRIu64 ",", _stats[tid]->all_debug2[tnum]);
 			fprintf(outf, "\n");
 		}
 		fclose(outf);

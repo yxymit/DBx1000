@@ -9,7 +9,6 @@ INCLUDE = -I. -I./benchmarks -I./concurrency_control -I./storage -I./system
 CFLAGS += $(INCLUDE) -D NOGRAPHITE=1 -Werror -O3 -D_GNU_SOURCE
 LDFLAGS = -Wall -L. -L./libs -g -std=c++0x -O3 -ljemalloc -lpthread  #-lrt
 LDFLAGS += $(CFLAGS)
-ARCH = -arch x86_64
 
 CPPS = $(foreach dir, $(SRC_DIRS), $(wildcard $(dir)*.cpp))
 OBJS = $(CPPS:.cpp=.o)
