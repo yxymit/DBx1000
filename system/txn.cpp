@@ -9,6 +9,7 @@
 #include "catalog.h"
 #include "index_btree.h"
 #include "index_hash.h"
+#include "log.h"
 
 void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	this->h_thd = h_thd;
@@ -111,6 +112,15 @@ void txn_man::cleanup(RC rc) {
 			mem_allocator.free(row, sizeof(row));
 		}
 	}
+    // Logging
+#if LOG_REDO
+    if (rc == RCOK)
+    {
+	    //void logTxn( uint64_t txn_id, uint64_t key, uint32_t length, char * after_image );
+        char after_image[wr_cnt * 100];
+        log_manager.logTxn(get_thd_id(), 0, wr_cnt * 100, after_image);
+    }
+#endif
 	row_cnt = 0;
 	wr_cnt = 0;
 	insert_cnt = 0;

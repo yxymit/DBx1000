@@ -108,11 +108,7 @@ RC thread_t::run() {
 
 		rc = RCOK;
 #if CC_ALG == HSTORE
-		if (WORKLOAD == TEST) {
-			uint64_t part_to_access[1] = {0};
-			rc = part_lock_man.lock(m_txn, &part_to_access[0], 1);
-		} else 
-			rc = part_lock_man.lock(m_txn, m_query->part_to_access, m_query->part_num);
+		rc = part_lock_man.lock(m_txn, m_query->part_to_access, m_query->part_num);
 #elif CC_ALG == VLL
 		vll_man.vllMainLoop(m_txn, m_query);
 #elif CC_ALG == MVCC || CC_ALG == HEKATON
@@ -129,11 +125,7 @@ RC thread_t::run() {
 			rc = m_txn->run_txn(m_query);
 #endif
 #if CC_ALG == HSTORE
-			if (WORKLOAD == TEST) {
-				uint64_t part_to_access[1] = {0};
-				part_lock_man.unlock(m_txn, &part_to_access[0], 1);
-			} else 
-				part_lock_man.unlock(m_txn, m_query->part_to_access, m_query->part_num);
+			part_lock_man.unlock(m_txn, m_query->part_to_access, m_query->part_num);
 #endif
 		}
 		if (rc == Abort) {
