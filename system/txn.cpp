@@ -116,10 +116,27 @@ void txn_man::cleanup(RC rc) {
 #if LOG_REDO
     if (rc == RCOK)
     {
-	    //void logTxn( uint64_t txn_id, uint64_t key, uint32_t length, char * after_image );
-        char after_image[wr_cnt * 100];
-        log_manager.logTxn(get_thd_id(), 0, wr_cnt * 100, after_image);
-    }
+		//uint64_t keys[wr_cnt];
+		//uint64_t cnt = 0;
+		uint64_t image_size = 0;
+		for (int rid = 0; rid < row_cnt; rid ++) {
+			access_t type = accesses[rid]->type;
+			if (type == WR) {
+				//keys[cnt++] = accesses[rid]->orig_row->get_primary_key(); 
+				image_size += accesses[rid]->orig_row->get_tuple_size();    
+			}
+    	}
+        char after_image[image_size];
+		image_size = 0;
+
+		for (int rid = 0; rid < row_cnt; rid ++) {
+			//access_t type = accesses[rid]->type;
+			//if (type == WR)
+			//row_t * data = accesses[rid]->data;
+			// TODO copy accesses[tid]->data->get_data() to after_image 
+    	}
+	    log_manager.logTxn(get_thd_id(), 0, wr_cnt * 100, after_image);
+	}
 #endif
 	row_cnt = 0;
 	wr_cnt = 0;
