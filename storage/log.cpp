@@ -25,20 +25,15 @@ struct log_record{
 struct log_record buffer[buff_size];
 int buff_index = 0;
 
-timespec commit_time;
-
-timespec getTime()
+LogManager::LogManager()
 {
-  timespec ts;
-  clock_gettime(CLOCK_REALTIME, &ts); // Works on Linux
-  return ts;  
+    // TODO [YXY] Open the log file here.
 }
 
 void
 LogManager::logTxn( uint64_t txn_id, uint64_t key, uint32_t length, char * after_image )
 {
-  // cout << "Log txn";
-  // get a global LSN
+  // TODO [YXY] Should lock the log manager
   uint64_t lsn = global_lsn;
   global_lsn ++;
   // generate a log record.
@@ -47,6 +42,7 @@ LogManager::logTxn( uint64_t txn_id, uint64_t key, uint32_t length, char * after
   buffer[buff_index].txn_id = txn_id;
   buffer[buff_index].key = key;
   buffer[buff_index].length = length;
+  // TODO [YXY] copy data, not ptr 
   buffer[buff_index].after_image = after_image;
   if (buff_index >= buff_size)
     {
@@ -66,6 +62,7 @@ void LogManager::flushLogBuffer()
   log.open("Log.data", ios::binary);
   for (int i=0; i<buff_size; i++)
     {
+      // TODO [YXY] Flush the whole buffer at the same time.
       log.write((char*)&buffer[i].lsn, sizeof(buffer[i].lsn));
       log.write((char*)&buffer[i].txn_id, sizeof(buffer[i].txn_id));
       log.write((char*)&buffer[i].key, sizeof(buffer[i].key));
@@ -73,7 +70,6 @@ void LogManager::flushLogBuffer()
       log.write(buffer[i].after_image, buffer[i].length);
     }
   log.close();
-  commit_time = getTime();
   buff_index = 0;
 }
 
