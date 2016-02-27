@@ -12,6 +12,7 @@ public:
 	void recover();
 private:
 	// for normal operation
+      
 	void flushLogBuffer();
 	// for recovery after crash
 	void readFromLog();
