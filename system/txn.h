@@ -65,6 +65,8 @@ public:
 	// [TIMESTAMP, MVCC]
 	bool volatile 	ts_ready; 
 	// [HSTORE]
+
+
 	int volatile 	ready_part;
 	RC 				finish(RC rc);
 	void 			cleanup(RC rc);
@@ -91,6 +93,10 @@ public:
 	itemid_t *		index_read(INDEX * index, idx_key_t key, int part_id);
 	void 			index_read(INDEX * index, idx_key_t key, int part_id, itemid_t *& item);
 	row_t * 		get_row(row_t * row, access_t type);
+
+	// For LOGGING
+	void 			recover();
+
 protected:	
 	void 			insert_row(row_t * row, table_t * table);
 private:

@@ -49,11 +49,12 @@ int main(int argc, char* argv[])
 		m_thds[i] = (thread_t *) _mm_malloc(sizeof(thread_t), 64);
 	// query_queue should be the last one to be initialized!!!
 	// because it collects txn latency
-	query_queue = (Query_queue *) _mm_malloc(sizeof(Query_queue), 64);
-	if (WORKLOAD != TEST)
+	if (!LOG_RECOVER) {
+		query_queue = (Query_queue *) _mm_malloc(sizeof(Query_queue), 64);
 		query_queue->init(m_wl);
+		printf("query_queue initialized!\n");
+	}
 	pthread_barrier_init( &warmup_bar, NULL, g_thread_cnt );
-	printf("query_queue initialized!\n");
 #if CC_ALG == HSTORE
 	part_lock_man.init();
 #elif CC_ALG == OCC

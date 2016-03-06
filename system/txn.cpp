@@ -265,3 +265,8 @@ txn_man::release() {
 		mem_allocator.free(accesses[i], 0);
 	mem_allocator.free(accesses, 0);
 }
+
+void 
+txn_man::recover() {
+	// call readFromLog() 	
+}

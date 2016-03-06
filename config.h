@@ -101,6 +101,7 @@
 /***********************************************/
 #define LOG_COMMAND					false
 #define LOG_REDO					true
+#define LOG_RECOVER					false
 #define LOG_BATCH_TIME				10 // in ms
 
 /***********************************************/

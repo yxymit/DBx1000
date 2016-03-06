@@ -55,6 +55,12 @@ RC thread_t::run() {
 	uint64_t thd_txn_id = 0;
 	UInt64 txn_cnt = 0;
 
+	if (LOG_RECOVER) {
+		m_txn->recover();
+		return FINISH;
+	}
+
+
 	while (true) {
 		ts_t starttime = get_sys_clock();
 		if (WORKLOAD != TEST) {
