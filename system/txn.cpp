@@ -123,7 +123,7 @@ void txn_man::cleanup(RC rc) {
 			access_t type = accesses[rid]->type;
 			if (type == WR) {
 				//keys[cnt++] = accesses[rid]->orig_row->get_primary_key(); 
-				image_size += accesses[rid]->orig_row->get_tuple_size();    
+				image_size += accesses[rid]->orig_row->get_tuple_size(); 
 			}
     	}
         char after_image[image_size];
@@ -268,5 +268,5 @@ txn_man::release() {
 
 void 
 txn_man::recover() {
-	// call readFromLog() 	
+	// call readFromLog()
 }
