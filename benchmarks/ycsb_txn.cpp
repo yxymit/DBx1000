@@ -58,18 +58,13 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 			// Only do computation when there are more than 1 requests.
             if (m_query->request_cnt > 1) {
                 if (req->rtype == RD || req->rtype == SCAN) {
-//                  for (int fid = 0; fid < schema->get_field_cnt(); fid++) {
-						int fid = 0;
-						char * data = row_local->get_data();
-						__attribute__((unused)) uint64_t fval = *(uint64_t *)(&data[fid * 10]);
-//                  }
+					char * data = row_local->get_data();
+					__attribute__((unused)) uint64_t fval = *(uint64_t *)(&data[0]);
                 } else {
                     assert(req->rtype == WR);
-//					for (int fid = 0; fid < schema->get_field_cnt(); fid++) {
-						int fid = 0;
-						char * data = row->get_data();
-						*(uint64_t *)(&data[fid * 10]) = 0;
-//					}
+					char * data = row->get_data();
+					uint64_t fval = *(uint64_t *)(&data[0]);
+					*(uint64_t *)(&data[0]) = fval + 1;
                 } 
             }
 

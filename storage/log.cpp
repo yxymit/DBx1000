@@ -76,7 +76,14 @@ void LogManager::flushLogBuffer()
 
 bool
 LogManager::readFromLog(uint32_t & num_keys, string * &table_names, uint64_t * &keys, uint32_t * &lengths, char ** &after_image)
-{
+{ 
+  // return true if the end of the file has not been reached. 
+  // return false if the end has been reached.
+
+  // You should have noticed that the input parameters in this function are
+  // almost identical to that of function logTxn(). This function (readFromLog) 
+  // is the reverse of logTxn(). logTxn() writes the information to a file, and readFromLog()
+  // recovers the same information back.  
   streampos size;
   char * memblock;
   ifstream file ("example.bin", ios::in|ios::binary|ios::ate);
