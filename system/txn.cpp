@@ -274,4 +274,23 @@ txn_man::release() {
 void 
 txn_man::recover() {
 	// call readFromLog()
+	uint32_t num_keys;
+	string * table_names;
+	uint64_t * keys;
+	uint32_t * lengths;
+	char ** after_images;
+	while (log_manager.readFromLog(num_keys, table_names, keys, lengths, after_images))
+	{
+		// update the database using these information.
+		// Here is the (pseudo) code:
+		//
+		// for each key in keys	:
+		// for (uint32_t i = 0; i < num_keys; i++) {
+		//   // Find the row using the key.
+		//   itemid_t * m_item = index_read(_wl->the_index, keys[i], 0);
+	    //   row_t * row = ((row_t *)m_item->location);
+		//   char * data = row->get_data();
+		//   memcpy(data, after_images[i], lengths[i]);
+		// } 
+	}
 }
