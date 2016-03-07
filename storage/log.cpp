@@ -30,8 +30,8 @@ LogManager::LogManager()
     // TODO [YXY] Open the log file here.
 }
 
-void
-LogManager::logTxn( uint64_t txn_id, uint64_t key, uint32_t length, char * after_image )
+void 
+LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images )
 {
   // TODO [YXY] Should lock the log manager
   uint64_t lsn = global_lsn;
@@ -40,10 +40,11 @@ LogManager::logTxn( uint64_t txn_id, uint64_t key, uint32_t length, char * after
   // put the log record into a buffer.
   buffer[buff_index].lsn = lsn;
   buffer[buff_index].txn_id = txn_id;
-  buffer[buff_index].key = key;
-  buffer[buff_index].length = length;
+  // added [0] just to make it compile
+  buffer[buff_index].key = keys[0]; 	
+  buffer[buff_index].length = lengths[0];
   // TODO [YXY] copy data, not ptr 
-  buffer[buff_index].after_image = after_image;
+  buffer[buff_index].after_image = after_images[0];
   if (buff_index >= buff_size)
     {
       flushLogBuffer();
@@ -73,7 +74,8 @@ void LogManager::flushLogBuffer()
   buff_index = 0;
 }
 
-void LogManager::readFromLog()
+void 
+LogManager::readFromLog(uint32_t & num_keys, string * &table_names, uint64_t * &keys, uint32_t * &lengths, char ** &after_image)
 {
   streampos size;
   char * memblock;

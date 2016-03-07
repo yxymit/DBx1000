@@ -126,7 +126,7 @@ void txn_man::cleanup(RC rc) {
 				image_size += accesses[rid]->orig_row->get_tuple_size(); 
 			}
     	}
-        char after_image[image_size];
+        //char after_image[image_size];
 		image_size = 0;
 
 		for (int rid = 0; rid < row_cnt; rid ++) {
@@ -135,7 +135,12 @@ void txn_man::cleanup(RC rc) {
 			//row_t * data = accesses[rid]->data;
 			// TODO copy accesses[tid]->data->get_data() to after_image 
     	}
-	    log_manager.logTxn(get_thd_id(), 0, wr_cnt * 100, after_image);
+		uint64_t keys[row_cnt];;
+		uint32_t lengths[row_cnt];
+		char * after_images[row_cnt];
+		string table_names[row_cnt]; 
+		table_names[0] = string("TABLE");
+	    log_manager.logTxn(get_thd_id(), 1, table_names, keys, lengths, after_images);
 	}
 #endif
 	row_cnt = 0;
