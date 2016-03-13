@@ -37,23 +37,23 @@ LogManager::LogManager()
 void 
 LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images )
 {
-  cout << "Entered logTxn";
+  //  cout << "Entered logTxn";
   // Lock log manager
   pthread_mutex_lock(&lock);
   
   uint64_t lsn = global_lsn;
   global_lsn ++;
   buff_index ++;
-  // generate a log record.
-  // put the log record into a buffer.
+ 
+ 
   buffer[buff_index].lsn = lsn;
   buffer[buff_index].txn_id = txn_id;
   
   buffer[buff_index].table_names = table_names;
   buffer[buff_index].num_keys = num_keys;
-  buffer[buff_index].keys = keys; 	
+  buffer[buff_index].keys = keys;
+  // Should all lengths be copied?
   buffer[buff_index].lengths = lengths;
-  // TODO [YXY] copy data, not ptr
   buffer[buff_index].after_images = (char**) malloc(num_keys*sizeof(char *));
   for (uint32_t a=0; a<num_keys; a++)
     {
