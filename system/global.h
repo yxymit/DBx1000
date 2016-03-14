@@ -91,7 +91,11 @@ extern ts_t g_dl_loop_detect;
 extern bool g_ts_batch_alloc;
 extern UInt32 g_ts_batch_num;
 
-extern map<string, string> g_params;
+extern bool g_abort_buffer_enable;
+extern bool g_pre_abort;
+extern bool g_atomic_timestamp; 
+extern string g_write_copy_form;
+extern string g_validation_lock;
 
 // YCSB
 extern UInt32 g_cc_alg;

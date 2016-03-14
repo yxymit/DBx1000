@@ -21,7 +21,7 @@ void thread_t::init(uint64_t thd_id, workload * workload) {
 	for (int i = 0; i < _abort_buffer_size; i++)
 		_abort_buffer[i].query = NULL;
 	_abort_buffer_empty_slots = _abort_buffer_size;
-	_abort_buffer_enable = (g_params["abort_buffer_enable"] == "true");
+	_abort_buffer_enable = g_abort_buffer_enable;
 }
 
 uint64_t thread_t::get_thd_id() { return _thd_id; }

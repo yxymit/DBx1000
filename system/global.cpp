@@ -61,7 +61,12 @@ double g_perc_payment = PERC_PAYMENT;
 bool g_wh_update = WH_UPDATE;
 char * output_file = NULL;
 
-map<string, string> g_params;
+//map<string, string> g_params;
+bool g_abort_buffer_enable = ABORT_BUFFER_ENABLE;
+bool g_pre_abort = PRE_ABORT;
+bool g_atomic_timestamp = ATOMIC_TIMESTAMP;
+string g_write_copy_form = WRITE_COPY_FORM;
+string g_validation_lock = VALIDATION_LOCK;
 
 #if TPCC_SMALL
 UInt32 g_max_items = 10000;

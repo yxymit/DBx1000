@@ -41,12 +41,6 @@ void print_usage() {
 }
 
 void parser(int argc, char * argv[]) {
-	g_params["abort_buffer_enable"] = ABORT_BUFFER_ENABLE? "true" : "false";
-	g_params["write_copy_form"] = WRITE_COPY_FORM;
-	g_params["validation_lock"] = VALIDATION_LOCK;
-	g_params["pre_abort"] = PRE_ABORT;
-	g_params["atomic_timestamp"] = ATOMIC_TIMESTAMP;
-
 	for (int i = 1; i < argc; i++) {
 		assert(argv[i][0] == '-');
 		if (argv[i][1] == 'a')
@@ -125,8 +119,10 @@ void parser(int argc, char * argv[]) {
 			assert(pos != string::npos);
 			string name = line.substr(0, pos);
 			string value = line.substr(pos + 1, line.length());
-			assert(g_params.find(name) != g_params.end());
-			g_params[name] = value;
+			if (name == "abort_buffer_enable")
+				g_abort_buffer_enable = atoi( value.c_str() );
+			else if (name == "write_copy_form")
+				g_write_copy_form = value;
 		}
 		else
 			assert(false);

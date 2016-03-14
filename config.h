@@ -84,10 +84,10 @@
 #define TICTOC_MV					false
 #define WR_VALIDATION_SEPARATE		true
 #define WRITE_PERMISSION_LOCK		false
-#define ATOMIC_TIMESTAMP			"false"
+#define ATOMIC_TIMESTAMP			false
 // [TICTOC, SILO]
 #define VALIDATION_LOCK				"no-wait" // no-wait or waiting
-#define PRE_ABORT					"true"
+#define PRE_ABORT					true
 #define ATOMIC_WORD					true
 // [HSTORE]
 // when set to true, hstore will not access the global timestamp.
