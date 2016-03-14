@@ -135,12 +135,19 @@ void txn_man::cleanup(RC rc) {
 			//row_t * data = accesses[rid]->data;
 			// TODO copy accesses[tid]->data->get_data() to after_image 
     	}
-		uint64_t keys[row_cnt];;
-		uint32_t lengths[row_cnt];
-		char * after_images[row_cnt];
-		string table_names[row_cnt]; 
-		table_names[0] = string("TABLE");
-	    log_manager.logTxn(get_thd_id(), 1, table_names, keys, lengths, after_images);
+		uint64_t keys[wr_cnt];;
+		uint32_t lengths[wr_cnt];
+		char * after_images[wr_cnt];
+        for (uint32_t i = 0; i < wr_cnt; i ++) {
+            after_images[i] = new char[10]; 
+            lengths[i] = 1;
+        }
+		string * table_names;
+        table_names = new string [row_cnt]; 
+        if (wr_cnt > 0) {
+		    table_names[0] = string("TABLE");
+    	    log_manager.logTxn(get_thd_id(), 1, table_names, keys, lengths, after_images);
+        }
 	}
 #endif
 	row_cnt = 0;
@@ -218,10 +225,10 @@ void txn_man::insert_row(row_t * row, table_t * table) {
 
 itemid_t *
 txn_man::index_read(INDEX * index, idx_key_t key, int part_id) {
-	uint64_t starttime = get_sys_clock();
+	//uint64_t starttime = get_sys_clock();
 	itemid_t * item;
 	index->index_read(key, item, part_id, get_thd_id());
-	INC_TMP_STATS(get_thd_id(), time_index, get_sys_clock() - starttime);
+	//INC_TMP_STATS(get_thd_id(), time_index, get_sys_clock() - starttime);
 	return item;
 }
 

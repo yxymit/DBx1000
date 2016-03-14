@@ -1,6 +1,7 @@
 #pragma once
 
 #include "global.h"
+#include "pthread.h"
 
 // ARIES style logging 
 class LogManager 
@@ -14,4 +15,5 @@ public:
 private:
 	// for normal operation
 	void flushLogBuffer();
+    pthread_mutex_t lock;
 };

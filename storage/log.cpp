@@ -8,9 +8,9 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include<pthread.h>
+#include <pthread.h>
 
-pthread_mutex_t lock;
+//pthread_mutex_t lock;
 
 const int buff_size = 10;
 
@@ -40,11 +40,9 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   //  cout << "Entered logTxn";
   // Lock log manager
   pthread_mutex_lock(&lock);
-  
   uint64_t lsn = global_lsn;
   global_lsn ++;
   buff_index ++;
- 
  
   buffer[buff_index].lsn = lsn;
   buffer[buff_index].txn_id = txn_id;
@@ -59,7 +57,7 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
     {
       buffer[buff_index].after_images[a] = (char *) malloc(lengths[a]);
       for (uint32_t b=0; b<lengths[a]; b++)
-	buffer[buff_index].after_images[a][b] = after_images[a][b];
+	    buffer[buff_index].after_images[a][b] = after_images[a][b];
     }
       
   if (buff_index > buff_size)
