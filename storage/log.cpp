@@ -26,14 +26,19 @@ struct log_record{
   char ** after_images;
 };
 
-pthread_mutex_t lock;
-
 struct log_record buffer[buff_size];
 int buff_index = 0;
 
 LogManager::LogManager()
 {
     // TODO [YXY] Open the log file here.
+    pthread_mutex_init(&lock, NULL);
+    log.open("Log.data", ios::binary|ios::trunc);
+}
+
+LogManager::~LogManager()
+{
+    log.close();
 }
 
 void 
@@ -44,28 +49,41 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   pthread_mutex_lock(&lock);
   uint64_t lsn = global_lsn;
   global_lsn ++;
-  buff_index ++;
  
   buffer[buff_index].lsn = lsn;
   buffer[buff_index].txn_id = txn_id;
-  
-  buffer[buff_index].table_names = table_names;
   buffer[buff_index].num_keys = num_keys;
-  buffer[buff_index].keys = keys;
+  
+  buffer[buff_index].keys = new uint64_t[num_keys];
+  buffer[buff_index].table_names = new string[num_keys];
   // Should all lengths be copied?
-  buffer[buff_index].lengths = lengths;
-  buffer[buff_index].after_images = (char**) malloc(num_keys*sizeof(char *));
+  buffer[buff_index].lengths = new uint32_t[num_keys];
+  buffer[buff_index].after_images = new char * [num_keys];
+
   for (uint32_t a=0; a<num_keys; a++)
     {
-      buffer[buff_index].after_images[a] = (char *) malloc(lengths[a]);
+      buffer[buff_index].lengths[a] = lengths[a];
+      buffer[buff_index].keys[a] = keys[a];
+      buffer[buff_index].table_names[a] = table_names[a];
+      buffer[buff_index].after_images[a] = new char [lengths[a]];
       for (uint32_t b=0; b<lengths[a]; b++)
 	    buffer[buff_index].after_images[a][b] = after_images[a][b];
     }
       
-  if (buff_index > buff_size)
+  buff_index ++;
+  if (buff_index >= buff_size)
     {
       flushLogBuffer();
       buff_index = 0;
+      for (int i = 0; i < buff_size; i ++)
+      {
+        delete buffer[i].keys;
+        //delete buffer[i].table_names;
+        for (uint32_t j=0; j<buffer[i].num_keys; j++)
+            delete buffer[i].after_images[j];
+        delete buffer[i].lengths;
+        delete buffer[i].after_images;
+      }
     }
   pthread_mutex_unlock(&lock);
   // if the buffer is full or times out, 
@@ -78,8 +96,6 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
 
 void LogManager::flushLogBuffer()
 {
-  ofstream log;
-  log.open("Log.data", ios::binary|ios::app);
   for (int i=0; i<buff_size; i++)
     {
       log.write((char *) &(buffer[i].lsn), sizeof(buffer[i].lsn));
@@ -107,8 +123,6 @@ void LogManager::flushLogBuffer()
 	}
     }
   log.flush();
-  log.close();
-  buff_index = 0;
 }
 
 bool

@@ -106,8 +106,8 @@ private:
 	txnid_t 		txn_id;
 	ts_t 			timestamp;
 
-	bool _write_copy_ptr;
 #if CC_ALG == TICTOC || CC_ALG == SILO
+	bool _write_copy_ptr;
 	bool 			_pre_abort;
 	bool 			_validation_no_wait;
 #endif
