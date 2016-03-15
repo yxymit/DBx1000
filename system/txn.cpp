@@ -112,44 +112,34 @@ void txn_man::cleanup(RC rc) {
 			mem_allocator.free(row, sizeof(row));
 		}
 	}
-    // Logging
+	// Logging
 #if LOG_REDO
-    if (rc == RCOK)
-    {
-		//uint64_t keys[wr_cnt];
-		//uint64_t cnt = 0;
-		uint64_t image_size = 0;
+	if (rc == RCOK)
+	{
+		uint64_t keys[wr_cnt];
+		uint32_t lengths[wr_cnt];
+		char * after_images[wr_cnt];
+		string  * table_names = new string [wr_cnt];
+		uint64_t cnt = 0;
+		for (int rid = 0; rid < row_cnt; rid ++) {
+			access_t type = accesses[rid]->type;
+			if (type == WR) 
+				keys[cnt++] = accesses[rid]->orig_row->get_primary_key();
+		}
+        assert(cnt == wr_cnt);
+        cnt = 0;
 		for (int rid = 0; rid < row_cnt; rid ++) {
 			access_t type = accesses[rid]->type;
 			if (type == WR) {
-				//keys[cnt++] = accesses[rid]->orig_row->get_primary_key(); 
-				image_size += accesses[rid]->orig_row->get_tuple_size(); 
-			}
-    	}
-        //char after_image[image_size];
-		image_size = 0;
-
-		for (int rid = 0; rid < row_cnt; rid ++) {
-			//access_t type = accesses[rid]->type;
-			//if (type == WR)
-			//row_t * data = accesses[rid]->data;
-			// TODO copy accesses[tid]->data->get_data() to after_image 
-    	}
-		uint64_t keys[wr_cnt];;
-		uint32_t lengths[wr_cnt];
-		char * after_images[wr_cnt];
-        for (int32_t i = 0; i < wr_cnt; i ++) {
-            after_images[i] = new char[10]; 
-            lengths[i] = 1;
-        }
-		string * table_names;
-        table_names = new string [row_cnt]; 
-        if (wr_cnt > 0) {
-		    table_names[0] = string("TABLE");
-    	    log_manager.logTxn(get_thd_id(), 1, table_names, keys, lengths, after_images);
-        }
+			    after_images[cnt] = accesses[cnt]->data->get_data();
+    			lengths[cnt] = accesses[cnt]->orig_row->get_tuple_size();
+                table_names[cnt] = string(accesses[cnt]->orig_row->get_table_name());
+                cnt ++;
+            }
+		}
+		log_manager.logTxn(get_thd_id(), wr_cnt, table_names, keys, lengths, after_images);
 	}
-#endif
+  #endif
 	row_cnt = 0;
 	wr_cnt = 0;
 	insert_cnt = 0;
@@ -295,7 +285,7 @@ txn_man::recover() {
 		// for (uint32_t i = 0; i < num_keys; i++) {
 		//   // Find the row using the key.
 		//   itemid_t * m_item = index_read(_wl->the_index, keys[i], 0);
-	    //   row_t * row = ((row_t *)m_item->location);
+		//   row_t * row = ((row_t *)m_item->location);
 		//   char * data = row->get_data();
 		//   memcpy(data, after_images[i], lengths[i]);
 		// } 
