@@ -138,7 +138,7 @@ void txn_man::cleanup(RC rc) {
 		uint64_t keys[wr_cnt];;
 		uint32_t lengths[wr_cnt];
 		char * after_images[wr_cnt];
-        for (uint32_t i = 0; i < wr_cnt; i ++) {
+        for (int32_t i = 0; i < wr_cnt; i ++) {
             after_images[i] = new char[10]; 
             lengths[i] = 1;
         }
