@@ -26,16 +26,21 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	num_accesses_alloc = 0;
 #if CC_ALG == TICTOC || CC_ALG == SILO
 	_pre_abort = g_pre_abort; 
-	if (g_validation_lock == "no-wait")
+ 	// XXX XXX
+	_validation_no_wait = true;
+/*	if (g_validation_lock == "no-wait")
 		_validation_no_wait = true;
 	else if (g_validation_lock == "waiting")
 		_validation_no_wait = false;
 	else 
 		assert(false);
+		*/
 #endif
 #if CC_ALG == TICTOC
 	_max_wts = 0;
-	_write_copy_ptr = (g_write_copy_form == "ptr");
+	// XXX XXX 
+	//_write_copy_ptr = (g_write_copy_form == "ptr");
+	_write_copy_ptr = false; //(g_write_copy_form == "ptr");
 	_atomic_timestamp = g_atomic_timestamp;
 #elif CC_ALG == SILO
 	_cur_tid = 0;
@@ -120,7 +125,7 @@ void txn_man::cleanup(RC rc) {
 		uint32_t lengths[wr_cnt];
 		char * after_images[wr_cnt];
 		string  * table_names = new string [wr_cnt];
-		uint64_t cnt = 0;
+		int32_t cnt = 0;
 		for (int rid = 0; rid < row_cnt; rid ++) {
 			access_t type = accesses[rid]->type;
 			if (type == WR) 
