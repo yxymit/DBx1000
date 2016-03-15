@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <pthread.h>
 
-//pthread_mutex_t lock;
+
 
 const int buff_size = 10;
 
@@ -25,6 +25,8 @@ struct log_record{
   uint32_t * lengths;
   char ** after_images;
 };
+
+pthread_mutex_t lock;
 
 struct log_record buffer[buff_size];
 int buff_index = 0;
@@ -63,6 +65,7 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   if (buff_index > buff_size)
     {
       flushLogBuffer();
+      buff_index = 0;
     }
   pthread_mutex_unlock(&lock);
   // if the buffer is full or times out, 
