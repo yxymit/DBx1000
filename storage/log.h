@@ -18,4 +18,5 @@ private:
 	void flushLogBuffer();
     pthread_mutex_t lock;
     ofstream log;
+    ifstream file;
 };

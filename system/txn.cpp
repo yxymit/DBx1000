@@ -281,8 +281,12 @@ txn_man::recover() {
 	uint64_t * keys;
 	uint32_t * lengths;
 	char ** after_images;
+	uint64_t starttime = get_sys_clock();
+    uint64_t num_records = 0;
 	while (log_manager.readFromLog(num_keys, table_names, keys, lengths, after_images))
 	{
+        num_records ++;
+        assert(num_keys > 0); 
 		// update the database using these information.
 		// Here is the (pseudo) code:
 		//
@@ -295,4 +299,7 @@ txn_man::recover() {
 		//   memcpy(data, after_images[i], lengths[i]);
 		// } 
 	}
+    cout << "[THD=" << get_thd_id() << "]   Total num of records " << num_records << endl;
+	uint64_t timespan = get_sys_clock() - starttime;
+	INC_TMP_STATS(get_thd_id(), time_man, timespan);
 }
