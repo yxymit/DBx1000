@@ -135,21 +135,45 @@ LogManager::readFromLog(uint32_t & num_keys, string * &table_names, uint64_t * &
   // almost identical to that of function logTxn(). This function (readFromLog) 
   // is the reverse of logTxn(). logTxn() writes the information to a file, and readFromLog()
   // recovers the same information back.  
-  streampos size;
-  char * memblock;
-  ifstream file ("example.bin", ios::in|ios::binary|ios::ate);
-  if (file.is_open())
+  if (file.peek() != -1)
   {
-      size = file.tellg();
-      memblock = new char [size];
-      file.seekg (0, ios::beg);
-      file.read (memblock, size);
-      file.close();
-      cout << "MEMBLOCK " << memblock;
-	  return true;
+    uint64_t lsn, txn_id;
+    file.read((char*) &lsn, sizeof(uint64_t));
+    file.read((char*) &txn_id, sizeof(uint64_t));
+    file.read((char*) &num_keys, sizeof(uint32_t));
+    table_names = new string[num_keys];
+    lengths = new uint32_t[num_keys];
+    keys = new uint64_t[num_keys];
+    after_image = new char * [num_keys];
+    char * target; 
+    int key_length;
+    for (uint32_t i = 0; i < num_keys; i++)
+    {
+      file.read((char*) &key_length, sizeof(int));
+      target = new char[key_length];
+      file.read(target, key_length);
+      table_names[i] = string(target);
+    }
+    for (uint32_t i = 0; i < num_keys; i++)
+    {
+      file.read((char*)&keys[i], sizeof(uint64_t));
+    }
+    for (uint32_t i = 0; i < num_keys; i++) 
+    {
+      file.read((char*)&lengths[i], sizeof(uint32_t));
+    }
+    for (uint32_t i = 0; i < num_keys; i++)
+    { 
+      after_image[i] = new char [lengths[i]];
+      file.read(after_image[i], lengths[i]);
+    }
+  return true;
   }
   else
-	  return false;
+  {
+  file.close();
+  return false;
+  }
 }
 
 
