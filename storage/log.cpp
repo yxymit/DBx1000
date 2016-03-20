@@ -33,7 +33,11 @@ LogManager::LogManager()
 {
     // TODO [YXY] Open the log file here.
     pthread_mutex_init(&lock, NULL);
+#if LOG_RECOVER
+    file.open("Log.data", ios::binary);
+#else
     log.open("Log.data", ios::binary|ios::trunc);
+#endif
 }
 
 LogManager::~LogManager()
