@@ -56,7 +56,8 @@ RC thread_t::run() {
 	UInt64 txn_cnt = 0;
 
 	if (LOG_RECOVER) {
-		m_txn->recover();
+        if (get_thd_id() == 0)
+		    m_txn->recover();
 		return FINISH;
 	}
 

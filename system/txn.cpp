@@ -288,7 +288,7 @@ txn_man::recover() {
 	while (log_manager.readFromLog(num_keys, table_names, keys, lengths, after_images))
 	{
         num_records ++;
-        //assert(num_keys > 0); 
+        assert(num_keys > 0); 
 		// update the database using these information.
 		// Here is the (pseudo) code:
 		//
@@ -301,8 +301,7 @@ txn_man::recover() {
 		//   memcpy(data, after_images[i], lengths[i]);
 		// }
 	}
-    printf("[%lld] %lld\n", get_thd_id(), num_records);
-    //cout << "[THD=" << get_thd_id() << "]   Total num of records " << num_records << endl;
 	uint64_t timespan = get_sys_clock() - starttime;
-	INC_TMP_STATS(get_thd_id(), time_man, timespan);
+    INC_STATS(get_thd_id(), txn_cnt, num_records);
+	INC_STATS(get_thd_id(), time_man, timespan);
 }
