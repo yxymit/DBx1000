@@ -142,7 +142,8 @@ void txn_man::cleanup(RC rc) {
                 cnt ++;
             }
 		}
-		log_manager.logTxn(get_thd_id(), wr_cnt, table_names, keys, lengths, after_images);
+        if (wr_cnt > 0)
+    		log_manager.logTxn(get_thd_id(), wr_cnt, table_names, keys, lengths, after_images);
 	}
   #endif
 	row_cnt = 0;
@@ -283,23 +284,25 @@ txn_man::recover() {
 	char ** after_images;
 	uint64_t starttime = get_sys_clock();
     uint64_t num_records = 0;
+	ycsb_wl * wl = (ycsb_wl *) h_wl;
 	while (log_manager.readFromLog(num_keys, table_names, keys, lengths, after_images))
 	{
         num_records ++;
-        assert(num_keys > 0); 
+        //assert(num_keys > 0); 
 		// update the database using these information.
 		// Here is the (pseudo) code:
 		//
 		// for each key in keys	:
 		// for (uint32_t i = 0; i < num_keys; i++) {
 		//   // Find the row using the key.
-		//   itemid_t * m_item = index_read(_wl->the_index, keys[i], 0);
+		//   itemid_t * m_item = index_read(wl->the_index, keys[i], 0);
 		//   row_t * row = ((row_t *)m_item->location);
 		//   char * data = row->get_data();
 		//   memcpy(data, after_images[i], lengths[i]);
-		// } 
+		// }
 	}
-    cout << "[THD=" << get_thd_id() << "]   Total num of records " << num_records << endl;
+    printf("[%lld] %lld\n", get_thd_id(), num_records);
+    //cout << "[THD=" << get_thd_id() << "]   Total num of records " << num_records << endl;
 	uint64_t timespan = get_sys_clock() - starttime;
 	INC_TMP_STATS(get_thd_id(), time_man, timespan);
 }
