@@ -284,7 +284,7 @@ txn_man::recover() {
 	char ** after_images;
 	uint64_t starttime = get_sys_clock();
     uint64_t num_records = 0;
-	ycsb_wl * wl = (ycsb_wl *) h_wl;
+	//ycsb_wl * wl = (ycsb_wl *) h_wl;
 	while (log_manager.readFromLog(num_keys, table_names, keys, lengths, after_images))
 	{
         num_records ++;
