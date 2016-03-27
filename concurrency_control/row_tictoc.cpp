@@ -199,11 +199,16 @@ Row_tictoc::get_wts()
 void
 Row_tictoc::get_ts_word(bool &lock, uint64_t &rts, uint64_t &wts)
 {
+#if ATOMIC_WORD
 	assert(ATOMIC_WORD);
 	uint64_t v = _ts_word;
 	lock = ((v & LOCK_BIT) != 0);
 	wts = v & WTS_MASK;
 	rts = ((v & RTS_MASK) >> WTS_LEN)  + (v & WTS_MASK);
+#else 
+	wts = _wts;
+	rts = _rts;
+#endif
 }
 
 ts_t
