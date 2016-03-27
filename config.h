@@ -215,5 +215,7 @@ extern TestCases					g_test_case;
 #define TS_CAS						2
 #define TS_HW						3
 #define TS_CLOCK					4
+// Buffer size for logging
+#define BUFFER_SIZE                                     10
 
 #endif

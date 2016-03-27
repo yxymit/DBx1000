@@ -44,6 +44,7 @@ UInt32 g_cc_alg = CC_ALG;
 ts_t g_query_intvl = QUERY_INTVL;
 UInt32 g_part_per_txn = PART_PER_TXN;
 double g_perc_multi_part = PERC_MULTI_PART;
+
 double g_read_perc = READ_PERC;
 double g_write_perc = WRITE_PERC;
 double g_zipf_theta = ZIPF_THETA;
@@ -60,6 +61,8 @@ UInt32 g_num_wh = NUM_WH;
 double g_perc_payment = PERC_PAYMENT;
 bool g_wh_update = WH_UPDATE;
 char * output_file = NULL;
+
+UInt32 g_buffer_size = BUFFER_SIZE;
 
 //map<string, string> g_params;
 bool g_abort_buffer_enable = ABORT_BUFFER_ENABLE;

@@ -11,9 +11,6 @@
 #include <pthread.h>
 
 
-
-const int buff_size = 10;
-
 uint64_t global_lsn = 0;
 
 struct log_record{
@@ -26,8 +23,8 @@ struct log_record{
   char ** after_images;
 };
 
-struct log_record buffer[buff_size];
-int buff_index = 0;
+std::vector<struct log_record> buffer = {};
+uint32_t buff_index = 0;
 
 LogManager::LogManager()
 {
@@ -38,6 +35,7 @@ LogManager::LogManager()
 #else
     log.open("Log.data", ios::binary|ios::trunc);
 #endif
+    buffer.reserve(g_buffer_size);
 }
 
 LogManager::~LogManager()
@@ -76,11 +74,11 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
     }
       
   buff_index ++;
-  if (buff_index >= buff_size)
+  if (buff_index >= g_buffer_size)
     {
       flushLogBuffer();
       buff_index = 0;
-      for (int i = 0; i < buff_size; i ++)
+      for (uint32_t i = 0; i < g_buffer_size; i ++)
       {
         delete buffer[i].keys;
         //delete buffer[i].table_names;
@@ -101,7 +99,7 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
 
 void LogManager::flushLogBuffer()
 {
-  for (int i=0; i<buff_size; i++)
+  for (uint32_t i=0; i<g_buffer_size; i++)
     {
       log.write((char *) &(buffer[i].lsn), sizeof(buffer[i].lsn));
       log.write((char *) &(buffer[i].txn_id), sizeof(buffer[i].txn_id));

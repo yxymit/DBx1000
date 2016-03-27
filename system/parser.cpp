@@ -38,6 +38,7 @@ void print_usage() {
 	printf("  [TEST]:\n");
 	printf("\t-Ar         ; Test READ_WRITE\n");
 	printf("\t-Ac         ; Test CONFLIT\n");
+	printf("\t-LbINT      ; BUFFER_SIZE\n");
 }
 
 void parser(int argc, char * argv[]) {
@@ -104,6 +105,11 @@ void parser(int argc, char * argv[]) {
 				g_test_case = READ_WRITE;
 			if (argv[i][2] == 'c')
 				g_test_case = CONFLICT;
+		}
+		else if (argv[i][1] == 'L'){
+		  if (argv[i][2] == 'b')
+		    // g_buffer_size = atoi( &argv[i][3]);
+		    g_buffer_size = 30;
 		}
 		else if (argv[i][1] == 'o') {
 			i++;
