@@ -60,7 +60,7 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   global_lsn ++;
   uint32_t my_buff_index =  buff_index;
   buff_index ++;
-  pthread_mutex_unlock(&lock);
+  //pthread_mutex_unlock(&lock);
  
   buffer[my_buff_index].lsn = lsn;
   buffer[my_buff_index].txn_id = txn_id;
@@ -82,7 +82,7 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
 	    buffer[my_buff_index].after_images[a][b] = after_images[a][b];
     }
 
-  pthread_mutex_lock(&lock);
+  //pthread_mutex_lock(&lock);
   if (my_buff_index >= g_buffer_size)
     {
       flushLogBuffer();
