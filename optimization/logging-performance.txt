@@ -1,0 +1,20 @@
+No logging:
+   txn_cnt=3381, abort_cnt=6, run_time=0.146219, throughput:
+
+Before optimization with logging:
+        txn_cnt=2889, abort_cnt=6, run_time=0.206884, throughtput:
+
+Change buffer_size to 20:
+        txn_cnt=2951, abort_cnt=6, run_time=0.201967, throughput:
+
+Change buffer_size to 30:
+        txn_cnt=3174, abort_cnt=5, run_time=0.226079, throughput: 
+
+Changer buff_size to 50:
+	txn_cnt=3275, abort_cnt=9, run_time=0.214086, throughput:
+
+Decrease Lock time, buffer_size=15
+	 txn_cnt=2905, abort_cnt=7, run_time=0.201544, throughput: 
+
+
+

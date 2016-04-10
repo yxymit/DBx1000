@@ -1,0 +1,7 @@
+../rundb -Lb30
+../rundb -Lb30
+[summary] txn_cnt=3545, abort_cnt=6, run_time=0.219434, time_wait=0.000000, time_ts_alloc=0.000000, time_man=0.092394, time_index=0.000000, time_abort=0.087878, time_cleanup=0.045460, latency=0.000062, deadlock_cnt=0, cycle_detect=0, dl_detect_time=0.000000, dl_wait_time=0.000000, time_query=0.000111, debug1=0.000000, debug2=0.000000, debug3=0.000000, debug4=0.000000, debug5=0.000000
+
+17 23 37 45
+[tid=0] txn_cnt=1000,abort_cnt=1
+

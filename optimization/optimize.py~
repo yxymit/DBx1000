@@ -1,0 +1,24 @@
+## parse output file to calculate throughput
+from glob import glob
+
+filename = glob('output*.txt')[0]
+
+def readFile():
+    throughput = 0
+    for f in os.listdir(sub_dir):
+        if f = filename:
+            with open(os.path.join(sub_dir, filename), "r") as output:
+                for line in output:
+                    if "txn_cnt" in line:
+                        loc1 = line.index("txn_cnt")
+                        loc2 = line.index(" ", loc1)
+                        loc3 = line.index("run_time")
+                        loc4 = line.index(" ", loc3)
+                        txn_cnt = float( line[(loc1+1):loc2])
+                        run_time = float(line[(loc3+1):loc4])
+                        throughput = txn_cnt/run_time
+    return throughput
+
+throughput = readFile()
+print "Throughput for " + filename + ": " + str(throughput)
+            
