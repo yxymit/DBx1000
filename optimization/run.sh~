@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "../rundb -Lb30" >> res.txt
+../rundb -Lb30 >> output.txt
+python optimization.py >> res.txt

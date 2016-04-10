@@ -107,9 +107,10 @@ void parser(int argc, char * argv[]) {
 				g_test_case = CONFLICT;
 		}
 		else if (argv[i][1] == 'L'){
-		  if (argv[i][2] == 'b')
-		    // g_buffer_size = atoi( &argv[i][3]);
-		    g_buffer_size = 30;
+		  if (argv[i][2] == 'b'){
+		    g_buffer_size = atoi( &argv[i][3]);
+		    cout << g_buffer_size;
+		  }
 		}
 		else if (argv[i][1] == 'o') {
 			i++;
