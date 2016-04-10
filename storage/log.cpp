@@ -23,6 +23,8 @@ struct log_record{
   char ** after_images;
 };
 
+int count_busy = g_buffer_size;
+
 log_record *  buffer; 
 uint32_t buff_index = 0;
 
@@ -58,33 +60,11 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   pthread_mutex_lock(&lock);
   uint64_t lsn = global_lsn;
   global_lsn ++;
-  uint32_t my_buff_index =  buff_index;
-  buff_index ++;
-  //pthread_mutex_unlock(&lock);
- 
-  buffer[my_buff_index].lsn = lsn;
-  buffer[my_buff_index].txn_id = txn_id;
-  buffer[my_buff_index].num_keys = num_keys;
+
   
-  buffer[my_buff_index].keys = new uint64_t[num_keys];
-  buffer[my_buff_index].table_names = new string[num_keys];
-  // Should all lengths be copied?
-  buffer[my_buff_index].lengths = new uint32_t[num_keys];
-  buffer[my_buff_index].after_images = new char * [num_keys];
-
-  for (uint32_t a=0; a<num_keys; a++)
-    {
-      buffer[my_buff_index].lengths[a] = lengths[a];
-      buffer[my_buff_index].keys[a] = keys[a];
-      buffer[my_buff_index].table_names[a] = table_names[a];
-      buffer[my_buff_index].after_images[a] = new char [lengths[a]];
-      for (uint32_t b=0; b<lengths[a]; b++)
-	    buffer[my_buff_index].after_images[a][b] = after_images[a][b];
-    }
-
-  //pthread_mutex_lock(&lock);
   if (my_buff_index >= g_buffer_size)
     {
+      // wait until count_busy = 0
       flushLogBuffer();
       buff_index = 0;
       for (uint32_t i = 0; i < g_buffer_size; i ++)
@@ -96,7 +76,12 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
         delete buffer[i].lengths;
         delete buffer[i].after_images;
       }
+      count_busy = g_buffer_size;
     }
+  uint32_t my_buff_index =  buff_index;
+  buff_index ++;
+  addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
+  count_busy --;
   pthread_mutex_unlock(&lock);
 
   // if the buffer is full or times out, 
@@ -105,6 +90,31 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   // else
   //    return
   return;
+}
+
+void
+LogManager::addToBuffer(uint32_t my_buff_index, uint64_t lsn, uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images)
+{
+  buffer[my_buff_index].lsn = lsn;
+  buffer[my_buff_index].txn_id = txn_id;
+  buffer[my_buff_index].num_keys = num_keys;
+  
+  buffer[my_buff_index].keys = new uint64_t[num_keys];
+  buffer[my_buff_index].table_names = new string[num_keys];
+  // Should all lengths be copied?
+  buffer[my_buff_index].lengths = new uint32_t[num_keys];
+  buffer[my_buff_index].after_images = new char * [num_keys];
+  
+  
+  for (uint32_t a=0; a<num_keys; a++)
+    {
+      buffer[my_buff_index].lengths[a] = lengths[a];
+      buffer[my_buff_index].keys[a] = keys[a];
+      buffer[my_buff_index].table_names[a] = table_names[a];
+      buffer[my_buff_index].after_images[a] = new char [lengths[a]];
+      for (uint32_t b=0; b<lengths[a]; b++)
+	    buffer[my_buff_index].after_images[a][b] = after_images[a][b];
+    }
 }
 
 void LogManager::flushLogBuffer()
