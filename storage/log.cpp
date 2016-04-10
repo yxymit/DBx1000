@@ -27,17 +27,13 @@ int count_busy = g_buffer_size;
 
 log_record *  buffer; 
 uint32_t buff_index = 0;
+uint64_t max_lsn_logged = 0;
 
 LogManager::LogManager()
 {
     // TODO [YXY] Open the log file here.
   cout << "Buffer size (log.cpp) " << g_buffer_size;
     pthread_mutex_init(&lock, NULL);
-#if LOG_RECOVER
-    file.open("Log.data", ios::binary);
-#else
-    log.open("Log.data", ios::binary|ios::trunc);
-#endif
 }
 
 LogManager::~LogManager()
@@ -45,10 +41,31 @@ LogManager::~LogManager()
     log.close();
 }
 
+uint64_t LogManager::getMaxlsn()
+{
+  return max_lsn_logged;
+}
+
 void LogManager::init()
 {
   cout << "log buffer size" << g_buffer_size;
-    buffer = new log_record[g_buffer_size];
+  buffer = new log_record[g_buffer_size];
+  #if LOG_RECOVER
+    file.open("Log.data", ios::binary);
+  #else
+    log.open("Log.data", ios::binary|ios::trunc);
+  #endif
+}
+
+void LogManager::init(string log_file_name)
+{
+  cout << "log buffer size" << g_buffer_size;
+  buffer = new log_record[g_buffer_size];
+  #if LOG_RECOVER
+    file.open(log_file_name, ios::binary);
+  #else
+    log.open(log_file_name, ios::binary|ios::trunc);
+  #endif
 }
 
 void 
@@ -62,7 +79,7 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   global_lsn ++;
 
   
-  if (my_buff_index >= g_buffer_size)
+  if (buff_index >= g_buffer_size)
     {
       // wait until count_busy = 0
       flushLogBuffer();
@@ -146,6 +163,7 @@ void LogManager::flushLogBuffer()
 	}
     }
   log.flush();
+  max_lsn_logged = buffer[g_buffer_size - 1].lsn;
 }
 
 bool
