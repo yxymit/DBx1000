@@ -144,7 +144,8 @@ void txn_man::cleanup(RC rc) {
             }
 		}
         if (wr_cnt > 0)
-    		log_manager_batch.logTxn_batch(get_thd_id(), wr_cnt, table_names, keys, lengths, after_images);
+    		//log_manager_batch.logTxn_batch(get_thd_id(), wr_cnt, table_names, keys, lengths, after_images);
+    		log_manager.logTxn(get_thd_id(), wr_cnt, table_names, keys, lengths, after_images);
 	}
   #endif
 	row_cnt = 0;
