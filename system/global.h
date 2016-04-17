@@ -42,6 +42,7 @@ class Plock;
 class OptCC;
 class VLLMan;
 class LogManager;
+class BatchLog;
 
 typedef uint32_t UInt32;
 typedef int32_t SInt32;
@@ -61,6 +62,7 @@ extern Query_queue * query_queue;
 extern Plock part_lock_man;
 extern OptCC occ_man;
 extern LogManager log_manager;
+extern BatchLog log_manager_batch;
 #if CC_ALG == VLL
 extern VLLMan vll_man;
 #endif

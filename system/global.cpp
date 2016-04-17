@@ -8,6 +8,7 @@
 #include "occ.h"
 #include "vll.h"
 #include "log.h"
+#include "batch_log.h"
 
 mem_alloc mem_allocator;
 Stats stats;
@@ -17,6 +18,7 @@ Query_queue * query_queue;
 Plock part_lock_man;
 OptCC occ_man;
 LogManager log_manager;
+BatchLog log_manager_batch;
 #if CC_ALG == VLL
 VLLMan vll_man;
 #endif 

@@ -1,4 +1,5 @@
 #include "log.h"
+#include "batch_log.h"
 #include <iostream>
 #include <fstream>
 #include <sys/time.h>
@@ -107,6 +108,93 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   // else
   //    return
   return;
+}
+bool flushAllLogs[num_loggers];
+bool flushAllLogsInitialized = false;
+void flushAllLogs_false (){
+   for (uint32_t i = 0; i<num_loggers; i++){
+      flushAllLogs[i] = false;
+   }
+   flushAllLogsInitialized = true;
+}
+void flushAllLogs_true (){
+   for (uint32_t i = 0; i<num_loggers; i++){
+      flushAllLogs[i] = true;
+   }
+}
+/*
+void LogManager::lock () {
+   pthread_mutex_lock(&lock);
+}
+void LogManager::unlock () {
+   pthread_mutex_unlock(&lock);
+}
+bool LogManager::checkBufferFull() {
+   return (buff_index >= g_buffer_size);
+}
+void LogManager::flushBuffer(){
+   flushLogBuffer();
+   buff_index = 0;
+   for (uint32_t i = 0; i < g_buffer_size; i ++)
+   {
+      delete buffer[i].keys;
+      //delete buffer[i].table_names;
+      for (uint32_t j=0; j<buffer[i].num_keys; j++)
+         delete buffer[i].after_images[j];
+         delete buffer[i].lengths;
+         delete buffer[i].after_images;
+   }
+   */
+
+void 
+LogManager::logTxn_batch( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images, uint32_t fileNum )
+{
+   //assert(num_keys > 0);
+   //  cout << "Entered logTxn";
+   // Lock log manager
+   //bit vector
+   if (!flushAllLogsInitialized){ 
+      flushAllLogs_false();
+      flushAllLogsInitialized = true;
+   }
+   pthread_mutex_lock(&lock);
+   uint64_t lsn = global_lsn;
+   global_lsn ++;
+
+
+   if (buff_index >= g_buffer_size || flushAllLogs[fileNum] == true)
+   {
+      if (buff_index >= g_buffer_size) {
+         flushAllLogs_true ();
+      }
+      flushAllLogs[fileNum] = false;
+      // wait until count_busy = 0
+      flushLogBuffer();
+      //buff_index = 0;
+      for (uint32_t i = 0; i < buff_index; i ++)
+      {
+        // delete buffer[i].keys; WRONGLY COMMENTED.
+         //delete buffer[i].table_names;
+         for (uint32_t j=0; j<buffer[i].num_keys; j++)
+            delete buffer[i].after_images[j];
+            delete buffer[i].lengths;
+            delete buffer[i].after_images;
+      }
+      buff_index = 0;
+      count_busy = g_buffer_size;
+   }
+   uint32_t my_buff_index =  buff_index;
+   buff_index ++;
+   addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
+   count_busy --;
+   pthread_mutex_unlock(&lock);
+
+   // if the buffer is full or times out, 
+   //    flush the buffer to disk
+   //    update the commit time for flushed transactions
+   // else
+   //    return
+   return;
 }
 
 void

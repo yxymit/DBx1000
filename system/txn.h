@@ -2,6 +2,7 @@
 
 #include "global.h"
 #include "helper.h"
+#include "batch_log.h"
 
 class workload;
 class thread_t;
@@ -15,6 +16,9 @@ class INDEX;
 
 //For VLL
 enum TxnType {VLL_Blocked, VLL_Free};
+
+
+
 
 class Access {
 public:
