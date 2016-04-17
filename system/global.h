@@ -61,8 +61,15 @@ extern Manager * glob_manager;
 extern Query_queue * query_queue;
 extern Plock part_lock_man;
 extern OptCC occ_man;
+#if LOG_ALGORITHM == LOG_SERIAL
 extern LogManager log_manager;
-extern BatchLog log_manager_batch;
+#elif LOG_ALGORITHM == LOG_BATCH
+extern BatchLog log_manager;
+#elif LOG_ALGORITHM == LOG_PARALLEL
+extern ParallelLogManager log_manager; 
+#endif
+
+
 #if CC_ALG == VLL
 extern VLLMan vll_man;
 #endif

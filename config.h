@@ -99,6 +99,7 @@
 /***********************************************/
 // Logging
 /***********************************************/
+#define LOG_ALGORITHM               LOG_SERIAL 
 #define LOG_COMMAND					false
 #define LOG_REDO					true
 #define LOG_RECOVER					false
@@ -218,4 +219,8 @@ extern TestCases					g_test_case;
 // Buffer size for logging
 #define BUFFER_SIZE                                     10
 
+// Logging Algorithm
+#define LOG_SERIAL                  1
+#define LOG_BATCH                   2
+#define LOG_PARALLEL                3
 #endif

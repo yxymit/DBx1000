@@ -17,8 +17,14 @@ Manager * glob_manager;
 Query_queue * query_queue;
 Plock part_lock_man;
 OptCC occ_man;
+#if LOG_ALGORITHM == LOG_SERIAL
 LogManager log_manager;
-BatchLog log_manager_batch;
+#elif LOG_ALGORITHM == LOG_BATCH
+BatchLog log_manager;
+#elif LOG_ALGORITHM == LOG_PARALLEL
+ParallelLogManager log_manager; 
+#endif
+
 #if CC_ALG == VLL
 VLLMan vll_man;
 #endif 

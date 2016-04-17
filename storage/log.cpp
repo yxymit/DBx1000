@@ -109,6 +109,7 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   //    return
   return;
 }
+static const uint32_t num_loggers = 4;
 bool flushAllLogs[num_loggers];
 bool flushAllLogsInitialized = false;
 void flushAllLogs_false (){
@@ -173,12 +174,12 @@ LogManager::logTxn_batch( uint64_t txn_id, uint32_t num_keys, string * table_nam
       //buff_index = 0;
       for (uint32_t i = 0; i < buff_index; i ++)
       {
-        // delete buffer[i].keys; WRONGLY COMMENTED.
+         delete buffer[i].keys; // WRONGLY COMMENTED.
          //delete buffer[i].table_names;
          for (uint32_t j=0; j<buffer[i].num_keys; j++)
             delete buffer[i].after_images[j];
-            delete buffer[i].lengths;
-            delete buffer[i].after_images;
+         delete buffer[i].lengths;
+         delete buffer[i].after_images;
       }
       buff_index = 0;
       count_busy = g_buffer_size;
