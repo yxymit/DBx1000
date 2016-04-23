@@ -24,7 +24,7 @@ struct log_record{
   char ** after_images;
 };
 
-int count_busy = g_buffer_size;
+int volatile count_busy = g_buffer_size;
 
 log_record *  buffer; 
 uint32_t buff_index = 0;
@@ -78,10 +78,15 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   pthread_mutex_lock(&lock);
   uint64_t lsn = global_lsn;
   global_lsn ++;
-
+  
+  uint32_t my_buff_index =  buff_index;
+  buff_index ++;
   
   if (buff_index >= g_buffer_size)
     {
+      // while (count_busy > 0){
+      // continue;
+      //}
       // wait until count_busy = 0
       flushLogBuffer();
       buff_index = 0;
@@ -96,11 +101,12 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
       }
       count_busy = g_buffer_size;
     }
-  uint32_t my_buff_index =  buff_index;
-  buff_index ++;
+  // pthread_mutex_unlock(&lock);
+    
   addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
   count_busy --;
-  pthread_mutex_unlock(&lock);
+
+   pthread_mutex_unlock(&lock);
 
   // if the buffer is full or times out, 
   //    flush the buffer to disk
