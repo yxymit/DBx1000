@@ -3,6 +3,9 @@
 #include "global.h"
 #include "pthread.h"
 #include "log.h"
+#include "pthread.h"
+
+class LogManager;
 
 class BatchLog {
 public:
@@ -12,5 +15,13 @@ public:
 private:
     uint32_t        _num_loggers;
     LogManager *    _loggers;
+    int _logger_index;
+    void lock( int _logger_index);
+    void unlock ( int _logger_index);
+    bool check_buffer_full ( int _logger_index);
+    bool * flushAllLogs;
+    bool _flushAllLogsInitialized;
+    void flushAllLogs_false ();
+    void flushAllLogs_true ();
 };
 

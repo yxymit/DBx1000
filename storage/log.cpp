@@ -13,7 +13,7 @@
 
 
 uint64_t global_lsn = 0;
-
+/* moved into header for batch logging
 struct log_record{
   uint64_t lsn;
   uint64_t txn_id;
@@ -22,11 +22,12 @@ struct log_record{
   uint64_t * keys;
   uint32_t * lengths;
   char ** after_images;
-};
+};*/
 
 int count_busy = g_buffer_size;
 
-log_record *  buffer; 
+LogManager::log_record *  buffer; 
+//included in header
 uint32_t buff_index = 0;
 uint64_t max_lsn_logged = 0;
 
@@ -50,6 +51,7 @@ uint64_t LogManager::getMaxlsn()
 void LogManager::init()
 {
   cout << "log buffer size" << g_buffer_size;
+  //buffer = new log_record[g_buffer_size];
   buffer = new log_record[g_buffer_size];
   #if LOG_RECOVER
     file.open("Log.data", ios::binary);
@@ -109,44 +111,9 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   //    return
   return;
 }
-static const uint32_t num_loggers = 4;
-bool flushAllLogs[num_loggers];
-bool flushAllLogsInitialized = false;
-void flushAllLogs_false (){
-   for (uint32_t i = 0; i<num_loggers; i++){
-      flushAllLogs[i] = false;
-   }
-   flushAllLogsInitialized = true;
-}
-void flushAllLogs_true (){
-   for (uint32_t i = 0; i<num_loggers; i++){
-      flushAllLogs[i] = true;
-   }
-}
-/*
-void LogManager::lock () {
-   pthread_mutex_lock(&lock);
-}
-void LogManager::unlock () {
-   pthread_mutex_unlock(&lock);
-}
-bool LogManager::checkBufferFull() {
-   return (buff_index >= g_buffer_size);
-}
-void LogManager::flushBuffer(){
-   flushLogBuffer();
-   buff_index = 0;
-   for (uint32_t i = 0; i < g_buffer_size; i ++)
-   {
-      delete buffer[i].keys;
-      //delete buffer[i].table_names;
-      for (uint32_t j=0; j<buffer[i].num_keys; j++)
-         delete buffer[i].after_images[j];
-         delete buffer[i].lengths;
-         delete buffer[i].after_images;
-   }
-   */
 
+
+//Old code below. Will remove soon.
 void 
 LogManager::logTxn_batch( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images, uint32_t fileNum )
 {
@@ -154,21 +121,21 @@ LogManager::logTxn_batch( uint64_t txn_id, uint32_t num_keys, string * table_nam
    //  cout << "Entered logTxn";
    // Lock log manager
    //bit vector
-   if (!flushAllLogsInitialized){ 
+/*   if (!flushAllLogsInitialized){ 
       flushAllLogs_false();
       flushAllLogsInitialized = true;
-   }
+   }*/
    pthread_mutex_lock(&lock);
    uint64_t lsn = global_lsn;
    global_lsn ++;
 
 
-   if (buff_index >= g_buffer_size || flushAllLogs[fileNum] == true)
+   if (buff_index >= g_buffer_size /*|| flushAllLogs[fileNum] == true*/)
    {
       if (buff_index >= g_buffer_size) {
-         flushAllLogs_true ();
+         /*flushAllLogs_true ();*/
       }
-      flushAllLogs[fileNum] = false;
+      /*flushAllLogs[fileNum] = false;*/
       // wait until count_busy = 0
       flushLogBuffer();
       //buff_index = 0;
@@ -225,7 +192,7 @@ LogManager::addToBuffer(uint32_t my_buff_index, uint64_t lsn, uint64_t txn_id, u
 
 void LogManager::flushLogBuffer()
 {
-  for (uint32_t i=0; i<g_buffer_size; i++)
+  for (uint32_t i=0; i</*g_buffer_size*/buff_index; i++)
     {
       log.write((char *) &(buffer[i].lsn), sizeof(buffer[i].lsn));
       log.write((char *) &(buffer[i].txn_id), sizeof(buffer[i].txn_id));
@@ -252,7 +219,7 @@ void LogManager::flushLogBuffer()
 	}
     }
   log.flush();
-  max_lsn_logged = buffer[g_buffer_size - 1].lsn;
+  max_lsn_logged = buffer[/*g_buffer_size*/buff_index /*- 1*/].lsn;
 }
 
 bool
