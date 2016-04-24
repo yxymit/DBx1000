@@ -19,6 +19,7 @@ void Stats_thd::clear() {
 	abort_cnt = 0;
 	run_time = 0;
 	time_man = 0;
+	time_log = 0;
 	debug1 = 0;
 	debug2 = 0;
 	debug3 = 0;
@@ -110,6 +111,7 @@ void Stats::print() {
 	uint64_t total_abort_cnt = 0;
 	double total_run_time = 0;
 	double total_time_man = 0;
+	double total_time_log = 0;
 	double total_debug1 = 0;
 	double total_debug2 = 0;
 	double total_debug3 = 0;
@@ -127,6 +129,7 @@ void Stats::print() {
 		total_abort_cnt += _stats[tid]->abort_cnt;
 		total_run_time += _stats[tid]->run_time;
 		total_time_man += _stats[tid]->time_man;
+		total_time_log += _stats[tid]->time_log;
 		total_debug1 += _stats[tid]->debug1;
 		total_debug2 += _stats[tid]->debug2;
 		total_debug3 += _stats[tid]->debug3;
@@ -152,7 +155,7 @@ void Stats::print() {
 		outf = fopen(output_file, "w");
 		fprintf(outf, "[summary] txn_cnt=%" PRIu64 ", abort_cnt=%" PRIu64
 			", run_time=%f, time_wait=%f, time_ts_alloc=%f"
-			", time_man=%f, time_index=%f, time_abort=%f, time_cleanup=%f, latency=%f"
+			", time_man=%f, time_log=%f, time_index=%f, time_abort=%f, time_cleanup=%f, latency=%f"
 			", deadlock_cnt=%" PRIu64 ", cycle_detect=%" PRIu64 ", dl_detect_time=%f, dl_wait_time=%f"
 			", time_query=%f, debug1=%f, debug2=%f, debug3=%f, debug4=%f, debug5=%f\n",
 			total_txn_cnt, 
@@ -161,6 +164,7 @@ void Stats::print() {
 			total_time_wait / BILLION,
 			total_time_ts_alloc / BILLION,
 			(total_time_man - total_time_wait) / BILLION,
+			total_time_log / BILLION,
 			total_time_index / BILLION,
 			total_time_abort / BILLION,
 			total_time_cleanup / BILLION,
@@ -180,7 +184,7 @@ void Stats::print() {
 	}
 	printf("[summary] txn_cnt=%" PRIu64 ", abort_cnt=%" PRIu64
 		", run_time=%f, time_wait=%f, time_ts_alloc=%f"
-		", time_man=%f, time_index=%f, time_abort=%f, time_cleanup=%f, latency=%f"
+		", time_man=%f, time_log=%f, time_index=%f, time_abort=%f, time_cleanup=%f, latency=%f"
 		", deadlock_cnt=%" PRIu64 ", cycle_detect=%" PRIu64 ", dl_detect_time=%f, dl_wait_time=%f"
 		", time_query=%f, debug1=%f, debug2=%f, debug3=%f, debug4=%f, debug5=%f\n", 
 		total_txn_cnt, 
@@ -189,6 +193,7 @@ void Stats::print() {
 		total_time_wait / BILLION,
 		total_time_ts_alloc / BILLION,
 		(total_time_man - total_time_wait) / BILLION,
+		total_time_log / BILLION,
 		total_time_index / BILLION,
 		total_time_abort / BILLION,
 		total_time_cleanup / BILLION,

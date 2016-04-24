@@ -143,8 +143,12 @@ void txn_man::cleanup(RC rc) {
                 cnt ++;
             }
 		}
-        if (wr_cnt > 0)
+        if (wr_cnt > 0) {
+			uint64_t before_log_time = get_sys_clock();
     		log_manager.logTxn(get_thd_id(), wr_cnt, table_names, keys, lengths, after_images);
+			uint64_t after_log_time = get_sys_clock();
+			INC_STATS(get_thd_id(), time_log, after_log_time - before_log_time);
+		}
 	}
   #endif
 	row_cnt = 0;

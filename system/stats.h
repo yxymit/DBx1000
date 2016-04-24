@@ -9,6 +9,7 @@ public:
 	uint64_t txn_cnt;
 	uint64_t abort_cnt;
 	double run_time;
+	double time_log;
 	double time_man;
 	double time_index;
 	double time_wait;
