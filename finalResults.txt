@@ -241,7 +241,6 @@ Average log time per txn for buffer_size 70: 8.68745100301e-05 with 3574.9 txns.
 Average log time per txn for buffer_size 80: 0.000101608205554 with 3737.2 txns.
 Average log time per txn for buffer_size 90: 0.000119702037554 with 3423.2 txns.
 Average log time per txn for buffer_size 100: 0.000134930067392 with 3286.8 txns.
-Average log time per txn for buffer_size 0: 0.000134930067392 with 0.0 txns.
 
 FOR MAX 10000 TXNS
 Buffer size 10 throughputs

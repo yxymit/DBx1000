@@ -1,8 +1,6 @@
-Throughput: 22921.5719251
+Average time in logging per txn: 5.95067527892e-06 with 3406.0 txns.
 
-Throughput: 21622.9835453
+Average time in logging per txn: 1.18623017212e-05 with 2963.0 txns.
 
-Throughput: 22458.6211602
-
-Throughput: 23220.2607592
+Average time in logging per txn: 1.42469766606e-05 with 38947.0 txns.
 

@@ -1,5 +1,6 @@
 #!/bin/sh
 
+
 echo "Buffer size 10 throughputs" >> res.txt
 
 ./rundb -Lb10 > output.txt
@@ -262,8 +263,6 @@ python optimization/optimize.py >> res.txt
 python optimization/optimize.py >> res.txt
 ./rundb -Lb100 > output.txt
 python optimization/optimize.py >> res.txt
-
-echo "------------------------" >> res.txt
 
 echo "---------- FINAL RESULTS ------------" >> res.txt
 python optimization/average.py >> res.txt

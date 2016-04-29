@@ -86,9 +86,9 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   
   if (buff_index >= g_buffer_size)
     {
-      // while (count_busy > 0){
-      // continue;
-      //}
+      //  while (count_busy > 1){
+      //	continue;
+      // }
       // wait until count_busy = 0
       flushLogBuffer();
       buff_index = 0;
@@ -103,12 +103,12 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
       }
       count_busy = g_buffer_size;
     }
-  // pthread_mutex_unlock(&lock);
+  //   pthread_mutex_unlock(&lock);
     
   addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
   count_busy --;
 
-   pthread_mutex_unlock(&lock);
+  pthread_mutex_unlock(&lock);
 
   // if the buffer is full or times out, 
   //    flush the buffer to disk

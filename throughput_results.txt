@@ -1,0 +1,245 @@
+Buffer size 10 throughputs
+Throughput: 19749.7147789
+
+Throughput: 19400.9973054
+
+Throughput: 19397.8014975
+
+Throughput: 19318.8169677
+
+Throughput: 21457.6118055
+
+Throughput: 21705.5097567
+
+Throughput: 19980.0658352
+
+Throughput: 21847.3010987
+
+Throughput: 22894.521668
+
+Throughput: 24652.2259326
+
+------------------------
+Buffer size 20 throughputs
+Throughput: 22094.7568956
+
+Throughput: 24273.5600315
+
+Throughput: 25051.2930925
+
+Throughput: 22918.2145511
+
+Throughput: 22799.7886952
+
+Throughput: 19812.8064181
+
+Throughput: 19551.4628716
+
+Throughput: 22001.4242143
+
+Throughput: 22894.4435599
+
+-------------------------
+Buffer size 30 throughputs
+Throughput: 19213.9199111
+
+Throughput: 23514.4808704
+
+Throughput: 22757.6132464
+
+Throughput: 21307.5060533
+
+Throughput: 24474.2686672
+
+Throughput: 22363.0521094
+
+Throughput: 21674.8491681
+
+Throughput: 22243.5568056
+
+Throughput: 26124.0557725
+
+Throughput: 20530.7994334
+
+Throughput: 20827.0449743
+
+------------------------
+Buffer size 40 throughputs
+Throughput: 22192.4851217
+
+Throughput: 22052.5804502
+
+Throughput: 22104.3938122
+
+Throughput: 18543.7424254
+
+Throughput: 22869.3671934
+
+Throughput: 19651.8844787
+
+Throughput: 22575.1956605
+
+Throughput: 22179.6544998
+
+Throughput: 20684.8570243
+
+Throughput: 22626.6829217
+
+Throughput: 23172.6694915
+
+------------------------
+Buffer size 50 throughputs
+Throughput: 23646.1479985
+
+Throughput: 21147.5191602
+
+Throughput: 22493.9717534
+
+Throughput: 23050.7915114
+
+Throughput: 22127.5178034
+
+Throughput: 24081.4353632
+
+Throughput: 23305.2249285
+
+Throughput: 19152.0127324
+
+Throughput: 23185.770751
+
+Throughput: 21434.2472545
+
+Throughput: 21536.2577329
+
+-------------------------
+Buffer size 60 throughputs
+Throughput: 20006.5817998
+
+Throughput: 23638.6570791
+
+Throughput: 22114.2648771
+
+Throughput: 18985.6528047
+
+Throughput: 20040.6562494
+
+Throughput: 21909.4171086
+
+Throughput: 21771.7431863
+
+Throughput: 22439.1013837
+
+Throughput: 21608.5433005
+
+Throughput: 21007.2533187
+
+Throughput: 21697.0567865
+
+------------------------
+Buffer size 70 throughputs
+Throughput: 19705.9455477
+
+Throughput: 21670.456557
+
+Throughput: 21061.3172454
+
+Throughput: 23891.070086
+
+Throughput: 21495.0213283
+
+Throughput: 23516.7612783
+
+Throughput: 21721.120005
+
+Throughput: 21309.2737353
+
+Throughput: 19718.292668
+
+Throughput: 20966.1805577
+
+Throughput: 22951.8005232
+
+------------------------
+Buffer size 80 throughputs
+Throughput: 19996.9596007
+
+Throughput: 21627.3261336
+
+Throughput: 21143.6933133
+
+Throughput: 21689.0558471
+
+Throughput: 21221.4339868
+
+Throughput: 23114.8296522
+
+Throughput: 21419.974296
+
+Throughput: 19774.6399094
+
+Throughput: 22749.5786488
+
+Throughput: 23062.5764575
+
+Throughput: 19205.3152007
+
+-------------------------
+Buffer size 90 throughputs
+Throughput: 21438.0286618
+
+Throughput: 21441.0539051
+
+Throughput: 22358.6901833
+
+Throughput: 23707.4470656
+
+Throughput: 22037.7097388
+
+Throughput: 21561.4156836
+
+Throughput: 23057.6476786
+
+Throughput: 24392.6428642
+
+Throughput: 23700.8675012
+
+Throughput: 23811.8657683
+
+------------------------
+Buffer size 100 throughputs
+Throughput: 25439.0565935
+
+Throughput: 21862.0200588
+
+Throughput: 22778.5494089
+
+Throughput: 22596.277524
+
+Throughput: 21803.6005179
+
+Throughput: 21820.9179834
+
+Throughput: 24227.5427443
+
+Throughput: 22359.1291046
+
+Throughput: 20230.8120133
+
+Throughput: 20379.1880564
+
+------------------------
+---------- FINAL RESULTS ------------
+Average throughput for buffer_size 10: 21040.4566646
+Average throughput for buffer_size 20: 20139.775033
+Average throughput for buffer_size 30: 24503.1147012
+Average throughput for buffer_size 40: 23865.3513079
+Average throughput for buffer_size 50: 24516.0896989
+Average throughput for buffer_size 60: 23521.8927894
+Average throughput for buffer_size 70: 23800.7239532
+Average throughput for buffer_size 80: 23500.5383046
+Average throughput for buffer_size 90: 22750.7369051
+Average throughput for buffer_size 100: 22349.7094005
+
+---------- NO LOGGING ----------
+Throughput: 3139
+Throughput: 
