@@ -1,4 +1,6 @@
 \section{Batch Logging}
 
+In batch logging, multiple loggers are in operation at the same time as opposed to in serial logging, where there is only one logger. Flushing the log buffers to disk in batch logging uses the naive scheme of flushing all log buffers once one is full. A bit vector is used to communicate between the loggers, where the index of the bit corresponds to the number of the logger and the logger flushes if its bit is 1. When a logger fills up its buffer, it changes all bits of the vector to be 1 to signal all other loggers to flush their buffers too. Each logger checks the bit vector upon receiving a transaction, and if their respective bit is 1, then the logger flushes  and toggles its bit to 0 before placing the newly received transaction into its buffer. 
 
+[TODO: Talk About Performance Numbers]
 
