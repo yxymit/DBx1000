@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2016.4.30)  30 APR 2016 14:10
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2016.4.30)  30 APR 2016 14:15
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -267,18 +267,11 @@ e
 l.19 \doublespacing
                    
 ? 
-
-! LaTeX Error: File `macros.tex' not found.
-
-Type X to quit or <RETURN> to proceed,
-or enter new name. (Default extension: tex)
-
-Enter file name: 
-LaTeX Font Info:    Try loading font information for U+msa on input line 24.
+LaTeX Font Info:    Try loading font information for U+msa on input line 23.
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 24.
+LaTeX Font Info:    Try loading font information for U+msb on input line 23.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
@@ -293,8 +286,8 @@ LaTeX Warning: No \author given.
 No file main.bbl.
 (./main.aux) ) 
 Here is how much of TeX's memory you used:
- 2305 strings out of 495028
- 32741 string characters out of 6181497
+ 2304 strings out of 495028
+ 32735 string characters out of 6181497
  93176 words of memory out of 5000000
  5466 multiletter control sequences out of 15000+600000
  8050 words of font info for 31 fonts, out of 8000000 for 9000

@@ -10,6 +10,8 @@
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
+#include <atomic>
+#include <helper.h>
 
 
 uint64_t global_lsn = 0;
@@ -24,7 +26,10 @@ struct log_record{
   char ** after_images;
 };*/
 
+// std::atomic<int> count_busy (g_buffer_size);
 int volatile count_busy = g_buffer_size;
+
+bool optimization = true;
 
 LogManager::log_record *  buffer; 
 //included in header
@@ -34,7 +39,7 @@ uint64_t max_lsn_logged = 0;
 LogManager::LogManager()
 {
     // TODO [YXY] Open the log file here.
-  cout << "Buffer size (log.cpp) " << g_buffer_size;
+  // cout << "Buffer size (log.cpp) " << g_buffer_size;
     pthread_mutex_init(&lock, NULL);
 }
 
@@ -50,7 +55,7 @@ uint64_t LogManager::getMaxlsn()
 
 void LogManager::init()
 {
-  cout << "log buffer size" << g_buffer_size;
+  //  cout << "log buffer size" << g_buffer_size;
   //buffer = new log_record[g_buffer_size];
   buffer = new log_record[g_buffer_size];
   #if LOG_RECOVER
@@ -62,7 +67,7 @@ void LogManager::init()
 
 void LogManager::init(string log_file_name)
 {
-  cout << "log buffer size" << g_buffer_size;
+  // cout << "log buffer size" << g_buffer_size;
   buffer = new log_record[g_buffer_size];
   #if LOG_RECOVER
     file.open(log_file_name, ios::binary);
@@ -77,6 +82,29 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   //assert(num_keys > 0);
   //  cout << "Entered logTxn";
   // Lock log manager
+  if (optimization)
+    {
+      logTxn_optimization(txn_id, num_keys, table_names, keys, lengths, after_images );
+    }
+  else
+    {
+      logTxn_nooptimization(txn_id, num_keys, table_names, keys, lengths, after_images );
+    }
+  
+  // pthread_mutex_unlock(&lock);
+  
+  // if the buffer is full or times out, 
+  //    flush the buffer to disk
+  //    update the commit time for flushed transactions
+  // else
+  //    return
+  return;
+}
+
+void
+LogManager::logTxn_nooptimization( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images )
+{
+  cout << "In no optimization\n\n";
   pthread_mutex_lock(&lock);
   uint64_t lsn = global_lsn;
   global_lsn ++;
@@ -84,37 +112,65 @@ LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, ui
   uint32_t my_buff_index =  buff_index;
   buff_index ++;
   
+  //  cout << "Not flushing yet\n";
   if (buff_index >= g_buffer_size)
     {
-      //  while (count_busy > 1){
-      //	continue;
-      // }
-      // wait until count_busy = 0
+      flushLogBuffer();
+      buff_index = 0;
+      for (uint32_t i = 0; i < g_buffer_size; i ++)
+	{
+	  delete buffer[i].keys;
+	  // delete buffer[i].table_names;
+	  for (uint32_t j=0; j<buffer[i].num_keys; j++)
+	    delete buffer[i].after_images[j];
+	  delete buffer[i].lengths;
+	  delete buffer[i].after_images;
+	}
+    }
+  addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
+  pthread_mutex_unlock(&lock);
+  return;
+}
+
+void
+LogManager::logTxn_optimization( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images )
+{
+  pthread_mutex_lock(&lock);
+  uint64_t lsn = global_lsn;
+  global_lsn ++;
+  
+  uint32_t my_buff_index =  buff_index;
+  buff_index ++;
+
+  //  cout << "Not flushing yet\n";
+  if (buff_index >= g_buffer_size)
+    {
+      addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
+      //  cout << "Count busy before loop: " << count_busy << "\n";
+      while (count_busy > 1){
+	//	cout << "Count busy in loop: " <<  count_busy << "\n";
+	continue;
+      }
+      //   cout << "Count busy after loop: " << count_busy << "\n";
       flushLogBuffer();
       buff_index = 0;
       for (uint32_t i = 0; i < g_buffer_size; i ++)
       {
         delete buffer[i].keys;
-        //delete buffer[i].table_names;
-        for (uint32_t j=0; j<buffer[i].num_keys; j++)
-            delete buffer[i].after_images[j];
+	// delete buffer[i].table_names;
+	for (uint32_t j=0; j<buffer[i].num_keys; j++)
+	  delete buffer[i].after_images[j];
         delete buffer[i].lengths;
         delete buffer[i].after_images;
       }
       count_busy = g_buffer_size;
+      pthread_mutex_unlock(&lock);
     }
-  //   pthread_mutex_unlock(&lock);
-    
-  addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
-  count_busy --;
-
-  pthread_mutex_unlock(&lock);
-
-  // if the buffer is full or times out, 
-  //    flush the buffer to disk
-  //    update the commit time for flushed transactions
-  // else
-  //    return
+  else{
+    pthread_mutex_unlock(&lock);
+    addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
+    ATOM_SUB(count_busy, 1);
+  }
   return;
 }
 
@@ -198,8 +254,9 @@ LogManager::addToBuffer(uint32_t my_buff_index, uint64_t lsn, uint64_t txn_id, u
 
 void LogManager::flushLogBuffer()
 {
-  for (uint32_t i=0; i</*g_buffer_size*/buff_index; i++)
-    {
+   // for (uint32_t i=0; i<buff_index; i++)
+  for (uint32_t i=0; i<g_buffer_size; i++)
+   {
       log.write((char *) &(buffer[i].lsn), sizeof(buffer[i].lsn));
       log.write((char *) &(buffer[i].txn_id), sizeof(buffer[i].txn_id));
       log.write((char *) &(buffer[i].num_keys), sizeof(buffer[i].num_keys));
@@ -225,7 +282,8 @@ void LogManager::flushLogBuffer()
 	}
     }
   log.flush();
-  max_lsn_logged = buffer[/*g_buffer_size*/buff_index /*- 1*/].lsn;
+  // max_lsn_logged = buffer[g_buffer_size- 1].lsn;
+  max_lsn_logged = buffer[buff_index].lsn;
 }
 
 bool
