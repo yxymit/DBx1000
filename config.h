@@ -99,7 +99,7 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM               LOG_SERIAL 
+#define LOG_ALGORITHM               LOG_BATCH
 #define LOG_COMMAND					false
 #define LOG_REDO					true
 #define LOG_RECOVER					false
