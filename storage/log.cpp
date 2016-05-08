@@ -29,7 +29,7 @@ struct log_record{
 // std::atomic<int> count_busy (g_buffer_size);
 int volatile count_busy = g_buffer_size;
 
-bool optimization = true;
+bool optimization = false;
 
 LogManager::log_record *  buffer; 
 //included in header
