@@ -1,1 +1,13 @@
 \section{Parallel Logging}
+
+Parallel logging uses multiple loggers and corresponding log files in order to improve the performance of the logging process. In order to ensure the serializability of the transactions that we have parsed into different threads, the concurrency control algorithm is implemented. \par
+A key insight of our parallel logging algorithm is the dependency between different transactions that operate on the same data tuple. There are four cases:
+\begin{itemize}
+\item Read-after-read dependency (RAR)
+\item Read-after-write dependency (RAW)
+\item Write-after-read dependency (WAR)
+\item Write-after-write dependency (WAW)
+\end{itemize}
+While RAR is not essential to our task, WAW and RAW are critical to maintaining the completeness of the log records during the recovery process. We propose, however, that ignoring the WAR dependency, also known as  \textbf{anti-dependency}, will not affect the results of our task. %this is because...
+Note that this will significantly decrease the complexity of our logging process because while the number of transactions writing to a data tuple is significantly smaller than that reading. \par
+To implement our algorithm, we specify the maximum log sequence number (LSN) in each log file that the transaction currently being logged depends on. When recording a transaction in a file, we compare the LSN that the transaction depends on ($A$) to the maximum LSN that has already been logged in each file ($B$). If $A\leq B$, we may push the record into the buffer; if $A\geq B$, we will push the record into a waiting buffer that we will check periodically later on to see if any of its contents can be updated. We follow a similar process during recovery: we read the maximum LSN in each file that the currently recovered transaction depends on, and we compare it with the maximum LSN that has been recovered from that file. This ensures the serializability of the log records in the recovery process. \par
