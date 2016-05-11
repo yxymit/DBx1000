@@ -49,7 +49,7 @@
 // per-row lock/ts management or central lock/ts management
 #define CENTRAL_MAN					false
 #define BUCKET_CNT					31
-#define ABORT_PENALTY 				1000
+#define ABORT_PENALTY 				100000
 #define ABORT_BUFFER_SIZE			10
 #define ABORT_BUFFER_ENABLE			true
 // [ INDEX ]
@@ -88,7 +88,7 @@
 // [TICTOC, SILO]
 #define VALIDATION_LOCK				"no-wait" // no-wait or waiting
 #define PRE_ABORT					true
-#define ATOMIC_WORD					false //true
+#define ATOMIC_WORD					true 
 // [HSTORE]
 // when set to true, hstore will not access the global timestamp.
 // This is fine for single partition transactions. 
@@ -99,11 +99,12 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM               LOG_BATCH
+#define LOG_ALGORITHM               LOG_SERIAL
 #define LOG_COMMAND					false
-#define LOG_REDO					true
+#define LOG_REDO					true 
 #define LOG_RECOVER					false
 #define LOG_BATCH_TIME				10 // in ms
+#define LOG_PARALLEL_BUFFER_FILL	false 
 
 /***********************************************/
 // Benchmark
@@ -116,7 +117,7 @@
 #define MAX_TUPLE_SIZE				1024 // in bytes
 // ==== [YCSB] ====
 #define INIT_PARALLELISM			40
-#define SYNTH_TABLE_SIZE 			(1024 * 40)
+#define SYNTH_TABLE_SIZE 			(1024 * 1024)
 #define ZIPF_THETA 					0.6
 #define READ_PERC 					0.9
 #define WRITE_PERC 					0.1
