@@ -72,7 +72,7 @@ Query_thd::init(workload * h_wl, int thread_id) {
 #if WORKLOAD == YCSB	
 	queries = (ycsb_query *) 
 		mem_allocator.alloc(sizeof(ycsb_query) * request_cnt, thread_id);
-	//srand48_r(thread_id + 1, &buffer);
+	buffer[0] = thread_id;
 #elif WORKLOAD == TPCC
 	queries = (tpcc_query *) _mm_malloc(sizeof(tpcc_query) * request_cnt, 64);
 #endif

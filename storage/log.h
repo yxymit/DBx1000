@@ -26,9 +26,9 @@ public:
   
   void logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys,  uint32_t * lengths, char ** after_images );
   
-  void logTxn_nooptimization( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images );
+//  void logTxn_nooptimization( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images );
   
- void logTxn_optimization( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images );
+//  void logTxn_optimization( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images );
  
   void addToBuffer(uint32_t my_buffer_index, uint64_t lsn,  uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images);
   

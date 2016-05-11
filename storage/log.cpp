@@ -79,32 +79,54 @@ void LogManager::init(string log_file_name)
 void 
 LogManager::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images )
 {
-  //assert(num_keys > 0);
-  //  cout << "Entered logTxn";
-  // Lock log manager
-  if (optimization)
-    {
-      logTxn_optimization(txn_id, num_keys, table_names, keys, lengths, after_images );
-    }
-  else
-    {
-      logTxn_nooptimization(txn_id, num_keys, table_names, keys, lengths, after_images );
-    }
-  
-  // pthread_mutex_unlock(&lock);
-  
-  // if the buffer is full or times out, 
-  //    flush the buffer to disk
-  //    update the commit time for flushed transactions
-  // else
-  //    return
+  pthread_mutex_lock(&lock);
+  uint64_t lsn = global_lsn;
+  global_lsn ++;
+
+  uint32_t my_buff_index =  buff_index;
+  buff_index ++;
+
+  //  cout << "Not flushing yet\n";
+  if (buff_index >= g_buffer_size)
+  {
+      addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
+#if LOG_PARALLEL_BUFFER_FILL
+      while (count_busy > 1)
+		PAUSE
+#endif
+      flushLogBuffer();
+      buff_index = 0;
+      for (uint32_t i = 0; i < g_buffer_size; i ++)
+      {
+        delete buffer[i].keys;
+        // delete buffer[i].table_names;
+        for (uint32_t j=0; j<buffer[i].num_keys; j++)
+          delete buffer[i].after_images[j];
+        delete buffer[i].lengths;
+        delete buffer[i].after_images;
+      }
+#if LOG_PARALLEL_BUFFER_FILL
+      count_busy = g_buffer_size;
+#endif
+      pthread_mutex_unlock(&lock);
+  }
+  else{
+#if LOG_PARALLEL_BUFFER_FILL
+    pthread_mutex_unlock(&lock);
+    addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
+    ATOM_SUB(count_busy, 1);
+#else 
+    addToBuffer(my_buff_index, lsn, txn_id, num_keys, table_names, keys, lengths, after_images);
+    pthread_mutex_unlock(&lock);
+#endif
+  }
   return;
 }
-
+/*
 void
 LogManager::logTxn_nooptimization( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images )
 {
-  cout << "In no optimization\n\n";
+  //cout << "In no optimization\n\n";
   pthread_mutex_lock(&lock);
   uint64_t lsn = global_lsn;
   global_lsn ++;
@@ -173,7 +195,7 @@ LogManager::logTxn_optimization( uint64_t txn_id, uint32_t num_keys, string * ta
   }
   return;
 }
-
+*/
 
 //Old code below. Will remove soon.
 void 
@@ -183,10 +205,6 @@ LogManager::logTxn_batch( uint64_t txn_id, uint32_t num_keys, string * table_nam
    //  cout << "Entered logTxn";
    // Lock log manager
    //bit vector
-/*   if (!flushAllLogsInitialized){ 
-      flushAllLogs_false();
-      flushAllLogsInitialized = true;
-   }*/
    pthread_mutex_lock(&lock);
    uint64_t lsn = global_lsn;
    global_lsn ++;
@@ -240,7 +258,7 @@ LogManager::addToBuffer(uint32_t my_buff_index, uint64_t lsn, uint64_t txn_id, u
   buffer[my_buff_index].lengths = new uint32_t[num_keys];
   buffer[my_buff_index].after_images = new char * [num_keys];
   
-  
+  //printf("addToBuffer. buffer[%d].num_keys=%d\n", my_buff_index, num_keys); 
   for (uint32_t a=0; a<num_keys; a++)
     {
       buffer[my_buff_index].lengths[a] = lengths[a];
