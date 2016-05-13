@@ -1,0 +1,240 @@
+Buffer size 10 throughputs
+Average time in logging per txn: 3.03762257228e-05 with 79035.0 txns.
+
+Average time in logging per txn: 2.46452751504e-05 with 79611.0 txns.
+
+Average time in logging per txn: 5.59377869847e-05 with 75788.0 txns.
+
+Average time in logging per txn: 2.64878248388e-05 with 79424.0 txns.
+
+Average time in logging per txn: 2.62391383809e-05 with 79339.0 txns.
+
+Average time in logging per txn: 2.30842289396e-05 with 79462.0 txns.
+
+Average time in logging per txn: 6.84158481113e-05 with 75845.0 txns.
+
+Average time in logging per txn: 8.98462250804e-05 with 77750.0 txns.
+
+Average time in logging per txn: 3.31161719615e-05 with 78599.0 txns.
+
+Average time in logging per txn: 2.61921598867e-05 with 79106.0 txns.
+
+------------------------
+Buffer size 20 throughputs
+Average time in logging per txn: 6.5951575567e-05 with 74735.0 txns.
+
+Average time in logging per txn: 6.29493279676e-05 with 76038.0 txns.
+
+Average time in logging per txn: 6.75830943074e-05 with 74957.0 txns.
+
+Average time in logging per txn: 6.64725150145e-05 with 74095.0 txns.
+
+Average time in logging per txn: 4.65710584273e-05 with 77190.0 txns.
+
+Average time in logging per txn: 6.82957620917e-05 with 75155.0 txns.
+
+Average time in logging per txn: 6.90712729087e-05 with 76172.0 txns.
+
+Average time in logging per txn: 7.28809176279e-05 with 77417.0 txns.
+
+Average time in logging per txn: 6.88365001737e-05 with 74838.0 txns.
+
+-------------------------
+Buffer size 30 throughputs
+Average time in logging per txn: 6.35049195774e-05 with 74295.0 txns.
+
+Average time in logging per txn: 6.27276972867e-05 with 73231.0 txns.
+
+Average time in logging per txn: 6.33189142782e-05 with 75710.0 txns.
+
+Average time in logging per txn: 6.14069296494e-05 with 72096.0 txns.
+
+Average time in logging per txn: 6.51210706505e-05 with 77112.0 txns.
+
+Average time in logging per txn: 6.47153114767e-05 with 76041.0 txns.
+
+Average time in logging per txn: 6.24940035792e-05 with 74878.0 txns.
+
+Average time in logging per txn: 6.33555916974e-05 with 75013.0 txns.
+
+Average time in logging per txn: 5.89591575333e-05 with 75730.0 txns.
+
+Average time in logging per txn: 6.06691641714e-05 with 73807.0 txns.
+
+Average time in logging per txn: 6.15970998047e-05 with 75788.0 txns.
+
+------------------------
+Buffer size 40 throughputs
+Average time in logging per txn: 5.67623529105e-05 with 76824.0 txns.
+
+Average time in logging per txn: 5.61606729618e-05 with 75190.0 txns.
+
+Average time in logging per txn: 5.79106557269e-05 with 75931.0 txns.
+
+Average time in logging per txn: 5.74521074304e-05 with 76254.0 txns.
+
+Average time in logging per txn: 5.5371852377e-05 with 73349.0 txns.
+
+Average time in logging per txn: 5.41512959692e-05 with 77008.0 txns.
+
+Average time in logging per txn: 5.19607093655e-05 with 74038.0 txns.
+
+Average time in logging per txn: 5.61998913778e-05 with 75491.0 txns.
+
+Average time in logging per txn: 5.74100865954e-05 with 76101.0 txns.
+
+Average time in logging per txn: 5.70143037442e-05 with 73687.0 txns.
+
+Average time in logging per txn: 5.56238723109e-05 with 76373.0 txns.
+
+------------------------
+Buffer size 50 throughputs
+Average time in logging per txn: 4.90109437276e-05 with 74015.0 txns.
+
+Average time in logging per txn: 5.38969061462e-05 with 77056.0 txns.
+
+Average time in logging per txn: 4.80237687773e-05 with 73626.0 txns.
+
+Average time in logging per txn: 4.78043524136e-05 with 75820.0 txns.
+
+Average time in logging per txn: 5.84411427956e-05 with 74239.0 txns.
+
+Average time in logging per txn: 4.81659304862e-05 with 72446.0 txns.
+
+Average time in logging per txn: 4.90066308556e-05 with 74651.0 txns.
+
+Average time in logging per txn: 4.72411020539e-05 with 72011.0 txns.
+
+Average time in logging per txn: 5.10373009496e-05 with 75923.0 txns.
+
+Average time in logging per txn: 4.85707943705e-05 with 74109.0 txns.
+
+Average time in logging per txn: 4.83411183472e-05 with 75701.0 txns.
+
+-------------------------
+Buffer size 60 throughputs
+Average time in logging per txn: 3.77805029173e-05 with 77468.0 txns.
+
+Average time in logging per txn: 4.27844655897e-05 with 76823.0 txns.
+
+Average time in logging per txn: 3.69339993748e-05 with 76772.0 txns.
+
+Average time in logging per txn: 4.17771704266e-05 with 74824.0 txns.
+
+Average time in logging per txn: 4.2650437707e-05 with 77906.0 txns.
+
+Average time in logging per txn: 4.02503735464e-05 with 76965.0 txns.
+
+Average time in logging per txn: 4.49329823321e-05 with 76353.0 txns.
+
+Average time in logging per txn: 3.87977365136e-05 with 77226.0 txns.
+
+Average time in logging per txn: 4.48139728018e-05 with 77064.0 txns.
+
+Average time in logging per txn: 4.26386050262e-05 with 75643.0 txns.
+
+Average time in logging per txn: 3.87793023406e-05 with 77545.0 txns.
+
+------------------------
+Buffer size 70 throughputs
+Average time in logging per txn: 3.91703441462e-05 with 72876.0 txns.
+
+Average time in logging per txn: 3.24551624898e-05 with 78528.0 txns.
+
+Average time in logging per txn: 4.19595738547e-05 with 76312.0 txns.
+
+Average time in logging per txn: 4.05378206736e-05 with 75739.0 txns.
+
+Average time in logging per txn: 3.73806673492e-05 with 76182.0 txns.
+
+Average time in logging per txn: 3.36470656685e-05 with 77343.0 txns.
+
+Average time in logging per txn: 3.28158596237e-05 with 77278.0 txns.
+
+Average time in logging per txn: 3.47983419635e-05 with 76476.0 txns.
+
+Average time in logging per txn: 3.07029368155e-05 with 76886.0 txns.
+
+Average time in logging per txn: 3.82736129755e-05 with 72259.0 txns.
+
+Average time in logging per txn: 4.07944391728e-05 with 76931.0 txns.
+
+------------------------
+Buffer size 80 throughputs
+Average time in logging per txn: 3.37441078773e-05 with 75864.0 txns.
+
+Average time in logging per txn: 3.9137804734e-05 with 76173.0 txns.
+
+Average time in logging per txn: 3.42858275654e-05 with 74405.0 txns.
+
+Average time in logging per txn: 2.64924438359e-05 with 78876.0 txns.
+
+Average time in logging per txn: 3.44048258799e-05 with 75178.0 txns.
+
+Average time in logging per txn: 2.99852303825e-05 with 76373.0 txns.
+
+Average time in logging per txn: 3.79232004386e-05 with 76602.0 txns.
+
+Average time in logging per txn: 2.6427117435e-05 with 78503.0 txns.
+
+Average time in logging per txn: 3.99099323742e-05 with 76598.0 txns.
+
+Average time in logging per txn: 3.52952930368e-05 with 74018.0 txns.
+
+Average time in logging per txn: 3.40305591936e-05 with 75591.0 txns.
+
+-------------------------
+Buffer size 90 throughputs
+Average time in logging per txn: 3.05529347083e-05 with 74573.0 txns.
+
+Average time in logging per txn: 2.5689828631e-05 with 76735.0 txns.
+
+Average time in logging per txn: 2.49695905233e-05 with 78002.0 txns.
+
+Average time in logging per txn: 3.53048346846e-05 with 77337.0 txns.
+
+Average time in logging per txn: 2.1413617835e-05 with 79484.0 txns.
+
+Average time in logging per txn: 3.38239805412e-05 with 75236.0 txns.
+
+Average time in logging per txn: 3.28723443881e-05 with 75171.0 txns.
+
+Average time in logging per txn: 3.26991816208e-05 with 74171.0 txns.
+
+Average time in logging per txn: 3.25380883914e-05 with 74419.0 txns.
+
+Average time in logging per txn: 2.1731668357e-05 with 78880.0 txns.
+
+------------------------
+Buffer size 100 throughputs
+Average time in logging per txn: 2.98731728067e-05 with 77578.0 txns.
+
+Average time in logging per txn: 2.03098641435e-05 with 79054.0 txns.
+
+Average time in logging per txn: 2.80353951714e-05 with 78118.0 txns.
+
+Average time in logging per txn: 2.3945093608e-05 with 77878.0 txns.
+
+Average time in logging per txn: 3.34430464601e-05 with 77572.0 txns.
+
+Average time in logging per txn: 2.58817142409e-05 with 76442.0 txns.
+
+Average time in logging per txn: 2.04993745973e-05 with 79149.0 txns.
+
+Average time in logging per txn: 2.89459276871e-05 with 76971.0 txns.
+
+Average time in logging per txn: 2.77706260299e-05 with 78287.0 txns.
+
+Average time in logging per txn: 2.08864389352e-05 with 78777.0 txns.
+
+---------- FINAL RESULTS ------------
+Average log time per txn for buffer_size 10: 4.04340885057e-05 with 78395.9 txns.
+Average log time per txn for buffer_size 20: 5.88612024086e-05 with 68059.7 txns.
+Average log time per txn for buffer_size 30: 6.87869859705e-05 with 82370.1 txns.
+Average log time per txn for buffer_size 40: 6.1601780077e-05 with 83024.6 txns.
+Average log time per txn for buffer_size 50: 5.49539990923e-05 with 81959.7 txns.
+Average log time per txn for buffer_size 60: 4.52139548576e-05 with 84458.9 txns.
+Average log time per txn for buffer_size 70: 4.02535824733e-05 with 83681.0 txns.
+Average log time per txn for buffer_size 80: 3.71636342753e-05 with 83818.1 txns.
+Average log time per txn for buffer_size 90: 2.91596069681e-05 with 76400.8 txns.
+Average log time per txn for buffer_size 100: 2.5959065368e-05 with 77982.6 txns.
