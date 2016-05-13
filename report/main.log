@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2016.4.30)  30 APR 2016 14:15
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2016.4.30)  13 MAY 2016 17:57
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -279,28 +279,410 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 
 LaTeX Warning: No \author given.
 
-(./abstract.tex) (./introduction.tex) (./seriallogging.tex) (./batchlogging.tex
-) (./parallellogging.tex) (./evaluation.tex) (./conclusion.tex) [1
+(./abstract.tex) (./introduction.tex
+Underfull \hbox (badness 10000) in paragraph at lines 3--4
 
-{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}]
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 5--6
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 7--8
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 9--10
+
+ []
+
+[1
+
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}]) (./seriallogging.tex)
+(./batchlogging.tex) (./parallellogging.tex
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 14.
+
+(/usr/share/texlive/texmf-dist/tex/latex/base/omscmr.fd
+File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <12> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 14.
+
+<Dependencies.jpg, id=10, 1888.05376pt x 363.3575pt>
+File: Dependencies.jpg Graphic file (type jpg)
+ <use Dependencies.jpg>
+Package pdftex.def Info: Dependencies.jpg used on input line 22.
+(pdftex.def)             Requested size: 469.75502pt x 90.40114pt.
+
+[2]
+Overfull \hbox (14.47853pt too wide) in paragraph at lines 34--34
+[]\OT1/cmr/m/n/12 We pro-pose, how-ever, that ig-nor-ing the WAR de-pen-dency, 
+also known as \OT1/cmr/bx/n/12 anti-dependency\OT1/cmr/m/n/12 ,
+ []
+
+<Parallel.png, id=15, 187.70125pt x 242.9075pt>
+File: Parallel.png Graphic file (type png)
+ <use Parallel.png>
+Package pdftex.def Info: Parallel.png used on input line 44.
+(pdftex.def)             Requested size: 92.72481pt x 120.0pt.
+
+<Parallel_re.png, id=17, 376.40625pt x 272.01625pt>
+File: Parallel_re.png Graphic file (type png)
+ <use Parallel_re.png>
+Package pdftex.def Info: Parallel_re.png used on input line 46.
+(pdftex.def)             Requested size: 166.05576pt x 120.0pt.
+
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+[3 <./Dependencies.jpg>]) (./evaluation.tex
+Underfull \hbox (badness 10000) in paragraph at lines 6--7
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 8--9
+
+ []
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.40 Average log time per txn for buffer_
+                                         size 10: 7.98827246297e-06 with 398...
+
+? 
+! Missing $ inserted.
+<inserted text> 
+                $
+l.50 
+     
+? 
+
+Overfull \hbox (245.86095pt too wide) in paragraph at lines 10--50
+\OT1/cmr/m/n/12 06\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 39831\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 4\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 20 : 7\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 09085828262\OML/cmm/m/it/12 e 
+\OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 06\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 358
+42\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 6\OML/cmm/m/it/12 txns:Averagelogtimepertxn
+forbuffer[]ize\OT1/cmr/m/n/12 30 :
+ []
+
+
+Overfull \hbox (22.533pt too wide) in paragraph at lines 10--50
+\OT1/cmr/m/n/12 1\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 00192992279\OML/cmm/m/it/12 
+e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 4
+3720\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 9\OML/cmm/m/it/12 txns:Averagelogtimepert
+xnforbuffer[]ize\OT1/cmr/m/n/12 40 : 1\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 4369941
+4518\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (245.86095pt too wide) in paragraph at lines 10--50
+\OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 43297\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 9\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 50 : 1\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 33267980447\OML/cmm/m/it/12 e 
+\OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 435
+49\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 2\OML/cmm/m/it/12 txns:Averagelogtimepertxn
+forbuffer[]ize\OT1/cmr/m/n/12 60 :
+ []
+
+
+Overfull \hbox (16.65807pt too wide) in paragraph at lines 10--50
+\OT1/cmr/m/n/12 1\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 1985913315\OML/cmm/m/it/12 e
+ \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 43
+616\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 3\OML/cmm/m/it/12 txns:Averagelogtimepertx
+nforbuffer[]ize\OT1/cmr/m/n/12 70 : 1\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 14592003
+908\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (245.86095pt too wide) in paragraph at lines 10--50
+\OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 43672\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 7\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 80 : 1\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 10223567894\OML/cmm/m/it/12 e 
+\OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 435
+04\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 3\OML/cmm/m/it/12 txns:Averagelogtimepertxn
+forbuffer[]ize\OT1/cmr/m/n/12 90 :
+ []
+
+
+Overfull \hbox (28.40794pt too wide) in paragraph at lines 10--50
+\OT1/cmr/m/n/12 9\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 95585073659\OML/cmm/m/it/12 
+e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 06\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 3
+9617\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 3\OML/cmm/m/it/12 txns:Averagelogtimepert
+xnforbuffer[]ize\OT1/cmr/m/n/12 100 : 9\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 775835
+51714\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+[4 <./Parallel.png> <./Parallel_re.png>]
+! Missing $ inserted.
+<inserted text> 
+                $
+l.55 Average log time per txn for buffer_
+                                         size 10: 8.4024601054e-06 with 3981...
+
+? 
+! Missing $ inserted.
+<inserted text> 
+                $
+l.65 
+     
+? 
+
+Overfull \hbox (156.61919pt too wide) in paragraph at lines 55--65
+[]\OT1/cmr/m/n/12 Average log time per txn for buffer$[]\OML/cmm/m/it/12 ize\OT
+1/cmr/m/n/12 10 : 8\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 4024601054\OML/cmm/m/it/12
+ e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 06\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 
+39814\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 7\OML/cmm/m/it/12 txns:Averagelogtimeper
+txnforbuffer[]ize\OT1/cmr/m/n/12 20 :
+ []
+
+
+Overfull \hbox (22.533pt too wide) in paragraph at lines 55--65
+\OT1/cmr/m/n/12 7\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 94581075305\OML/cmm/m/it/12 
+e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 06\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 3
+5738\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 3\OML/cmm/m/it/12 txns:Averagelogtimepert
+xnforbuffer[]ize\OT1/cmr/m/n/12 30 : 8\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 2920883
+6395\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (245.86095pt too wide) in paragraph at lines 55--65
+\OT1/cmr/m/n/12 06\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 43826\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 1\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 40 : 1\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 21009485441\OML/cmm/m/it/12 e 
+\OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 437
+09\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 4\OML/cmm/m/it/12 txns:Averagelogtimepertxn
+forbuffer[]ize\OT1/cmr/m/n/12 50 :
+ []
+
+
+Overfull \hbox (22.533pt too wide) in paragraph at lines 55--65
+\OT1/cmr/m/n/12 1\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 15426346849\OML/cmm/m/it/12 
+e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 4
+3542\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 6\OML/cmm/m/it/12 txns:Averagelogtimepert
+xnforbuffer[]ize\OT1/cmr/m/n/12 60 : 1\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 0620915
+5302\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (245.86095pt too wide) in paragraph at lines 55--65
+\OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 43513\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 1\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 70 : 1\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 08573198778\OML/cmm/m/it/12 e 
+\OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 433
+91\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 0\OML/cmm/m/it/12 txns:Averagelogtimepertxn
+forbuffer[]ize\OT1/cmr/m/n/12 80 :
+ []
+
+
+Overfull \hbox (16.65807pt too wide) in paragraph at lines 55--65
+\OT1/cmr/m/n/12 9\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 5191373736\OML/cmm/m/it/12 e
+ \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 06\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 43
+707\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 1\OML/cmm/m/it/12 txns:Averagelogtimepertx
+nforbuffer[]ize\OT1/cmr/m/n/12 90 : 8\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 75585618
+379\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (40.5988pt too wide) in paragraph at lines 55--65
+\OT1/cmr/m/n/12 06\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 39517\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 5\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 100 : 8\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 08590952704\OML/cmm/m/it/12 e
+ \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 06\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 39
+549\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 7\OML/cmm/m/it/12 txns:$ 
+ []
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.69 Average log time per txn for buffer_
+                                         size 10: 4.04340885057e-05 with 783...
+
+? 
+! Missing $ inserted.
+<inserted text> 
+                $
+l.79 
+     
+? 
+
+Overfull \hbox (162.49413pt too wide) in paragraph at lines 69--79
+[]\OT1/cmr/m/n/12 Average log time per txn for buffer$[]\OML/cmm/m/it/12 ize\OT
+1/cmr/m/n/12 10 : 4\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 04340885057\OML/cmm/m/it/1
+2 e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12
+ 78395\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 9\OML/cmm/m/it/12 txns:Averagelogtimepe
+rtxnforbuffer[]ize\OT1/cmr/m/n/12 20 :
+ []
+
+
+Overfull \hbox (22.533pt too wide) in paragraph at lines 69--79
+\OT1/cmr/m/n/12 5\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 88612024086\OML/cmm/m/it/12 
+e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 6
+8059\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 7\OML/cmm/m/it/12 txns:Averagelogtimepert
+xnforbuffer[]ize\OT1/cmr/m/n/12 30 : 6\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 8786985
+9705\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (239.98601pt too wide) in paragraph at lines 69--79
+\OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 82370\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 1\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 40 : 6\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 1601780077\OML/cmm/m/it/12 e \
+OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 8302
+4\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 6\OML/cmm/m/it/12 txns:Averagelogtimepertxnf
+orbuffer[]ize\OT1/cmr/m/n/12 50 :
+ []
+
+
+Overfull \hbox (22.533pt too wide) in paragraph at lines 69--79
+\OT1/cmr/m/n/12 5\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 49539990923\OML/cmm/m/it/12 
+e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 8
+1959\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 7\OML/cmm/m/it/12 txns:Averagelogtimepert
+xnforbuffer[]ize\OT1/cmr/m/n/12 60 : 4\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 5213954
+8576\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (245.86095pt too wide) in paragraph at lines 69--79
+\OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 84458\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 9\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 70 : 4\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 02535824733\OML/cmm/m/it/12 e 
+\OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 836
+81\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 0\OML/cmm/m/it/12 txns:Averagelogtimepertxn
+forbuffer[]ize\OT1/cmr/m/n/12 80 :
+ []
+
+
+Overfull \hbox (22.533pt too wide) in paragraph at lines 69--79
+\OT1/cmr/m/n/12 3\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 71636342753\OML/cmm/m/it/12 
+e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 8
+3818\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 1\OML/cmm/m/it/12 txns:Averagelogtimepert
+xnforbuffer[]ize\OT1/cmr/m/n/12 90 : 2\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 9159606
+9681\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (34.72386pt too wide) in paragraph at lines 69--79
+\OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 76400\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 8\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 100 : 2\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 5959065368\OML/cmm/m/it/12 e 
+\OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 779
+82\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 6\OML/cmm/m/it/12 txns:$ 
+ []
+
+! Missing $ inserted.
+<inserted text> 
+                $
+l.83 Average log time per txn for buffer_
+                                         size 10: 7.2372970539e-05 with 7745...
+
+? 
+) (./conclusion.tex
+! Missing $ inserted.
+<inserted text> 
+                $
+l.1 \section
+            {Conclusion}
+? 
+
+Overfull \hbox (156.61919pt too wide) in paragraph at lines 83--1
+[]\OT1/cmr/m/n/12 Average log time per txn for buffer$[]\OML/cmm/m/it/12 ize\OT
+1/cmr/m/n/12 10 : 7\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 2372970539\OML/cmm/m/it/12
+ e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 
+77455\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 7\OML/cmm/m/it/12 txns:Averagelogtimeper
+txnforbuffer[]ize\OT1/cmr/m/n/12 20 :
+ []
+
+
+Overfull \hbox (22.533pt too wide) in paragraph at lines 83--1
+\OT1/cmr/m/n/12 5\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 06991711113\OML/cmm/m/it/12 
+e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 6
+9759\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 8\OML/cmm/m/it/12 txns:Averagelogtimepert
+xnforbuffer[]ize\OT1/cmr/m/n/12 30 : 5\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 2130723
+0369\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (245.86095pt too wide) in paragraph at lines 83--1
+\OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 84272\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 5\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 40 : 4\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 68441761639\OML/cmm/m/it/12 e 
+\OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 847
+01\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 5\OML/cmm/m/it/12 txns:Averagelogtimepertxn
+forbuffer[]ize\OT1/cmr/m/n/12 50 :
+ []
+
+
+Overfull \hbox (22.533pt too wide) in paragraph at lines 83--1
+\OT1/cmr/m/n/12 4\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 07150340118\OML/cmm/m/it/12 
+e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 8
+5251\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 5\OML/cmm/m/it/12 txns:Averagelogtimepert
+xnforbuffer[]ize\OT1/cmr/m/n/12 60 : 3\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 7452177
+3965\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (245.86095pt too wide) in paragraph at lines 83--1
+\OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 85051\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 3\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 70 : 3\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 39602513669\OML/cmm/m/it/12 e 
+\OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 854
+01\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 2\OML/cmm/m/it/12 txns:Averagelogtimepertxn
+forbuffer[]ize\OT1/cmr/m/n/12 80 :
+ []
+
+
+Overfull \hbox (22.533pt too wide) in paragraph at lines 83--1
+\OT1/cmr/m/n/12 3\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 17901883362\OML/cmm/m/it/12 
+e \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 8
+5266\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 8\OML/cmm/m/it/12 txns:Averagelogtimepert
+xnforbuffer[]ize\OT1/cmr/m/n/12 90 : 2\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 6746769
+7626\OML/cmm/m/it/12 e \OMS/cmsy/m/n/12 ^^@
+ []
+
+
+Overfull \hbox (40.5988pt too wide) in paragraph at lines 83--1
+\OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 77169\OML/cmm/m/it/12 :\
+OT1/cmr/m/n/12 7\OML/cmm/m/it/12 txns:Averagelogtimepertxnforbuffer[]ize\OT1/cm
+r/m/n/12 100 : 2\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 60182905193\OML/cmm/m/it/12 e
+ \OMS/cmsy/m/n/12 ^^@ \OT1/cmr/m/n/12 05\OML/cmm/m/it/12 with\OT1/cmr/m/n/12 77
+739\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 4\OML/cmm/m/it/12 txns:$ 
+ []
+
+) [5]
 No file main.bbl.
-(./main.aux) ) 
+(./main.aux)
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+ ) 
 Here is how much of TeX's memory you used:
- 2304 strings out of 495028
- 32735 string characters out of 6181497
- 93176 words of memory out of 5000000
- 5466 multiletter control sequences out of 15000+600000
- 8050 words of font info for 31 fonts, out of 8000000 for 9000
+ 2366 strings out of 495028
+ 33602 string characters out of 6181497
+ 99184 words of memory out of 5000000
+ 5513 multiletter control sequences out of 15000+600000
+ 12704 words of font info for 49 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 38i,6n,32p,237b,191s stack positions out of 5000i,500n,10000p,200000b,80000s
-</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmb
-x10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pf
-b></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr
-/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb>
-Output written on main.pdf (1 page, 49375 bytes).
+ 38i,9n,32p,943b,238s stack positions out of 5000i,500n,10000p,200000b,80000s
+</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></us
+r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/shar
+e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texl
+ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/tex
+mf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmsy10.pfb>
+Output written on main.pdf (5 pages, 346768 bytes).
 PDF statistics:
- 24 PDF objects out of 1000 (max. 8388607)
- 16 compressed objects within 1 object stream
+ 54 PDF objects out of 1000 (max. 8388607)
+ 34 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
- 1 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 16 words of extra memory for PDF output out of 10000 (max. 10000000)
 
