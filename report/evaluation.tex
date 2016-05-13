@@ -8,7 +8,34 @@ Four algorithms were tested to generate these results. The first is a generic se
 The results shown indicate the amount of time one txn would take to log. The goal is to minimize the amount the time increases as the thread count increases, indicating high scalability and preventing logging from becoming a bottleneck. Each of the four algorithms was tested on a maximum of 10000 txns and buffer sizes ranging from 10 to 100. 10 tests were run for each buffer size, and the average of these 10 test are shown below. \newline 
 
 NOTE: MAKE ALL OF THESE TABLES
-
+\begin{table}[h!]
+  \centering
+  \caption{Serial logging, without optimization, four threads Results}
+  \label{tab:table1}
+  \begin{tabular}{l|c|r}
+    Buffer size & Average log time per txn & Number of txns\\
+    \hline
+    10 &  7.98827246297e-06 & 3981.4\\
+    \hline
+    20 &  7.09085828262e-06 & 35842.6\\
+    \hline
+    30 & 1.00192992279e-05 & 43720.9\\
+    \hline
+    40 & 1.43699414518e-05 & 43297.9\\
+    \hline
+    50 &  1.33267980447e-05 & 43549.2\\
+    \hline
+    60 &  1.1985913315e-05 & 43616.3\\
+    \hline
+    70 &  1.14592003908e-05  & 43672.7\\
+    \hline
+    80 &  1.10223567894e-05 & 43504.3\\
+    \hline
+    90 &  9.95585073659e-06 & 39617.3\\
+    \hline
+    100 &  9.77583551714e-06  & 39512.7\\
+  \end{tabular}
+\end{table}
 Results for serial logging without optimization on standard four threads:
 Average log time per txn for buffer_size 10: 7.98827246297e-06 with 39831.4 txns.
 Average log time per txn for buffer_size 20: 7.09085828262e-06 with 35842.6 txns.
