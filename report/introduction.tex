@@ -1,24 +1,14 @@
-\section{Introduction}
+git \section{Introduction}
 
-  Talk about big data
+As the world becomes more technology oriented, the amount of data that is being stored and accessed has grown. From millions of users on Facebook to police records, the amount and complexity of data being stored virtually has grown drastically. This growth has resulted in big data, which is a term used for data sets that are too large and complex for traditional data processing methods. These large data sets are being analyzed in database management systems (DBMS). DBMS can be categorized into On-line Transaction Processing (OLTP) and On-line analytical processing (OLAP). OLTP databases are the main target of this paper and are characterized by a large number of short on-line transactions, such as bank transaction, reserving flight tickets, or reserving hotel rooms. OLAP, on the other hand, is involved with longer and more complex transactions such as business intelligence and data mining. \newline
 
-  DBMS
+OLTP databases contain large amounts of important information. If the database were to crash, there would need to be a way to insure that all of the information that is in the datbase is not lost, meaning that the system must be durable. For this to happen, all of the data must be put on nonvolatile storage, or logged onto the disk. The most efficient way to put these large amouts onto the disk is still unknown as there are many different ways to accomplish the task. \newline
 
-  OLTP- give examples (bank transactions, flight tickets, hotel) and OLAP
+One of the first algorithms was AIRES. In this algorithm EXPLAIN HERE. As new technology has been introduced, however, multi-core and multi-server system have become more prevalent. These new systems render the AIRES algorithm obsolete as EXPLAIN MORE. This means that serial logging will no longer be useful in the future and new algorithms will be neccessary.  \newline
 
-  So we need logging because the system must be durable, nothing lost
+The goal of this paper is to solve this problem and generate a new logging algorithm that is fast and more efficient on a system with a multi-cores and multi-servers. The two algorithms that are presented in this paper are batch logging and parallel logging. In batch logging BRIEFLY EXPLAIN BATCH LOGGING. In parallel logging, BREIFLY EXPLAIN PARALLEL LOGGING. \newline
 
-  How to do that? Store everything to disk but how? Many many different ways to do that...
-
-  Different logging alogorithms to solve this problem
-
-  Traditional logging: AIRES, these days we have multi cores and multi servers
-
-  So,  Serial logging not good enough in future
-
-  We are doing in this paper: solve this problem
-
-  Briefly touch on main idea behind batch and parallel logging
+The serial logging, batch logging, and parallel logging algorithms were implemented and then tested to determine the effiecieny of each. 
 
 
   

@@ -7,6 +7,8 @@ Four algorithms were tested to generate these results. The first is a generic se
 
 The results shown indicate the amount of time one txn would take to log. The goal is to minimize the amount the time increases as the thread count increases, indicating high scalability and preventing logging from becoming a bottleneck. Each of the four algorithms was tested on a maximum of 10000 txns and buffer sizes ranging from 10 to 100. 10 tests were run for each buffer size, and the average of these 10 test are shown below. \newline 
 
+NOTE: MAKE ALL OF THESE TABLES
+
 Results for serial logging without optimization on standard four threads:
 Average log time per txn for buffer_size 10: 7.98827246297e-06 with 39831.4 txns.
 Average log time per txn for buffer_size 20: 7.09085828262e-06 with 35842.6 txns.
@@ -49,3 +51,15 @@ Average log time per txn for buffer_size 90: 2.91596069681e-05 with 76400.8 txns
 Average log time per txn for buffer_size 100: 2.5959065368e-05 with 77982.6 txns.
 
 Results for serial logging with opimization on eight threads:
+
+
+Average log time per txn for buffer_size 10: 7.2372970539e-05 with 77455.7 txns.
+Average log time per txn for buffer_size 20: 5.06991711113e-05 with 69759.8 txns.
+Average log time per txn for buffer_size 30: 5.21307230369e-05 with 84272.5 txns.
+Average log time per txn for buffer_size 40: 4.68441761639e-05 with 84701.5 txns.
+Average log time per txn for buffer_size 50: 4.07150340118e-05 with 85251.5 txns.
+Average log time per txn for buffer_size 60: 3.74521773965e-05 with 85051.3 txns.
+Average log time per txn for buffer_size 70: 3.39602513669e-05 with 85401.2 txns.
+Average log time per txn for buffer_size 80: 3.17901883362e-05 with 85266.8 txns.
+Average log time per txn for buffer_size 90: 2.67467697626e-05 with 77169.7 txns.
+Average log time per txn for buffer_size 100: 2.60182905193e-05 with 77739.4 txns.
