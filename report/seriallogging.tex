@@ -16,7 +16,7 @@ The above type of transaction dependency is called read-after-write (RAW). In ge
 \item Write-after-write dependency (WAW)
 \end{itemize}
 RAR is equivalent to no dependency since no changes are made to the database. RAW has been discussed above, and WAW has to be maintained because in the example on the right, during recovery, transaction 2 will overwrite a phantom value of tuple A that cannot be tracked down in the system. Therefore, the reading transaction (2) should go to log after the writing transaction (1).\par
-Because of the necessity of maintaining different types of dependencies between pairs of transactions, the serial logging algorithm assumes that all dependencies have to be maintained and simply logs the transactions one by one in sequential order. Our paper argues that this viewpoint is too conservative, and we propose the parallel algorithm which will track down the types of transaction dependency to minimize the number of dependencies that we need to maintain. This involves a discussion of WAR. For more details, please see the parallel logging section. \par
+Since it is necessary to maintain different types of dependencies between pairs of transactions, the serial logging algorithm assumes that all dependencies have to be maintained and therefore logs the transactions one by one in sequential order. Our paper argues that this viewpoint is too conservative, and we propose the parallel algorithm, where we track down the types of transaction dependency to minimize the number of dependencies that we need to maintain. This involves a discussion of the WAR dependency. For more details, please refer to the parallel logging section. \par
 
 \textcolor{red}{[TODO] Justin's optimization of serial logging algorithm}
 
