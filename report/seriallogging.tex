@@ -5,7 +5,7 @@ The state-of-the-art algorithm for serial logging is ARIES. In ARIES, each log r
 In our implementation of ARIES, we simplified the algorithm such that each transaction is logged together and corresponds to one unique LSN. Each transaction goes to log only after it is committed. This makes the dirty page table unnecessary, and we do not need to undo during the recovery process because only the committed transactions are reflected in stable storage. \par
 
 A key insight of logging is that we need to maintain the dependency between different transactions. For example, in the following case on the left, Transaction 1 writes to tuple A and Transaction 2 read tuple A. If Transaction 2 is logged before the system crash whereas Transaction 1 is not, during the recovery processs, Transaction 2 will be reading the wrong data. Hence, Transaction 2 must go to log after Transaction 1 has already been logged. 
-\begin{figure}[h]
+\begin{figure}[!h]
 \caption{Transaction dependencies: RAW and WAW}
 \includegraphics[width=\textwidth]{DepExample.jpeg}
 \end{figure}\\
