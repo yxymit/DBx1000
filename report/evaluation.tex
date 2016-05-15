@@ -90,3 +90,11 @@ Average log time per txn for buffer_size 70: 3.39602513669e-05 with 85401.2 txns
 Average log time per txn for buffer_size 80: 3.17901883362e-05 with 85266.8 txns.
 Average log time per txn for buffer_size 90: 2.67467697626e-05 with 77169.7 txns.
 Average log time per txn for buffer_size 100: 2.60182905193e-05 with 77739.4 txns.
+
+
+%BATCH LOGGING RESULTS
+We tested various implementations of batch logging with a varying number of loggers. The average total run time and average time spent logging were recorded and graphed. Since we want to reduce run and logging times, lower is better. We expected an increase in the number of loggers to correspond with faster run and logging times, and the results back that hypothesis.
+\begin{figure}
+	\caption{Batch Logging Results}
+	\includegraphics[width=\textwidth]{BatchLoggingResults.png}
+\end{figure}
