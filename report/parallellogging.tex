@@ -10,9 +10,11 @@ Parallel logging uses multiple loggers and corresponding log files in order to i
 % information between different transactions. 
 
 Recall from the serial logging algorithm section that there are four types of dependcies, of which WAW and RAW must be maintained. We argue, however, that WAR dependency, also known as  \textbf{anti-dependency}, does not have to be maintained to preserve the data consistency of the system. To illustrate our claim, we may look at the following example. 
+
+\begin{figure}
 \caption{WAR dependencies}
 \includegraphics[width=\textwidth]{WAR.jpg}
-\end{figure}\\
+\end{figure}
 
 % [yxy] you may say that the reading transaction does not have any 
 % side effect in the database system. So whether it logs or not does 
