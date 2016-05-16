@@ -28,6 +28,6 @@ To be able to effectively compare serial logging to batch logging and parallel l
   \includegraphics[width=\textwidth]{opt-updated.png}
   \caption{Serial Logging Optimization}
   \label{optimization}
-\end{figure}//
+\end{figure}
 
 In the standard version of serial logging without optimization, one transaction must finish committing before the next transaction can even begin logging. This is insured by holding a lock for the entirety of the first transaction. In the optimized version of serial logging, however, the first transaction only holds the lock for the very beginning of the transaction to prevent any conflicts from occurring but still minimizing the time a lock is held for. The total run time is depicted as the the time from the start of the first transaction to the end of the third transaction, which is clearly shorter in the optimized version in comparison with the non optimized version. 
