@@ -32,11 +32,12 @@ We use the following example to demonstrate the mechanism of our parallel loggin
 \end{figure}\par
 As we mentioned earlier, if we were to use the serial logging algorithm, we would be forced to log the three transactions one by one; when handling big data systems, this can be a serious bottleneck. Meanwhile, the parallel logging algorithm allows us to log multiple transactions with low latency. In this case, note that transactions 1 and 2 can be logged independently since tuple $A$ has no dependency and tuple $B$ is WAR, which, per our discussion above, allows for independent logging. Therefore, if transactions 1 and 2 are parsed into two different threads, they can both be logged without waiting. Transaction 3 depends on transaction 1 due to tuple $C$ (RAW) and on transaction 2 due to tuple $B$ (WAW), so it will be put into the waiting queue until both transaction 1 and 2 have already been logged. 
 We follow a similar process during recovery: we read the maximum LSN in each file that the current transaction depends on, and we compare it with the maximum LSN that has been recovered from that file. This ensures the serializability of the log records while improving the efficiency of the recovery process. In this particular example, two different threads take care of the two log files. While transactions 1 and 2 can be recovered immediately, transaction 3 is pushed into the waiting queue until both 1 and 2 have already been recovered.\par
-The major advantage of parallel logging is that it minimizes the latency of the algorithm. In this context, we define latency as the time it takes for a transaction to commit. The following figure illustrates the respective run-times of the serial logging, batch logging and parallel logging on the same example of three transactions listed above. 
+The major advantage of parallel logging is that it minimizes the latency of the algorithm. In this context, we define latency as the time it takes for a transaction to commit. The following figure~\ref{comp} illustrates the respective run-times of the serial logging, batch logging and parallel logging on the same example of three transactions listed above. 
 \begin{figure}[!h]
-\caption{Comparison between three }
+\caption{Comparison between three algorithms}
 \centering
 \includegraphics[height=100pt]{serial-batch-parallel.png}
 \hspace{20pt}
 \includegraphics[height=60pt]{leg.png}
+\label{comp}
 \end{figure}
