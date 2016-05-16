@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2016.4.30)  15 MAY 2016 22:05
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2016.4.30)  15 MAY 2016 22:08
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -315,11 +315,11 @@ File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
 )
 LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <12> not available
 (Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 14.
- <optimization.png, id=14, 720.6925pt x 310.15875pt>
-File: optimization.png Graphic file (type png)
- <use optimization.png>
-Package pdftex.def Info: optimization.png used on input line 27.
-(pdftex.def)             Requested size: 469.75502pt x 202.16397pt.
+ <opt-updated.png, id=14, 821.0675pt x 294.09875pt>
+File: opt-updated.png Graphic file (type png)
+ <use opt-updated.png>
+Package pdftex.def Info: opt-updated.png used on input line 27.
+(pdftex.def)             Requested size: 469.75502pt x 168.2618pt.
 
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
@@ -340,20 +340,20 @@ File: SerialvsBatch.png Graphic file (type png)
 <use SerialvsBatch.png>
 Package pdftex.def Info: SerialvsBatch.png used on input line 6.
 (pdftex.def)             Requested size: 469.75502pt x 170.74405pt.
- [3] [4 <./optimization.png> <./SerialvsBatch.png>])
+ [3] [4 <./opt-updated.png> <./SerialvsBatch.png>])
 (./parallellogging.tex <WAR.jpg, id=26, 598.235pt x 363.3575pt>
 File: WAR.jpg Graphic file (type jpg)
  <use WAR.jpg>
 Package pdftex.def Info: WAR.jpg used on input line 16.
 (pdftex.def)             Requested size: 469.75502pt x 285.32497pt.
 
-[5 <./WAR.jpg>] <Parallel.png, id=30, 187.70125pt x 242.9075pt>
+[5 <./WAR.jpg>] <Parallel.png, id=31, 187.70125pt x 242.9075pt>
 File: Parallel.png Graphic file (type png)
 
 <use Parallel.png>
 Package pdftex.def Info: Parallel.png used on input line 32.
 (pdftex.def)             Requested size: 92.72481pt x 120.0pt.
- <Parallel_re.png, id=31, 376.40625pt x 272.01625pt>
+ <Parallel_re.png, id=32, 376.40625pt x 272.01625pt>
 File: Parallel_re.png Graphic file (type png)
 
 <use Parallel_re.png>
@@ -388,7 +388,7 @@ No file main.bbl.
 (./main.aux) ) 
 Here is how much of TeX's memory you used:
  2392 strings out of 495028
- 34077 string characters out of 6181497
+ 34072 string characters out of 6181497
  97192 words of memory out of 5000000
  5533 multiletter control sequences out of 15000+600000
  12704 words of font info for 49 fonts, out of 8000000 for 9000
@@ -400,7 +400,7 @@ b></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></us
 r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share
 /texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texliv
 e/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb>
-Output written on main.pdf (8 pages, 545821 bytes).
+Output written on main.pdf (8 pages, 549510 bytes).
 PDF statistics:
  70 PDF objects out of 1000 (max. 8388607)
  39 compressed objects within 1 object stream
