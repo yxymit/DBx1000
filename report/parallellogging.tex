@@ -1,5 +1,5 @@
 \section{Parallel Logging}
-Parallel logging uses multiple loggers and corresponding log files in order to improve the performance of the logging process. While serial logging assumes conflicts between every pair of transactions in the serializable order, parallel logging looks at the "true" dependency. While pairs of transactions with true dependency have to log seqentially, independent transactions should log in parallel. The parallel logging algorithm implements this key observation by explicitly tracking the dependency information between different transactions. In addition, the concurrency control algorithm is implemented to ensure the serializability of the transactions that we have parsed into different threads. \par
+Parallel logging uses multiple loggers and corresponding log files in order to improve the performance of the logging process. While serial logging assumes conflicts between every pair of transactions in the sequential order, parallel logging looks at the "true" dependency. While pairs of transactions with true dependency have to log sequentially, independent transactions should log in parallel. The parallel logging algorithm implements this key observation by explicitly tracking the dependency information between different transactions. In addition, the concurrency control algorithm is implemented to ensure the serializability of the transactions that we have parsed into different threads. \par
 
 % [yxy] One thing you can probably emphasize:
 % Serial logging writes logs sequentially, because they assume every 
@@ -9,17 +9,14 @@ Parallel logging uses multiple loggers and corresponding log files in order to i
 % logging achieves exactly this, by explicitly tracking the dependency 
 % information between different transactions. 
 
-Recall from the serial logging algorithm section that there are four types of dependcies, of which WAW and RAW must be maintained. We argue, however, that WAR dependency, also known as  \textbf{anti-dependency}, does not have to be maintained to preserve the data consistency of the system. To illustrate our claim, we may look at the following example. 
-
-\begin{figure}
-\caption{WAR dependencies}
-\includegraphics[width=\textwidth]{WAR.jpg}
-\end{figure}
-
-% [yxy] you may say that the reading transaction does not have any 
-% side effect in the database system. So whether it logs or not does 
-% not affect the writing transaction.
-Even if the system crashes before transaction 1 is logged and after transaction 2 is logged, there will be no conflicts in data consistency during recovery. All the values in the data tuples reflect the exact state of the system immediately before the crash. Transaction 1 does not have any side effect on tuple $A$ in the database system, so whether it logs or not does not affect transaction 2.\par
+Recall from the serial logging algorithm section that there are four types of dependencies, of which WAW and RAW must be maintained. We argue, however, that WAR dependency, also known as  \textbf{anti-dependency}, does not have to be maintained to preserve the data consistency of the system.\\
+\begin{wrapfigure}{l}{0.4\textwidth}
+  \begin{center}
+    \includegraphics[width=150pt]{WAR.jpg}
+  \end{center}
+  \caption{WAR dependency}
+\end{wrapfigure} 
+To illustrate our claim, we may look at the following example on the left. Even if the system crashes before transaction 1 is logged and after transaction 2 is logged, there will be no conflicts in data consistency during recovery. All the values in the data tuples reflect the exact state of the system immediately before the crash. Transaction 1 does not have any side effect on tuple $A$ in the database system, so whether it logs or not does not affect transaction 2.\par
 
 Note that this will significantly decrease the time complexity of the logging algorithm because the number of writers to a data tuple is significantly smaller than the number of readers. In other words, transaction $A$ depends on the all the transactions executed before $A$ that write to $A$'s data tuples; therefore, $A$ can be logged once all the last writers to its data tuples have been logged. \par
 
@@ -35,4 +32,12 @@ We use the following example to demonstrate the mechanism of our parallel loggin
 \end{figure}\par
 As we mentioned earlier, if we were to use the serial logging algorithm, we would be forced to log the three transactions one by one; when handling big data systems, this can be a serious bottleneck. Meanwhile, the parallel logging algorithm allows us to log multiple transactions with low latency. In this case, note that transactions 1 and 2 can be logged independently since tuple $A$ has no dependency and tuple $B$ is WAR, which, per our discussion above, allows for independent logging. Therefore, if transactions 1 and 2 are parsed into two different threads, they can both be logged without waiting. Transaction 3 depends on transaction 1 due to tuple $C$ (RAW) and on transaction 2 due to tuple $B$ (WAW), so it will be put into the waiting queue until both transaction 1 and 2 have already been logged. 
 We follow a similar process during recovery: we read the maximum LSN in each file that the current transaction depends on, and we compare it with the maximum LSN that has been recovered from that file. This ensures the serializability of the log records while improving the efficiency of the recovery process. In this particular example, two different threads take care of the two log files. While transactions 1 and 2 can be recovered immediately, transaction 3 is pushed into the waiting queue until both 1 and 2 have already been recovered.\par
-A visualization of the comparison of three log algorithm is below.  
+The major advantage of parallel logging is that it minimizes the latency of the algorithm. In this context, we define latency as the time it takes for a transaction to commit. The following figure~\ref{comp} illustrates the respective run-times of the serial logging, batch logging and parallel logging on the same example of three transactions listed above. 
+\begin{figure}[!h]
+\caption{Comparison between three algorithms}
+\centering
+\includegraphics[height=100pt]{serial-batch-parallel.png}
+\hspace{20pt}
+\includegraphics[height=60pt]{leg.png}
+\label{comp}
+\end{figure}
