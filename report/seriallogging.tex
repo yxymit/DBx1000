@@ -19,16 +19,14 @@ The above type of transaction dependency is called read-after-write (RAW). In ge
 RAR is equivalent to no dependency since no changes are made to the database. RAW has been discussed above, and WAW has to be maintained because in the example on the right, during recovery, transaction 2 will overwrite a phantom value of tuple A that cannot be tracked down in the system. Therefore, the reading transaction (2) should go to log after the writing transaction (1).\par
 Since it is necessary to maintain different types of dependencies between pairs of transactions, the serial logging algorithm assumes that all dependencies have to be maintained and therefore logs the transactions one by one in sequential order. Our paper argues that this viewpoint is too conservative, and we propose the parallel algorithm, where we track down the types of transaction dependency to minimize the number of dependencies that we need to maintain. This involves a discussion of the WAR dependency. For more details, please refer to the parallel logging section. \par
 
-\textcolor{red}{[TODO] Justin's optimization of serial logging algorithm}
+In our implementation of ARIES, we simplified the algorithm such that each transaction is logged together and corresponds to one unique LSN. Each transaction goes to log only after it is committed. This makes the dirty page table unnecessary, and we do not need to undo during the recovery process because only the committed transactions are reflected in stable storage. \par
 
-<<<<<<< HEAD
-In our implementation of ARIES, we simplified the algorithm such that each transaction is logged together and corresponds to one unique LSN. Each transaction goes to log only after it is committed. This makes the dirty page table unnecessary, and we do not need to undo during the recovery process because only the committed transactions are reflected in stable storage.
-
+To be able to effectively compare serial logging to batch logging and parallel logging, however, the most effecient version of serial logging that is being used must be implemented. One of the optimizations for serial logging that was implemented is depicted in figure~\ref{optimization}, where S stands for start of logging for a transaction and F stands for the end of logging for that transaction\par
 
 \begin{figure}[!h]
   \includegraphics[width=\textwidth]{optimization.png}
   \caption{Serial Logging Optimization}
   \label{optimization}
 \end{figure}\\
-=======
->>>>>>> 519f53aca79a1bc70fda3c88de5c13915720c536
+
+In the standard version of serial logging without optimization, one transaction must finish committing before the next trasaction can even begin logging. This is insured by holding a lock for the entirety of the first transaction. In the optimized version of serial logging, however, the first transaction only holds the lock for the very beginning of the transaction to prevent any conflicts from occurring but still minimizing the time a lock is held for. The total run time is depicted as the the time from the start of the first transaction to the end of the third transaction, which is clearly shorter in the optimized version in comparison with the non optimzied version. 

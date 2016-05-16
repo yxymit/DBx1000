@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2016.4.30)  15 MAY 2016 20:15
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2016.4.30)  15 MAY 2016 22:05
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -301,55 +301,29 @@ Underfull \hbox (badness 10000) in paragraph at lines 11--12
 
 [1
 
-{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}]) (./seriallogging.tex)
-(./batchlogging.tex) (./parallellogging.tex [2]
-LaTeX Font Info:    Try loading font information for OMS+cmr on input line 14.
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}]) (./seriallogging.tex
+<DepExample.jpeg, id=10, 1433.355pt x 363.3575pt>
+File: DepExample.jpeg Graphic file (type jpg)
+ <use DepExample.jpeg>
+Package pdftex.def Info: DepExample.jpeg used on input line 10.
+(pdftex.def)             Requested size: 469.75502pt x 119.08223pt.
 
-(/usr/share/texlive/texmf-dist/tex/latex/base/omscmr.fd
+[2 <./DepExample.jpeg>]
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 14.
+ (/usr/share/texlive/texmf-dist/tex/latex/base/omscmr.fd
 File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
 )
 LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <12> not available
 (Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 14.
-
-<Dependencies.jpg, id=13, 1888.05376pt x 363.3575pt>
-File: Dependencies.jpg Graphic file (type jpg)
- <use Dependencies.jpg>
-Package pdftex.def Info: Dependencies.jpg used on input line 22.
-(pdftex.def)             Requested size: 469.75502pt x 90.40114pt.
-
-Overfull \hbox (14.47853pt too wide) in paragraph at lines 34--34
-[]\OT1/cmr/m/n/12 We pro-pose, how-ever, that ig-nor-ing the WAR de-pen-dency, 
-also known as \OT1/cmr/bx/n/12 anti-dependency\OT1/cmr/m/n/12 ,
- []
-
-[3 <./Dependencies.jpg>] <Parallel.png, id=19, 187.70125pt x 242.9075pt>
-File: Parallel.png Graphic file (type png)
-
-<use Parallel.png>
-Package pdftex.def Info: Parallel.png used on input line 44.
-(pdftex.def)             Requested size: 92.72481pt x 120.0pt.
- <Parallel_re.png, id=21, 376.40625pt x 272.01625pt>
-File: Parallel_re.png Graphic file (type png)
-
-<use Parallel_re.png>
-Package pdftex.def Info: Parallel_re.png used on input line 46.
-(pdftex.def)             Requested size: 166.05576pt x 120.0pt.
-) (./evaluation.tex [4 <./Parallel.png> <./Parallel_re.png>]
-Underfull \hbox (badness 10000) in paragraph at lines 6--7
-
- []
+ <optimization.png, id=14, 720.6925pt x 310.15875pt>
+File: optimization.png Graphic file (type png)
+ <use optimization.png>
+Package pdftex.def Info: optimization.png used on input line 27.
+(pdftex.def)             Requested size: 469.75502pt x 202.16397pt.
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 8--9
+LaTeX Warning: `!h' float specifier changed to `!ht'.
 
- []
-
-<results.png, id=27, 679.8198pt x 463.4916pt>
-File: results.png Graphic file (type png)
- <use results.png>
-Package pdftex.def Info: results.png used on input line 12.
-(pdftex.def)             Requested size: 469.75502pt x 320.26923pt.
-)
 
 ! LaTeX Error: There's no line here to end.
 
@@ -357,17 +331,66 @@ See the LaTeX manual or LaTeX Companion for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.32 \input
-           {conclusion}
+l.31 
+     
 ? 
-(./conclusion.tex) [5 <./results.png>]
+) (./batchlogging.tex <SerialvsBatch.png, id=16, 849.1725pt x 308.65312pt>
+File: SerialvsBatch.png Graphic file (type png)
+
+<use SerialvsBatch.png>
+Package pdftex.def Info: SerialvsBatch.png used on input line 6.
+(pdftex.def)             Requested size: 469.75502pt x 170.74405pt.
+ [3] [4 <./optimization.png> <./SerialvsBatch.png>])
+(./parallellogging.tex <WAR.jpg, id=26, 598.235pt x 363.3575pt>
+File: WAR.jpg Graphic file (type jpg)
+ <use WAR.jpg>
+Package pdftex.def Info: WAR.jpg used on input line 16.
+(pdftex.def)             Requested size: 469.75502pt x 285.32497pt.
+
+[5 <./WAR.jpg>] <Parallel.png, id=30, 187.70125pt x 242.9075pt>
+File: Parallel.png Graphic file (type png)
+
+<use Parallel.png>
+Package pdftex.def Info: Parallel.png used on input line 32.
+(pdftex.def)             Requested size: 92.72481pt x 120.0pt.
+ <Parallel_re.png, id=31, 376.40625pt x 272.01625pt>
+File: Parallel_re.png Graphic file (type png)
+
+<use Parallel_re.png>
+Package pdftex.def Info: Parallel_re.png used on input line 34.
+(pdftex.def)             Requested size: 166.05576pt x 120.0pt.
+) (./evaluation.tex [6 <./Parallel.png> <./Parallel_re.png>] <results.png, id=3
+8, 679.8198pt x 463.4916pt>
+File: results.png Graphic file (type png)
+ <use results.png>
+Package pdftex.def Info: results.png used on input line 9.
+(pdftex.def)             Requested size: 469.75502pt x 320.26923pt.
+
+
+! LaTeX Error: There's no line here to end.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.13 
+     
+? 
+[7 <./results.png>]
+<BatchLoggingResults.png, id=44, 950.04938pt x 538.26094pt>
+File: BatchLoggingResults.png Graphic file (type png)
+
+<use BatchLoggingResults.png>
+Package pdftex.def Info: BatchLoggingResults.png used on input line 20.
+(pdftex.def)             Requested size: 469.75502pt x 266.14842pt.
+) (./conclusion.tex) [8 <./BatchLoggingResults.png>]
 No file main.bbl.
 (./main.aux) ) 
 Here is how much of TeX's memory you used:
- 2369 strings out of 495028
- 33658 string characters out of 6181497
- 96176 words of memory out of 5000000
- 5515 multiletter control sequences out of 15000+600000
+ 2392 strings out of 495028
+ 34077 string characters out of 6181497
+ 97192 words of memory out of 5000000
+ 5533 multiletter control sequences out of 15000+600000
  12704 words of font info for 49 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
  38i,7n,32p,964b,238s stack positions out of 5000i,500n,10000p,200000b,80000s
@@ -377,10 +400,10 @@ b></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></us
 r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share
 /texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texliv
 e/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb>
-Output written on main.pdf (5 pages, 430305 bytes).
+Output written on main.pdf (8 pages, 545821 bytes).
 PDF statistics:
- 52 PDF objects out of 1000 (max. 8388607)
- 31 compressed objects within 1 object stream
+ 70 PDF objects out of 1000 (max. 8388607)
+ 39 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
- 21 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 41 words of extra memory for PDF output out of 10000 (max. 10000000)
 
