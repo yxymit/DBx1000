@@ -6,4 +6,11 @@ The state-of-the-art algorithm for serial logging is ARIES. In ARIES, each log r
 
 %Must give background (concurrency, other details)%
 
-In our implementation of ARIES, we simplified the algorithm such that each transaction is logged together and corresponds to one unique LSN. Each transaction goes to log only after it is committed. This makes the dirty page table unnecessary, and we do not need to undo during the recovery process because only the committed transactions are reflected in stable storage. 
+In our implementation of ARIES, we simplified the algorithm such that each transaction is logged together and corresponds to one unique LSN. Each transaction goes to log only after it is committed. This makes the dirty page table unnecessary, and we do not need to undo during the recovery process because only the committed transactions are reflected in stable storage.
+
+
+\begin{figure}[!h]
+  \includegraphics[width=\textwidth]{optimization.png}
+  \caption{Serial Logging Optimization}
+  \label{optimization}
+\end{figure}\\
