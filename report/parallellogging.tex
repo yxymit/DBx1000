@@ -9,7 +9,7 @@ Parallel logging uses multiple loggers and corresponding log files in order to i
 % logging achieves exactly this, by explicitly tracking the dependency 
 % information between different transactions. 
 
-Recall from the serial logging algorithm section that there are four types of dependencies, of which WAW and RAW must be maintained. We argue, however, that WAR dependency, also known as  \textbf{anti-dependency}, does not have to be maintained to preserve the data consistency of the system.
+Recall from the serial logging algorithm section that there are four types of dependencies, of which WAW and RAW must be maintained. We argue, however, that WAR dependency, also known as  \textbf{anti-dependency}, does not have to be maintained to preserve the data consistency of the system.\\
 \begin{wrapfigure}{l}{0.4\textwidth}
   \begin{center}
     \includegraphics[width=150pt]{WAR.jpg}

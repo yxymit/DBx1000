@@ -1,21 +1,33 @@
-\section{Evaluation}
+\section{Serial Logging}
 
+The state-of-the-art algorithm for serial logging is ARIES. In ARIES, each log record consists of one modified data tuple and the name of the transaction that modifies the tuple. It is assigned a log sequence number in ascending order. The log records are first pushed to volatile storage and then flushed to nonvolatile storage after the transaction is committed. Two data structures are maintained: the Dirty Page Table (DPT) and the Transaction Table (TT). The DPT keeps track of all the changes made to the database that have not been flushed to the disk, and the TT records all the transactions that are currently running in the system. During the recovery process, the system first recovers and updates the dirty page table and the transaction table, then recovers the system to the state immediately before the crash, and finally undoes all the transactions that have not been committed.\par
+%Explain ARIES%
+In our implementation of ARIES, we simplified the algorithm such that each transaction is logged together and corresponds to one unique LSN. Each transaction goes to log only after it is committed. This makes the DPT unnecessary, and we do not need to undo during the recovery process because only the committed transactions are reflected in stable storage. \par
 
-The original goal of the project is to create a scalable logging algorithm that does not act as a bottleneck for the database as a whole. The data shown below was collected to determine the scalability of the algorithm. \par
+A key insight of logging is that we need to maintain the dependency between different transactions. For example, in the following case on the left, Transaction 1 writes to tuple A and Transaction 2 read tuple A. If Transaction 2 is logged before the system crash whereas Transaction 1 is not, during the recovery process, Transaction 2 will be reading the wrong data. Hence, Transaction 2 must go to log after Transaction 1 has already been logged. 
+\begin{figure}[!h]
+\caption{Transaction dependencies: RAW and WAW}
+\includegraphics[width=\textwidth]{DepExample.jpeg}
+\label{depExample}
+\end{figure}\\
+The type of transaction dependency in figure~\ref{depExample} is called read-after-write (RAW). In general, there are four types of transaction dependencies:
+\begin{itemize}
+\item Read-after-read dependency (RAR)
+\item Read-after-write dependency (RAW)
+\item Write-after-read dependency (WAR)
+\item Write-after-write dependency (WAW)
+\end{itemize}
+RAR is equivalent to no dependency since no changes are made to the database. RAW has been discussed above, and WAW has to be maintained because in the example on the right, during recovery, transaction 2 will overwrite a phantom value of tuple A that cannot be tracked down in the system. Therefore, the reading transaction (2) should go to log after the writing transaction (1).\par
+Since it is necessary to maintain different types of dependencies between pairs of transactions, the serial logging algorithm assumes that all dependencies have to be maintained and therefore logs the transactions one by one in sequential order. Our paper argues that this viewpoint is too conservative, and we propose the parallel algorithm, where we track down the types of transaction dependency to minimize the number of dependencies that we need to maintain. This involves a discussion of the WAR dependency. For more details, please refer to the parallel logging section. \par
 
-The results in figure~\ref{serialresults} are used to show the scalability of the serial logging algorithm with and without the  opitimization described earlier.  The graph indicates the amount of time one txn would take to log. The goals are to minimize the amount the time increases as the thread count increases, indicating high scalability and decreasing the average log time per transaction. Each experiment  was tested on a maximum of 10000 txns and buffer sizes ranging from 10 to 100. 10 tests were run for each buffer size, and the average of these 10 test are shown below. \par 
+In our implementation of ARIES, we simplified the algorithm such that each transaction is logged together and corresponds to one unique LSN. Each transaction goes to log only after it is committed. This makes the dirty page table unnecessary, and we do not need to undo during the recovery process because only the committed transactions are reflected in stable storage. \par
+
+To be able to effectively compare serial logging to batch logging and parallel logging, however, the most efficient version of serial logging that is being used must be implemented. One of the optimizations for serial logging that was implemented is depicted in figure~\ref{optimization}, where S stands for start of logging for a transaction and F stands for the end of logging for that transaction\par
 
 \begin{figure}[!h]
-  \includegraphics[width=\textwidth]{results.png}
-  \caption{Serial logging results}
-  \label{serialresults}
-\end{figure}\\
-
-The results from figure~\ref{serialresults} do not portray the deseired scalability. As thread size increases, the average log time per txn increases dramatically as well. As the thread count increases, however, the buffer size becomes more important, and a larger buffer size yields a lower average log time per transaction, which is desired. This trend is oberserved because a larger buffer size man that more data is being put on the buffer, limiting the number of times buffers must flush to the disk. The disk is slow, so the number of times the disk is access should be minimzied. As thread count increases, the number of times buffers must be flushed also increases, meaning that a larger buffer size becomes more important with an increase in thread count. \par
-
-%BATCH LOGGING RESULTS
-After testing the scalability of serial logging, batch logging was tested to determine its effieciency. Various implementations of batch logging were tesed with a different number of loggers. The average total run time and average time spent logging were recorded and graphed. Since we want to reduce run and logging times, lower is better. We expected an increase in the number of loggers to correspond with faster run and logging times, and the results back that hypothesis.
-\begin{figure}
-	\caption{Batch Logging Results}
-	\includegraphics[width=\textwidth]{BatchLoggingResults.png}
+  \includegraphics[width=\textwidth]{opt-updated.png}
+  \caption{Serial Logging Optimization}
+  \label{optimization}
 \end{figure}
+
+In the standard version of serial logging without optimization, one transaction must finish committing before the next transaction can even begin logging. This is insured by holding a lock for the entirety of the first transaction. In the optimized version of serial logging, however, the first transaction only holds the lock for the very beginning of the transaction to prevent any conflicts from occurring but still minimizing the time a lock is held for. The total run time is depicted as the the time from the start of the first transaction to the end of the third transaction, which is clearly shorter in the optimized version in comparison with the non optimized version. 
