@@ -112,6 +112,7 @@ Manager::update_epoch()
 	}
 }
 
+// TODO. make this lock free.
 bool
 Manager::is_log_pending(uint64_t txn_id)
 {
@@ -136,4 +137,3 @@ Manager::remove_log_pending(uint64_t txn_id)
 	_log_pending_set.erase(txn_id);
 	pthread_mutex_unlock( &_log_mutex );
 }
-

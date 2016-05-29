@@ -245,7 +245,7 @@ final:
 			for (int i = 0; i < wr_cnt; i++) {
 				Access * access = accesses[ write_set[i] ];
 				access->orig_row->manager->write_data( 
-					access->data, commit_wts);
+					access->data, commit_wts, this);
 				access->orig_row->manager->release();
 			}
 #else 

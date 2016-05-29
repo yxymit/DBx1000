@@ -34,7 +34,7 @@ public:
 #if SPECULATE
 	RC					write_speculate(row_t * data, ts_t version, bool spec_read); 
 #endif
-	void				write_data(row_t * data, ts_t wts);
+	void				write_data(row_t * data, ts_t wts, txn_man * txn);
 	void				write_ptr(row_t * data, ts_t wts, char *& data_to_free);
 	bool 				renew_lease(ts_t wts, ts_t rts);
 	bool 				try_renew(ts_t wts, ts_t rts, ts_t &new_rts, uint64_t thd_id);

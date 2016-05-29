@@ -135,6 +135,4 @@ private:
 #if LOG_REDO && LOG_ALGORITHM == LOG_SERIAL
 	uint64_t *		_predecessors;
 #endif
-
-
 };

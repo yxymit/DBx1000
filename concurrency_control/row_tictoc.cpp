@@ -65,7 +65,7 @@ Row_tictoc::access(txn_man * txn, TsType type, row_t * local_row)
 }
 
 void 
-Row_tictoc::write_data(row_t * data, ts_t wts)
+Row_tictoc::write_data(row_t * data, ts_t wts, txn_man * txn)
 {
 #if ATOMIC_WORD
   	uint64_t v = _ts_word;
@@ -79,6 +79,11 @@ Row_tictoc::write_data(row_t * data, ts_t wts)
 	v |= wts;
 	_ts_word = v;
 	_row->copy(data);
+
+  #if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
+	_row->set_last_writer( txn->get_txn_id() );
+  #endif
+
   #if WRITE_PERMISSION_LOCK
 	_ts_word &= (~LOCK_BIT);
   #endif

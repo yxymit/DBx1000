@@ -496,7 +496,8 @@ LogManager::readFromLog(uint32_t & num_keys, string * &table_names, uint64_t * &
     file.read((char*) &len, sizeof(uint64_t));
     char* logStream = new char[len];
     file.read((char*) logStream, len);
-    stringstream ss = stringstream(logStream);
+    stringstream ss; //
+	ss << logStream;
     uint64_t lsn, txn_id;
     ss.read((char*) &lsn, sizeof(uint64_t));
     ss.read((char*) &txn_id, sizeof(uint64_t));
@@ -545,7 +546,9 @@ LogManager::readFromLog(uint32_t & num_keys, string * &table_names, uint64_t * &
     file.read((char*) &len, sizeof(uint64_t));
     char* logStream = new char[len];
     file.read(logStream, len);
-    stringstream ss = stringstream(logStream);
+    //stringstream ss = stringstream(string(logStream));
+    stringstream ss; 
+	ss << logStream;
     uint64_t lsn, txn_id;
     ss.read((char*) &lsn, sizeof(uint64_t));
     ss.read((char*) &txn_id, sizeof(uint64_t));

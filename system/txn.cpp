@@ -22,8 +22,6 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	wr_cnt = 0;
 	insert_cnt = 0;
 	accesses = (Access **) _mm_malloc(sizeof(Access *) * MAX_ROW_PER_TXN, 64);
-	_predecessors = new uint64_t[MAX_ROW_PER_TXN];
-
 	for (int i = 0; i < MAX_ROW_PER_TXN; i++)
 		accesses[i] = NULL;
 	num_accesses_alloc = 0;
@@ -49,6 +47,9 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	_cur_tid = 0;
 #endif
 
+#if LOG_REDO && LOG_ALGORITHM == LOG_SERIAL
+	_predecessors = new uint64_t[MAX_ROW_PER_TXN];
+#endif
 }
 
 void txn_man::set_txn_id(txnid_t txn_id) {
@@ -124,37 +125,17 @@ void txn_man::cleanup(RC rc) {
 #if LOG_REDO
 	if (rc == RCOK)
 	{
-		// TODO assemble the log_buffer_entry here. 
-		// pass the log_buffer_entry to log_manager. 
-		/*uint64_t keys[wr_cnt];
-		uint32_t lengths[wr_cnt];
-		char * after_images[wr_cnt];
-		string  * table_names = new string [wr_cnt];
-		int32_t cnt = 0;
-		for (int rid = 0; rid < row_cnt; rid ++) {
-			access_t type = accesses[rid]->type;
-			if (type == WR) 
-				keys[cnt++] = accesses[rid]->orig_row->get_primary_key();
-		}
-        assert(cnt == wr_cnt);
-        cnt = 0;
-		for (int rid = 0; rid < row_cnt; rid ++) {
-			access_t type = accesses[rid]->type;
-			if (type == WR) {
-			    after_images[cnt] = accesses[cnt]->data->get_data();
-    			lengths[cnt] = accesses[cnt]->orig_row->get_tuple_size();
-                table_names[cnt] = string(accesses[cnt]->orig_row->get_table_name());
-                cnt ++;
-            }
-		}*/
         if (wr_cnt > 0) {
 			char * entry = NULL;
 			uint32_t size = create_log_entry(entry);
 			uint64_t before_log_time = get_sys_clock();
+
+			// call log_manager to log the entry.
+			// TODO for parallel logging, _predecessors stores the last writers.  
 			log_manager.logTxn(entry, size);
+			
 			uint64_t after_log_time = get_sys_clock();
 			INC_STATS(get_thd_id(), time_log, after_log_time - before_log_time);
-    		//log_manager.logTxn(get_thd_id(), wr_cnt, table_names, keys, lengths, after_images);
 		}
 	}
 #endif
@@ -332,7 +313,7 @@ txn_man::create_log_entry(char * &entry)
   // for data length
   buffsize += sizeof(uint32_t) * wr_cnt; 
   // for data
-  for (uint32_t i=0; i < wr_cnt; i++)
+  for (int i=0; i < wr_cnt; i++)
     buffsize += accesses[i]->orig_row->get_tuple_size();
 
   entry = new char[buffsize];	
@@ -350,19 +331,19 @@ txn_man::create_log_entry(char * &entry)
     offset += sizeof(table_id);
   }
   // keys
-  for (uint32_t j=0; j < wr_cnt; j++)
+  for (int j=0; j < wr_cnt; j++)
   {
 	uint64_t key = accesses[j]->orig_row->get_primary_key();
     memcpy(entry + offset, &key, sizeof(key));
     offset += sizeof(key);
   }
-  for (uint32_t j=0; j < wr_cnt; j++)
+  for (int j=0; j < wr_cnt; j++)
   {
     uint32_t length = accesses[j]->orig_row->get_tuple_size();
     memcpy(entry + offset, &length, sizeof(length));
     offset += sizeof(length);
   }
-  for (uint32_t j=0; j < wr_cnt; j++)
+  for (int j=0; j < wr_cnt; j++)
   {
 	char * data = accesses[j]->data->get_data();
     uint32_t length = accesses[j]->orig_row->get_tuple_size();
