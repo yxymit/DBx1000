@@ -126,4 +126,15 @@ private:
 #elif CC_ALG == HEKATON
 	RC 				validate_hekaton(RC rc);
 #endif
+
+
+////////////////////////////////////////////////////
+// Logging 
+////////////////////////////////////////////////////
+	uint32_t 		create_log_entry(char * &entry);	
+#if LOG_REDO && LOG_ALGORITHM == LOG_SERIAL
+	uint64_t *		_predecessors;
+#endif
+
+
 };

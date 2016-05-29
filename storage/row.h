@@ -102,9 +102,21 @@ public:
   #endif
 	char * data;
 	table_t * table;
+
+#if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
+	uint64_t 		get_last_writer()	
+	{ return _last_writer; };
+	void 			set_last_writer(uint64_t last_writer)	
+	{ _last_writer = last_writer; }
+#endif
+
 private:
 	// primary key should be calculated from the data stored in the row.
 	uint64_t 		_primary_key;
 	uint64_t		_part_id;
 	uint64_t 		_row_id;
+#if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
+	// txnID of the last writer txn
+	uint64_t 		_last_writer;
+#endif
 };

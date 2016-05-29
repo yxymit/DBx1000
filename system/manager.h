@@ -26,6 +26,12 @@ public:
 	
 	uint64_t 		get_epoch() { return *_epoch; };
 	void 	 		update_epoch();
+
+	// For Logging
+	bool 			is_log_pending(uint64_t txn_id);
+	void 			add_log_pending(uint64_t txn_id);
+	void 			remove_log_pending(uint64_t txn_id);
+
 private:
 	// for SILO
 	volatile uint64_t * _epoch;		
@@ -40,4 +46,10 @@ private:
 	// for MVCC 
 	volatile ts_t	_last_min_ts_time;
 	ts_t			_min_ts;
+	
+	// For logging
+	// set of txns in the middle of logging process 
+	// TODO. make this lock free.
+	pthread_mutex_t 	_log_mutex;
+	std::set<uint64_t>	_log_pending_set;
 };

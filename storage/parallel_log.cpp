@@ -11,16 +11,6 @@
 #include <errno.h>
 #include <pthread.h>
 
-struct wait_log_record{
-  uint64_t txn_id;
-  uint32_t num_keys;
-  string * table_names;
-  uint64_t * keys;
-  uint32_t * lengths;
-  char ** after_images;
-  uint64_t * file_lsn;
-};
-
 /*struct log_record{
   uint64_t lsn;
   uint64_t txn_id;
@@ -33,7 +23,7 @@ struct wait_log_record{
 
 int num_files, wait_freq;
 int log_file_id = 0;
-int wait_count = 0;
+//int wait_count = 0;
 
 uint64_t * max_lsn;
 
@@ -47,6 +37,7 @@ ParallelLogManager::ParallelLogManager()
 
 void ParallelLogManager::init()
 {
+/*
   cout << "number of log files: " << num_files;
   //cout << "buffer size (parallel_log.cpp): " << buffer_size;
   cout << "check wait_buffer frequency (parallel_log.cpp): " << wait_freq;
@@ -59,6 +50,7 @@ void ParallelLogManager::init()
     _logger[i].init(file_name);
   }
   return;
+  */
 }
 
 bool ParallelLogManager::canParallelLog(uint64_t * lsn)
@@ -87,7 +79,7 @@ ParallelLogManager::parallelLogTxn(uint64_t txn_id, uint32_t num_keys, string * 
 void ParallelLogManager::wait_log(uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, 
   uint32_t * lengths, char ** after_images, uint64_t * file_lsn)
 {
-  pthread_mutex_lock(&lock);
+/*  pthread_mutex_lock(&lock);
  
   my_wait_log.txn_id = txn_id;
   my_wait_log.num_keys = num_keys;
@@ -128,15 +120,18 @@ void ParallelLogManager::wait_log(uint64_t txn_id, uint32_t num_keys, string * t
     }
   }
   pthread_mutex_unlock(&lock);
+*/
 }
 
 void ParallelLogManager::parallel_log(uint64_t txn_id, uint32_t num_keys, string * table_names, 
   uint64_t * keys, uint32_t * lengths, char ** after_images )
 {
+/*
   _logger[log_file_id].logTxn(txn_id, num_keys, table_names, keys, lengths, after_images);
   max_lsn[log_file_id] = _logger[log_file_id].getMaxlsn();
   log_file_id = (log_file_id + 1) % num_files;
   return;
+*/
 }
 
 

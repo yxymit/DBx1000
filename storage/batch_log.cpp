@@ -39,7 +39,7 @@ bool BatchLog::check_buffer_full ( int _logger_index) {
 void 
 BatchLog::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_images )
 {
-    if(!_flushAllLogsInitialized){
+/*    if(!_flushAllLogsInitialized){
         flushAllLogs_false();
     }
     uint32_t _logger_index = txn_id % _num_loggers;
@@ -66,4 +66,5 @@ BatchLog::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, uint
     _loggers[_logger_index].addToBuffer( _loggers[_logger_index].buff_index++, lsn , txn_id, num_keys , table_names,  keys,  lengths,  after_images);
     unlock(_logger_index);
     return;
+*/
 }

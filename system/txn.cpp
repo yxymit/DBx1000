@@ -22,6 +22,8 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	wr_cnt = 0;
 	insert_cnt = 0;
 	accesses = (Access **) _mm_malloc(sizeof(Access *) * MAX_ROW_PER_TXN, 64);
+	_predecessors = new uint64_t[MAX_ROW_PER_TXN];
+
 	for (int i = 0; i < MAX_ROW_PER_TXN; i++)
 		accesses[i] = NULL;
 	num_accesses_alloc = 0;
@@ -122,7 +124,9 @@ void txn_man::cleanup(RC rc) {
 #if LOG_REDO
 	if (rc == RCOK)
 	{
-		uint64_t keys[wr_cnt];
+		// TODO assemble the log_buffer_entry here. 
+		// pass the log_buffer_entry to log_manager. 
+		/*uint64_t keys[wr_cnt];
 		uint32_t lengths[wr_cnt];
 		char * after_images[wr_cnt];
 		string  * table_names = new string [wr_cnt];
@@ -142,15 +146,18 @@ void txn_man::cleanup(RC rc) {
                 table_names[cnt] = string(accesses[cnt]->orig_row->get_table_name());
                 cnt ++;
             }
-		}
+		}*/
         if (wr_cnt > 0) {
+			char * entry = NULL;
+			uint32_t size = create_log_entry(entry);
 			uint64_t before_log_time = get_sys_clock();
-    		log_manager.logTxn(get_thd_id(), wr_cnt, table_names, keys, lengths, after_images);
+			log_manager.logTxn(entry, size);
 			uint64_t after_log_time = get_sys_clock();
 			INC_STATS(get_thd_id(), time_log, after_log_time - before_log_time);
+    		//log_manager.logTxn(get_thd_id(), wr_cnt, table_names, keys, lengths, after_images);
 		}
 	}
-  #endif
+#endif
 	row_cnt = 0;
 	wr_cnt = 0;
 	insert_cnt = 0;
@@ -180,8 +187,9 @@ row_t * txn_man::get_row(row_t * row, access_t type) {
 	}
 	
 	rc = row->get_row(type, this, accesses[ row_cnt ]->data);
-
-
+#if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
+	_predecessors[row_cnt] = accesses[ row_cnt ]->data->get_last_writer();
+#endif
 	if (rc == Abort) {
 		return NULL;
 	}
@@ -310,3 +318,58 @@ txn_man::recover() {
     INC_STATS(get_thd_id(), txn_cnt, num_records);
 	INC_STATS(get_thd_id(), time_man, timespan);
 }
+
+uint32_t
+txn_man::create_log_entry(char * &entry)
+{
+  uint32_t buffsize = 0;
+  buffsize += sizeof(txn_id) + sizeof(wr_cnt);
+  // for table names
+  // TODO. right now, only store tableID
+  buffsize += sizeof(uint32_t) * wr_cnt;
+  // for keys
+  buffsize += sizeof(uint64_t) * wr_cnt;
+  // for data length
+  buffsize += sizeof(uint32_t) * wr_cnt; 
+  // for data
+  for (uint32_t i=0; i < wr_cnt; i++)
+    buffsize += accesses[i]->orig_row->get_tuple_size();
+
+  entry = new char[buffsize];	
+  
+  uint32_t offset = 0;
+  memcpy(entry + offset, &txn_id, sizeof(txn_id));
+  offset += sizeof(txn_id);
+  memcpy(entry + offset, &wr_cnt, sizeof(wr_cnt));
+  offset += sizeof(wr_cnt);
+  // table IDs
+  for(int j = 0; j < wr_cnt; j++) { 
+    // TODO all tables have ID = 0
+    uint32_t table_id = 0;
+    memcpy(entry + offset, &table_id, sizeof(table_id));
+    offset += sizeof(table_id);
+  }
+  // keys
+  for (uint32_t j=0; j < wr_cnt; j++)
+  {
+	uint64_t key = accesses[j]->orig_row->get_primary_key();
+    memcpy(entry + offset, &key, sizeof(key));
+    offset += sizeof(key);
+  }
+  for (uint32_t j=0; j < wr_cnt; j++)
+  {
+    uint32_t length = accesses[j]->orig_row->get_tuple_size();
+    memcpy(entry + offset, &length, sizeof(length));
+    offset += sizeof(length);
+  }
+  for (uint32_t j=0; j < wr_cnt; j++)
+  {
+	char * data = accesses[j]->data->get_data();
+    uint32_t length = accesses[j]->orig_row->get_tuple_size();
+    memcpy(entry + offset, data, length);
+    offset += length;
+  }
+  M_ASSERT(offset == buffsize, "offset=%d, buffsize=%d\n", offset, buffsize);
+  return buffsize;
+}
+

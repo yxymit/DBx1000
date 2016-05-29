@@ -40,6 +40,9 @@ Row_tictoc::access(txn_man * txn, TsType type, row_t * local_row)
 			v = _ts_word;
 		}
 		local_row->copy(_row);
+  #if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
+		local_row->set_last_writer( _row->get_last_writer() );
+  #endif
 		COMPILER_BARRIER
 		v2 = _ts_word;
   #if WRITE_PERMISSION_LOCK

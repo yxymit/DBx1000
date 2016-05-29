@@ -21,5 +21,5 @@ private:
   //void flushLogBuffer();
   ofstream log;
   pthread_mutex_t lock;
-  LogManager * _logger;
+  //LogManager * _logger;
 };

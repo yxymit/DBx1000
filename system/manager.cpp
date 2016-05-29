@@ -111,3 +111,29 @@ Manager::update_epoch()
 		*_last_epoch_update_time = time;
 	}
 }
+
+bool
+Manager::is_log_pending(uint64_t txn_id)
+{
+	pthread_mutex_lock( &_log_mutex );
+	bool is_pending = (_log_pending_set.find(txn_id) != _log_pending_set.end()) ;
+	pthread_mutex_unlock( &_log_mutex );
+	return is_pending;
+}
+
+void
+Manager::add_log_pending(uint64_t txn_id)
+{
+	pthread_mutex_lock( &_log_mutex );
+	_log_pending_set.insert(txn_id);
+	pthread_mutex_unlock( &_log_mutex );
+}
+
+void
+Manager::remove_log_pending(uint64_t txn_id)
+{
+	pthread_mutex_lock( &_log_mutex );
+	_log_pending_set.erase(txn_id);
+	pthread_mutex_unlock( &_log_mutex );
+}
+
