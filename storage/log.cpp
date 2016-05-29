@@ -88,7 +88,7 @@ void LogManager::wait_log(uint64_t txn_id, uint32_t num_keys, string * table_nam
   pthread_mutex_unlock(&lock);
 }
 */
-#if LOG_MEM_DISK
+#if LOG_RAM_DISK
 void
 LogManager::logTxn(char * log_entry, uint32_t size)
 {

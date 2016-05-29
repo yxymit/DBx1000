@@ -102,7 +102,7 @@
 #define LOG_ALGORITHM               LOG_SERIAL
 #define LOG_COMMAND					false
 #define LOG_REDO					true 
-#define LOG_MEM_DISK				true
+#define LOG_RAM_DISK				true
 #define LOG_RECOVER					false
 #define LOG_BATCH_TIME				10 // in ms
 #define LOG_PARALLEL_BUFFER_FILL	false 
