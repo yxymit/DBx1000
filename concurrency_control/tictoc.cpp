@@ -259,6 +259,7 @@ final:
 		}
 		if (g_prt_lat_distr)
 			stats.add_debug(get_thd_id(), commit_wts, 2);
+		glob_manager->add_log_pending( get_txn_id() );
 		cleanup(rc);
 		if (_atomic_timestamp && rc == RCOK) {
 			ts_t ts = glob_manager->get_ts(get_thd_id());
