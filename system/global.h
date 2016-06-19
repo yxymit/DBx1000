@@ -43,6 +43,7 @@ class OptCC;
 class VLLMan;
 class LogManager;
 class BatchLog;
+class ParallelLogManager;
 
 typedef uint32_t UInt32;
 typedef int32_t SInt32;

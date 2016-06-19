@@ -132,7 +132,7 @@ private:
 // Logging 
 ////////////////////////////////////////////////////
 	uint32_t 		create_log_entry(char * &entry);	
-#if LOG_REDO && LOG_ALGORITHM == LOG_SERIAL
+#if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t *		_predecessors;
 #endif
 };

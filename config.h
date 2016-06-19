@@ -106,6 +106,7 @@
 #define LOG_RECOVER					false
 #define LOG_BATCH_TIME				10 // in ms
 #define LOG_PARALLEL_BUFFER_FILL	false 
+#define NUM_LOGGER					THREAD_CNT
 
 /***********************************************/
 // Benchmark

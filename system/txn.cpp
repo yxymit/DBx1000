@@ -10,7 +10,7 @@
 #include "index_btree.h"
 #include "index_hash.h"
 #include "log.h"
-#include "batch_log.h"
+#include "parallel_log.h"
 
 void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	this->h_thd = h_thd;
@@ -47,7 +47,7 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	_cur_tid = 0;
 #endif
 
-#if LOG_REDO && LOG_ALGORITHM == LOG_SERIAL
+#if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
 	_predecessors = new uint64_t[MAX_ROW_PER_TXN];
 #endif
 }
@@ -126,14 +126,17 @@ void txn_man::cleanup(RC rc) {
 	if (rc == RCOK)
 	{
         if (wr_cnt > 0) {
+			uint64_t before_log_time = get_sys_clock();
+			
 			char * entry = NULL;
 			uint32_t size = create_log_entry(entry);
-			uint64_t before_log_time = get_sys_clock();
-
 			// call log_manager to log the entry.
 			// TODO for parallel logging, _predecessors stores the last writers.  
+#if LOG_ALGORITHM == LOG_SERIAL
 			log_manager.logTxn(entry, size);
-			
+#elif LOG_ALGORITHM == LOG_PARALLEL
+			log_manager.parallelLogTxn(entry, size, _predecessors, row_cnt, get_txn_id(), get_thd_id());
+#endif
 			uint64_t after_log_time = get_sys_clock();
 			INC_STATS(get_thd_id(), time_log, after_log_time - before_log_time);
 		}
@@ -270,6 +273,7 @@ txn_man::release() {
 
 void 
 txn_man::recover() {
+	/*
 	// call readFromLog()
 	uint32_t num_keys;
 	string * table_names;
@@ -298,6 +302,7 @@ txn_man::recover() {
 	uint64_t timespan = get_sys_clock() - starttime;
     INC_STATS(get_thd_id(), txn_cnt, num_records);
 	INC_STATS(get_thd_id(), time_man, timespan);
+	*/
 }
 
 uint32_t
@@ -315,8 +320,8 @@ txn_man::create_log_entry(char * &entry)
   // for data
   for (int i=0; i < wr_cnt; i++)
     buffsize += accesses[i]->orig_row->get_tuple_size();
-
-  entry = new char[buffsize];	
+  
+  entry = new char[buffsize];
   
   uint32_t offset = 0;
   memcpy(entry + offset, &txn_id, sizeof(txn_id));

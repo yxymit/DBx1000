@@ -91,11 +91,10 @@ void LogManager::wait_log(uint64_t txn_id, uint32_t num_keys, string * table_nam
 void
 LogManager::logTxn(char * log_entry, uint32_t size)
 {
-  pthread_mutex_lock(&lock);
-  //uint64_t lsn = global_lsn;
-  global_lsn ++;
-  //uint32_t my_buff_index =  buff_index;
-  pthread_mutex_unlock(&lock);
+  ATOM_ADD_FETCH(global_lsn, 1);
+ // pthread_mutex_lock(&lock);
+ // global_lsn ++;
+ // pthread_mutex_unlock(&lock);
   // TODO. create a mem disk data structure 
   return;
 }

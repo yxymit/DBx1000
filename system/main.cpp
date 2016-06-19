@@ -9,6 +9,7 @@
 #include "occ.h"
 #include "vll.h"
 #include "log.h"
+#include "parallel_log.h"
 
 void * f(void *);
 
@@ -25,6 +26,7 @@ int main(int argc, char* argv[])
 	mem_allocator.init(g_part_cnt, MEM_SIZE / g_part_cnt); 
 	stats.init();
 	glob_manager = (Manager *) _mm_malloc(sizeof(Manager), 64);
+	new(glob_manager) Manager();
 	glob_manager->init();
 	if (g_cc_alg == DL_DETECT) 
 		dl_detector.init();

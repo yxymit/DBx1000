@@ -8,6 +8,7 @@
 #include "occ.h"
 #include "vll.h"
 #include "log.h"
+#include "parallel_log.h"
 #include "batch_log.h"
 
 mem_alloc mem_allocator;

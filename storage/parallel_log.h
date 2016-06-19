@@ -4,8 +4,6 @@
 #include "pthread.h"
 #include <unordered_set>
 
-
-// ARIES style logging 
 class ParallelLogManager 
 {
   public:
@@ -19,6 +17,7 @@ class ParallelLogManager
 
   private:
     void checkWait(int logger_id);
+	uint32_t get_logger_id(uint64_t thd_id) { return thd_id % NUM_LOGGER; } 
     //void flushLogBuffer();
     //ofstream log;
     pthread_mutex_t lock;
