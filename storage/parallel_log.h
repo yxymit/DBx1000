@@ -2,6 +2,7 @@
 
 #include "global.h"
 #include "pthread.h"
+#include <unordered_set>
 
 
 // ARIES style logging 
@@ -9,7 +10,7 @@ class ParallelLogManager
 {
   public:
     ParallelLogManager();
-    void init(int num_thd);
+    void init();
     void parallelLogTxn(char * log_entry, uint32_t entry_size, uint64_t * pred, 
       int pred_size, uint64_t txn_id, int thd_id);
     //void wait_log(uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, 
@@ -17,7 +18,7 @@ class ParallelLogManager
     //bool canParallelLog(uint64_t * lsn);
 
   private:
-    void checkWait();
+    void checkWait(int logger_id);
     //void flushLogBuffer();
     //ofstream log;
     pthread_mutex_t lock;

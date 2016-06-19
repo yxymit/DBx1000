@@ -25,7 +25,7 @@ bool optimization = false;
 //included in header
 uint32_t buff_index = 0;
 //uint64_t max_lsn_logged = 0;
-int numfiles;
+//int numfiles;
 //const static int JUMP = 100;
 
 LogManager::LogManager()
@@ -38,10 +38,11 @@ LogManager::~LogManager()
     log.close();
 }
 
+/*
 uint64_t LogManager::getMaxlsn()
 {
   return max_lsn_logged;
-}
+}*/
 
 void LogManager::setLSN(uint64_t flushLSN) {
   global_lsn = max(global_lsn, flushLSN);
@@ -57,7 +58,7 @@ void LogManager::init()
   #endif
 }
 
-void LogManager::init(string log_file_name, int files)
+void LogManager::init(string log_file_name)
 {
   buffer = new buffer_entry[BUFFERSIZE];
   buff_index = 0;
@@ -66,7 +67,6 @@ void LogManager::init(string log_file_name, int files)
   #else
     log.open(log_file_name, ios::binary|ios::trunc);
   #endif
-  numfiles = files;
   //wait_lsns.push_back(-1);
 }
 /*
@@ -150,7 +150,7 @@ LogManager::addToBuffer(uint32_t my_buff_index, char * my_buff_entry, uint32_t s
   memcpy(buffer[my_buff_index].data, &my_buff_entry, buffer_len);
   buffer[my_buff_index].size = sizeof(my_buff_entry);
 }
-
+/*
 void LogManager::flushLogBuffer(uint64_t lsn)
 {
   for (uint32_t i=0; i<g_buffer_size; i++)
@@ -160,7 +160,7 @@ void LogManager::flushLogBuffer(uint64_t lsn)
     }
   log.flush();
   max_lsn_logged = lsn;
-}
+}*/
 
 void LogManager::flushLogBuffer()
 {
@@ -273,7 +273,7 @@ LogManager::readFromLog(uint32_t & num_keys, string * &table_names, uint64_t * &
       after_image[i] = new char [lengths[i]];
       ss.read(after_image[i], lengths[i]);
     }
-    for(int i = 0; i < numfiles; i++)
+    for(int i = 0; i < NUM_LOGGER; i++)
     {
       ss.read((char*)&file_lsn[i], sizeof(uint64_t));
     }

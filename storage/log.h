@@ -28,7 +28,7 @@ public:
   ~LogManager();
 
   void init();
-  void init(string log_file_name, int num_thd);
+  void init(string log_file_name);
   uint64_t getMaxlsn();
   void setLSN(uint64_t flushLSN);
   
