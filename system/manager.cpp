@@ -2,6 +2,15 @@
 #include "row.h"
 #include "txn.h"
 #include "pthread.h"
+#include <unordered_set>
+#include <unordered_map>
+/*
+struct pred_entry {
+	unorderedset * preds;
+	uint32_t preds_size;
+}*/
+
+unordered_map<uint64_t, unordered_set<uint64_t>> _log_pending_map;
 
 void Manager::init() {
 	timestamp = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
@@ -23,6 +32,8 @@ void Manager::init() {
 	}
 	for (UInt32 i = 0; i < BUCKET_CNT; i++)
 		pthread_mutex_init( &mutexes[i], NULL );
+	// initialize log_pending_map
+	// unorderedmap<uint64_t, * pred_entry> _log_pending_map = {};
 }
 
 uint64_t 
@@ -113,27 +124,37 @@ Manager::update_epoch()
 }
 
 // TODO. make this lock free.
+/*
 bool
 Manager::is_log_pending(uint64_t txn_id)
 {
 	pthread_mutex_lock( &_log_mutex );
-	bool is_pending = (_log_pending_set.find(txn_id) != _log_pending_set.end()) ;
+	bool is_pending = (_log_pending_map.find(txn_id) != _log_pending_map.end()) ;
 	pthread_mutex_unlock( &_log_mutex );
 	return is_pending;
-}
+}*/
+
 
 void
-Manager::add_log_pending(uint64_t txn_id)
+Manager::add_log_pending(uint64_t txn_id, uint32_t * predecessors, uint32_t predecessor_size)
 {
-	pthread_mutex_lock( &_log_mutex );
-	_log_pending_set.insert(txn_id);
-	pthread_mutex_unlock( &_log_mutex );
+	unordered_set<uint64_t> _preds; 
+	for(int i = 0; i < predecessor_size; i++) {
+		_preds.insert(predecessors[i]);
+	}
+	_log_pending_map.insert(pair<uint64_t, unordered_set<uint64_t>>(txn_id, _preds));
 }
 
 void
 Manager::remove_log_pending(uint64_t txn_id)
 {
-	pthread_mutex_lock( &_log_mutex );
-	_log_pending_set.erase(txn_id);
-	pthread_mutex_unlock( &_log_mutex );
+	unordered_set<uint64_t> preds_list = _log_pending_map.at(txn_id);
+	for(auto it = preds_list.begin(); it!= preds_list.end(); it++) {
+		_log_pending_map.at(*it).erase(txn_id);
+		if(_log_pending_map.at(*it).empty()) {
+			remove_log_pending(*it);
+		}
+	}
+	_log_pending_map.erase(txn_id);
+	//COMMIT
 }

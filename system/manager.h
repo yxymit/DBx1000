@@ -6,6 +6,7 @@
 class row_t;
 class txn_man;
 
+
 class Manager {
 public:
 	void 			init();
@@ -28,8 +29,9 @@ public:
 	void 	 		update_epoch();
 
 	// For Logging
-	bool 			is_log_pending(uint64_t txn_id);
-	void 			add_log_pending(uint64_t txn_id);
+	//bool 			is_log_pending(uint64_t txn_id);
+	void 			add_log_pending(uint64_t txn_id, uint32_t * predecessors, 
+		uint32_t predecessor_size);
 	void 			remove_log_pending(uint64_t txn_id);
 
 private:
@@ -50,6 +52,6 @@ private:
 	// For logging
 	// set of txns in the middle of logging process 
 	// TODO. make this lock free.
-	pthread_mutex_t 	_log_mutex;
-	std::set<uint64_t>	_log_pending_set;
+	//pthread_mutex_t 	_log_mutex;
+	//std::set<uint64_t>	_log_pending_set;
 };
