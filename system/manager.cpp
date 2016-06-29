@@ -140,7 +140,7 @@ Manager::add_log_pending(uint64_t txn_id, uint32_t * predecessors, uint32_t pred
 {
 	pending_entry * my_pending_entry = new pending_entry;
 	//unordered_set<uint64_t> _preds; 
-	for(int i = 0; i < predecessor_size; i++) {
+	for(uint64_t i = 0; i < predecessor_size; i++) {
 		my_pending_entry->preds.insert(predecessors[i]);
 		// if a txn that the current txn depends on is already committed, then we
 		// don't need to consider it
