@@ -4,13 +4,13 @@
 #include "pthread.h"
 #include <unordered_set>
 #include <unordered_map>
-/*
-struct pred_entry {
-	unorderedset * preds;
-	uint32_t preds_size;
-}*/
 
-unordered_map<uint64_t, unordered_set<uint64_t>> _log_pending_map;
+struct pending_entry {
+	unordered_set<uint64_t> preds;
+	unordered_set<uint64_t> child;
+};
+
+unordered_map<uint64_t, pending_entry *> _log_pending_map;
 
 void Manager::init() {
 	timestamp = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
@@ -138,20 +138,24 @@ Manager::is_log_pending(uint64_t txn_id)
 void
 Manager::add_log_pending(uint64_t txn_id, uint32_t * predecessors, uint32_t predecessor_size)
 {
-	unordered_set<uint64_t> _preds; 
+	pending_entry * my_pending_entry = new pending_entry;
+	//unordered_set<uint64_t> _preds; 
 	for(int i = 0; i < predecessor_size; i++) {
-		_preds.insert(predecessors[i]);
+		my_pending_entry->preds.insert(predecessors[i]);
+		// if a txn that the current txn depends on is already committed, then we
+		// don't need to consider it
+		if(_log_pending_map.find(predecessors[i]) != _log_pending_map.end())
+			_log_pending_map.at(predecessors[i])->child.insert(txn_id);
 	}
-	_log_pending_map.insert(pair<uint64_t, unordered_set<uint64_t>>(txn_id, _preds));
+	_log_pending_map.insert(pair<uint64_t, pending_entry *>(txn_id, my_pending_entry));
 }
 
 void
 Manager::remove_log_pending(uint64_t txn_id)
 {
-	unordered_set<uint64_t> preds_list = _log_pending_map.at(txn_id);
-	for(auto it = preds_list.begin(); it!= preds_list.end(); it++) {
-		_log_pending_map.at(*it).erase(txn_id);
-		if(_log_pending_map.at(*it).empty()) {
+	for(auto it = _log_pending_map.at(txn_id)->child.begin(); it!= _log_pending_map.at(txn_id)->child.end(); it++) {
+		_log_pending_map.at(*it)->preds.erase(txn_id);
+		if(_log_pending_map.at(*it)->preds.empty()) {
 			remove_log_pending(*it);
 		}
 	}
