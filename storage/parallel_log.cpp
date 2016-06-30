@@ -14,21 +14,21 @@
 #include <pthread.h>
 #include <vector>
 #include <unordered_set>
-#include <boost/lockfree/queue.hpp>
-
+//#include <boost/lockfree/queue.hpp>
+/*
 struct wait_log_record{
   char * log_entry;
   uint32_t entry_size;
   unordered_set<uint64_t> preds;
   uint64_t txn_id;
   int thd_id;
-};
+};*/
 
 //const static int WAIT_FREQ = 10;
 //int wait_count;
 LogManager * _logger;
 //vector<wait_log_record> * wait_buffer;
-boost::lockfree::queue<wait_log_record *> * wait_buffer[NUM_LOGGER];
+//boost::lockfree::queue<wait_log_record *> * wait_buffer[NUM_LOGGER];
 int * buffer_length;
 
 
@@ -45,10 +45,10 @@ void ParallelLogManager::init()
   buffer_length = new int[NUM_LOGGER];
   for(int i = 0; i < NUM_LOGGER; i++) {
     _logger[i].init("Log_" + to_string(i) + ".data");
-	wait_buffer[i] = new boost::lockfree::queue<wait_log_record *>(1024);
+	//wait_buffer[i] = new boost::lockfree::queue<wait_log_record *>(1024);
   }
 }
-
+/*
 void ParallelLogManager::checkWait(int logger_id) {
   //vector<wait_log_record>::iterator tmp;
   //for (auto waitlog_it = wait_buffer[logger_id].begin(); waitlog_it!= wait_buffer[logger_id].end();) {
@@ -79,7 +79,7 @@ void ParallelLogManager::checkWait(int logger_id) {
     }
   }
 }
-
+*/
 void
 ParallelLogManager::parallelLogTxn(char * log_entry, 
 								   uint32_t entry_size, 
@@ -88,27 +88,28 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
 								   uint64_t txn_id, 
 								   int thd_id)
 {
-  wait_log_record * my_wait_log = new wait_log_record;
+  //wait_log_record * my_wait_log = new wait_log_record;
   uint32_t pred_log_size = 0;
   for(int i = 0; i < pred_size; i++) {
-    if(glob_manager->is_log_pending(pred[i]))
-      my_wait_log->preds.insert(pred[i]);
+    //if(glob_manager->is_log_pending(pred[i]))
+      //my_wait_log->preds.insert(pred[i]);
     pred_log_size += sizeof(pred[i]);
   }
-  if(my_wait_log->preds.empty()) {
-    char * new_log_entry = new char[entry_size + pred_log_size + 4];
+  //if(my_wait_log->preds.empty()) {
+    //char * new_log_entry = new char[entry_size + pred_log_size + 4];
+    char * new_log_entry = new char[entry_size + pred_log_size];
     memcpy(new_log_entry, log_entry, entry_size);
     uint32_t offset = entry_size;
     for(int i = 0; i < pred_size; i++) {
       memcpy(new_log_entry + offset, &pred[i], sizeof(pred[i]));
       offset += sizeof(pred[i]);
     }
-    memcpy(new_log_entry + entry_size, "DONE", sizeof("DONE"));
-    entry_size += 4;
+    //memcpy(new_log_entry + entry_size, "DONE", sizeof("DONE"));
+    //entry_size += 4;
     _logger[ get_logger_id(thd_id) ].logTxn(new_log_entry, entry_size);
     // FLUSH DONE
-    glob_manager->remove_log_pending(txn_id);
-  } else {
+    //glob_manager->remove_log_pending(txn_id);
+  /*} else {
     my_wait_log->log_entry = log_entry;
     my_wait_log->entry_size = entry_size;
     my_wait_log->txn_id = txn_id;
@@ -125,7 +126,7 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
     buffer_length[ get_logger_id(thd_id) ]++;
     //wait_count = (wait_count + 1) % WAIT_FREQ;
     //if(wait_count == 0) {
-      checkWait( get_logger_id(thd_id) );
+      //checkWait( get_logger_id(thd_id) );
     //}
-  }
+  }*/
 }

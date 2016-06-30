@@ -17,7 +17,7 @@ class ParallelLogManager
     void recovery();
 
   private:
-    void checkWait(int logger_id);
+    //void checkWait(int logger_id);
 	uint32_t get_logger_id(uint64_t thd_id) { return thd_id % NUM_LOGGER; } 
     //void flushLogBuffer();
     //ofstream log;
