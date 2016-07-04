@@ -4,7 +4,7 @@
 #include "pthread.h"
 #include <vector>
 #include <unordered_map>
-#include <junction/junction/Core.h>
+//#include <junction/junction/Core.h>
 
 struct pending_entry {
 	uint32_t pred_size;
