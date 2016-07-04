@@ -260,7 +260,7 @@ final:
 		if (g_prt_lat_distr)
 			stats.add_debug(get_thd_id(), commit_wts, 2);
 #if LOG_ALGORITHM == LOG_PARALLEL
-		glob_manager->add_log_pending( get_txn_id() );
+		glob_manager->add_log_pending( get_txn_id(), _predecessors, row_cnt );
 #endif
 		cleanup(rc);
 		if (_atomic_timestamp && rc == RCOK) {

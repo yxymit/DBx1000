@@ -30,7 +30,7 @@ public:
 
 	// For Logging
 	//bool 			is_log_pending(uint64_t txn_id);
-	void 			add_log_pending(uint64_t txn_id, uint32_t * predecessors, 
+	void 			add_log_pending(uint64_t txn_id, uint64_t * predecessors, 
 		uint32_t predecessor_size);
 	void 			remove_log_pending(uint64_t txn_id);
 
