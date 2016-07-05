@@ -2,6 +2,7 @@
 #include "row.h"
 #include "row_tictoc.h"
 #include "manager.h"
+#include "log_pending_table.h"
 
 #if CC_ALG==TICTOC
 
@@ -260,7 +261,10 @@ final:
 		if (g_prt_lat_distr)
 			stats.add_debug(get_thd_id(), commit_wts, 2);
 #if LOG_ALGORITHM == LOG_PARALLEL
-		glob_manager->add_log_pending( get_txn_id(), _predecessors, row_cnt );
+		//glob_manager->add_log_pending( get_txn_id(), _predecessors, row_cnt );
+		uint64_t t1 = get_sys_clock();
+		log_pending_table->add_log_pending( get_txn_id(), _predecessors, row_cnt );
+		INC_STATS(get_thd_id(), time_log, get_sys_clock() - t1);
 #endif
 		cleanup(rc);
 		if (_atomic_timestamp && rc == RCOK) {

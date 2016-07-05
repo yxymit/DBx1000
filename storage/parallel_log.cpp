@@ -14,6 +14,10 @@
 #include <pthread.h>
 #include <vector>
 #include <unordered_set>
+#include "log_pending_table.h"
+
+#if LOG_ALGORITHM == LOG_PARALLEL
+
 //#include <boost/lockfree/queue.hpp>
 /*
 struct wait_log_record{
@@ -97,7 +101,8 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
   }
   //if(my_wait_log->preds.empty()) {
     //char * new_log_entry = new char[entry_size + pred_log_size + 4];
-    char * new_log_entry = new char[entry_size + pred_log_size];
+	char new_log_entry[entry_size + pred_log_size];
+    //char * new_log_entry = new char[entry_size + pred_log_size];
     memcpy(new_log_entry, log_entry, entry_size);
     uint32_t offset = entry_size;
     for(int i = 0; i < pred_size; i++) {
@@ -106,9 +111,13 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
     }
     //memcpy(new_log_entry + entry_size, "DONE", sizeof("DONE"));
     //entry_size += 4;
+	//uint64_t t1 = get_sys_clock();
+	//printf("logger  = %d\n", thd_id); //get_logger_id(thd_id));
     _logger[ get_logger_id(thd_id) ].logTxn(new_log_entry, entry_size);
+	//INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t1);
     // FLUSH DONE
     //glob_manager->remove_log_pending(txn_id);
+    log_pending_table->remove_log_pending(txn_id);
   /*} else {
     my_wait_log->log_entry = log_entry;
     my_wait_log->entry_size = entry_size;
@@ -130,3 +139,5 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
     //}
   }*/
 }
+
+#endif

@@ -1,27 +1,40 @@
 #include <log_pending_table.h>
+#include "manager.h"
 
 //////////////////////
 // Bucket 
 //////////////////////
 LogPendingTable::Bucket::Bucket()
 {
-	pthread_mutex_init(&lock, NULL);
+	pthread_mutex_init(&_lock, NULL);
+	_latch = false;
 	first = NULL;  
 }
 
 void 
 LogPendingTable::Bucket::insert(TxnNode * node)
 {
-	pthread_mutex_lock(&lock);
+	// TODO. can use read lock for insert.
+	/*
+	lock(false);
+	TxnNode * f;
+	do {
+		f = first;
+		node->next = f;
+	} while (!ATOM_CAS(first, f, node));
+	//first = node;
+	unlock(false);
+	*/
+	lock(true);
 	node->next = first;
 	first = node;
-	pthread_mutex_unlock(&lock);	
+	unlock(true);
 }
 	
 LogPendingTable::TxnNode * 
 LogPendingTable::Bucket::remove(uint64_t txn_id)
 {
-	pthread_mutex_lock(&lock);
+	lock(true);
 	TxnNode * node = first;
 	TxnNode * pre = NULL;
 	while (node != NULL && node->txn_id != txn_id) {
@@ -34,8 +47,44 @@ LogPendingTable::Bucket::remove(uint64_t txn_id)
 		first = node->next;
 	else 
 		pre->next = node->next;
-	pthread_mutex_unlock(&lock);	
+	unlock(true);
 	return node; 
+}
+
+void 
+LogPendingTable::Bucket::lock(bool write)
+{
+	if (write) {
+		uint64_t src_word = 0; 
+		uint64_t target_word = (1UL << 63);
+		while (!ATOM_CAS(_lock_word, src_word, target_word)) {
+			PAUSE
+		}
+	}
+	else {
+		bool done = false;
+		while (!done) {
+			uint64_t word = _lock_word;
+			if ((word & (1UL << 63)) == 0) {
+				uint64_t target_word = word + 1;
+				done = ATOM_CAS(_lock_word, word, target_word);
+			} else 
+				PAUSE
+		}
+	}
+	//pthread_mutex_lock(&_lock);
+	//while(!ATOM_CAS(_latch, false, true)) {}
+}
+
+void 
+LogPendingTable::Bucket::unlock(bool write)
+{
+	//pthread_mutex_unlock(&_lock);
+	//_latch = false;
+	if (write)
+		_lock_word = 0;
+	else 
+		ATOM_SUB_FETCH(_lock_word, 1);
 }
 
 //////////////////////
@@ -43,24 +92,13 @@ LogPendingTable::Bucket::remove(uint64_t txn_id)
 //////////////////////
 LogPendingTable::TxnNode::TxnNode(uint64_t txn_id)
 {
-	//pthread_mutex_init(&lock, NULL);
 	this->txn_id = txn_id;
 	pred_size = 0;
 	pred_insert_done = false;
 	next = NULL;
 }
 /*
-void 
-LogPendingTable::TxnNode::lock()
-{
-	pthread_mutex_lock(&lock);
-}
 
-void 
-LogPendingTable::TxnNode::unlock()
-{
-	pthread_mutex_unlock(&lock);
-}
 */
 
 //////////////////////
@@ -68,21 +106,25 @@ LogPendingTable::TxnNode::unlock()
 //////////////////////
 LogPendingTable::LogPendingTable()
 {
-	_num_buckets = 100;
+	_num_buckets = 10000;
 	_buckets = new Bucket[_num_buckets];
+	_free_nodes = new queue<TxnNode *> [g_thread_cnt]; //* _free_nodes;
 }
 
 LogPendingTable::TxnNode * 
 LogPendingTable::find_txn(uint64_t txn_id)
 {
-	uint32_t bid = txn_id % _num_buckets;
-	pthread_mutex_lock(&_buckets[bid].lock);
+	//uint64_t t1 = get_sys_clock();
+	uint32_t bid = get_bucket_id(txn_id);
+	_buckets[bid].lock(false);
+	//printf("[thd=%ld] bid = %d, txn_id=%ld\n", glob_manager->get_thd_id(), bid, txn_id);
 	TxnNode * node = _buckets[bid].first;
 	while (node != NULL && node->txn_id != txn_id) 
 		node = node->next;
 	if (node)
 		ATOM_ADD_FETCH(node->semaphore, 1);
-	pthread_mutex_unlock(&_buckets[bid].lock);
+	_buckets[bid].unlock(false);
+	//INC_STATS(glob_manager->get_thd_id(), debug2, get_sys_clock() - t1);
 	return node;
 }
 
@@ -90,89 +132,90 @@ void
 LogPendingTable::add_log_pending(uint64_t txn_id, uint64_t * predecessors, 
 							 uint32_t predecessor_size)
 {
-	uint64_t start_time = get_sys_clock();
-	TxnNode * new_node = new TxnNode(txn_id);
-	//new_node->lock();
+uint64_t t1 = get_sys_clock();
+	TxnNode * new_node; 
+	if (!_free_nodes[glob_manager->get_thd_id()].empty()) {
+		new_node = _free_nodes[glob_manager->get_thd_id()].front();
+		_free_nodes[glob_manager->get_thd_id()].pop();
+		new_node->txn_id = txn_id;
+		assert(new_node->pred_size == 0);
+		assert(new_node->pred_insert_done == false);
+	} else 
+		new_node = new TxnNode(txn_id);
 
-	// insert to the bucket
-	uint32_t bid = txn_id % _num_buckets;
+	uint32_t bid = get_bucket_id(txn_id);
+uint64_t t2 = get_sys_clock();
 	_buckets[bid].insert(new_node);
-	//printf("insert %ld\n", txn_id);
-	// TODO. find predecessors in the table. 
-	// for each hit, lock and insert to successor list.  
+INC_STATS(glob_manager->get_thd_id(), debug2, get_sys_clock() - t2);
+	ATOM_ADD_FETCH(new_node->pred_size, 1);
 	for (uint32_t i = 0; i < predecessor_size; i ++) {
-			uint64_t t1 = get_sys_clock();
-		TxnNode * node = find_txn(predecessors[i]);
-			INC_STATS(txn_id % g_thread_cnt, debug1, get_sys_clock() - t1);
+		TxnNode * node = NULL;
+		if (predecessors[i] != 0)
+			node = find_txn(predecessors[i]);
 		if (node) 
 		{
-			// TODO. use lock free queue for seccessors.
-			// this way, we may get rid of locks.
 			ATOM_ADD_FETCH(new_node->pred_size, 1);
 			node->successors.push(new_node);
 			COMPILER_BARRIER
-			//node->lock();
-			//node->successors.push_back(new_node);
 			ATOM_SUB_FETCH(node->semaphore, 1);
-			//node->unlock();
 		}
 	}
 	COMPILER_BARRIER
 	new_node->pred_insert_done = true;
-	INC_STATS(txn_id % g_thread_cnt, time_log, get_sys_clock() - start_time);
-	//COMPILER_BARRIER
-	//if (new_node->pred_size == 0)
-	//	if (ATOM_CAS(new_node->pred_insert_done, true, false))
-	//		remove_log_pending(txn_id);
-	//new_node->unlock();
-
-/*	pthread_mutex_lock(&_log_mutex);
-	pending_entry * my_pending_entry = new pending_entry;
-	//unordered_set<uint64_t> _preds; 
-	for(uint64_t i = 0; i < predecessor_size; i++) {
-		//my_pending_entry->preds.insert(predecessors[i]);
-		// if a txn that the current txn depends on is already committed, then we
-		// don't need to consider it
-		if(_log_pending_map.find(predecessors[i]) != _log_pending_map.end()) {
-			_log_pending_map.at(predecessors[i])->child.push_back(txn_id);
-			my_pending_entry->pred_size++;
-		}
-	}
-	_log_pending_map.insert(pair<uint64_t, pending_entry *>(txn_id, my_pending_entry));
-	pthread_mutex_unlock(&_log_mutex);
-*/
+INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t1);
+	//INC_STATS(txn_id % g_thread_cnt, time_log, get_sys_clock() - start_time);
 }
 
 void
-LogPendingTable::remove_log_pending(uint64_t txn_id)
-{	
-	uint32_t bid = txn_id % _num_buckets;
-	TxnNode * node = _buckets[bid].remove(txn_id);
-	//printf("remove %ld\n", txn_id);
+LogPendingTable::remove_log_pending(TxnNode * node)
+{
+	ATOM_SUB_FETCH(node->pred_size, 1);
+	if (node->pred_size > 0 || !ATOM_CAS(node->pred_insert_done, true, false))
+		return;
+
+	//uint64_t t1 = get_sys_clock();
+	uint32_t bid = get_bucket_id(node->txn_id);
+	TxnNode * n = _buckets[bid].remove(node->txn_id);
+	assert(n == node);
 	// wait for all successors to be inserted
 	while (node->semaphore > 0) 
 		PAUSE
 	COMPILER_BARRIER
 	TxnNode * succ = NULL;
+	//INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t1);
 	while (node->successors.pop(succ)) {
-		ATOM_SUB_FETCH(succ->pred_size, 1);
-		if (succ->pred_size == 0)
-			if (ATOM_CAS(succ->pred_insert_done, true, false))
-				remove_log_pending(txn_id);
+		remove_log_pending(succ); 
 	}
-	delete node;
+	_free_nodes[glob_manager->get_thd_id()].push(node);
+	//delete node;
+}
 
-/*	pthread_mutex_lock(&_log_mutex);
-	for(auto it = _log_pending_map.at(txn_id)->child.begin(); it!= _log_pending_map.at(txn_id)->child.end(); it++) {
-		//if(_log_pending_map.find(*it) != _log_pending_map.end()) {
-			_log_pending_map.at(*it)->pred_size--;
-			if(_log_pending_map.at(*it)->pred_size == 0) {
-				remove_log_pending(*it);
-			}
-		//}		
+void
+LogPendingTable::remove_log_pending(uint64_t txn_id)
+{	
+	//uint32_t bid = get_bucket_id(txn_id);
+	TxnNode * node = find_txn(txn_id);
+	ATOM_SUB_FETCH(node->semaphore, 1);
+	remove_log_pending(node);
+}
+uint32_t 
+LogPendingTable::get_bucket_id(uint64_t txn_id)
+{
+	return (txn_id * 1103515247UL) % _num_buckets; 
+	//return _Hash(txn_id) % _num_buckets;  
+}
+
+uint32_t 
+LogPendingTable::get_size()
+{
+	uint32_t size = 0;
+	for (uint32_t i = 0; i < _num_buckets; i++)	
+	{
+		TxnNode * node = _buckets[i].first;
+		while (node) {
+			size ++;
+			node = node->next;
+		}
 	}
-	_log_pending_map.erase(txn_id);
-	//COMMIT
-	pthread_mutex_lock(&_log_mutex);
-*/
+	return size;
 }

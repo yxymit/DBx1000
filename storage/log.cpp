@@ -14,8 +14,6 @@
 #include <helper.h>
 
 
-uint64_t global_lsn = 0;
-
 // std::atomic<int> count_busy (g_buffer_size);
 int volatile count_busy = g_buffer_size;
 const static int BUFFERSIZE = 10;
@@ -30,6 +28,7 @@ uint32_t buff_index = 0;
 
 LogManager::LogManager()
 {
+	_lsn = 0;
     pthread_mutex_init(&lock, NULL);
 }
 
@@ -45,7 +44,7 @@ uint64_t LogManager::getMaxlsn()
 }*/
 
 void LogManager::setLSN(uint64_t flushLSN) {
-  global_lsn = max(global_lsn, flushLSN);
+  _lsn = max(_lsn, flushLSN);
 }
 
 void LogManager::init()
@@ -91,7 +90,7 @@ void LogManager::wait_log(uint64_t txn_id, uint32_t num_keys, string * table_nam
 void
 LogManager::logTxn(char * log_entry, uint32_t size)
 {
-  ATOM_ADD_FETCH(global_lsn, 1);
+  ATOM_ADD_FETCH(_lsn, 1);
  // pthread_mutex_lock(&lock);
  // global_lsn ++;
  // pthread_mutex_unlock(&lock);
@@ -104,7 +103,7 @@ LogManager::logTxn(char * log_entry, uint32_t size)
 {
   pthread_mutex_lock(&lock);
   //uint64_t lsn = global_lsn;
-  global_lsn ++;
+  _lsn ++;
   uint32_t my_buff_index =  buff_index;
   buff_index ++;
 

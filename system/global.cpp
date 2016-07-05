@@ -10,6 +10,7 @@
 #include "log.h"
 #include "parallel_log.h"
 #include "batch_log.h"
+#include "log_pending_table.h"
 
 mem_alloc mem_allocator;
 Stats stats;
@@ -24,6 +25,7 @@ LogManager log_manager;
 BatchLog log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL
 ParallelLogManager log_manager; 
+LogPendingTable * log_pending_table;
 #endif
 
 #if CC_ALG == VLL

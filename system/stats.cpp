@@ -204,8 +204,8 @@ void Stats::print() {
 		dl_wait_time / BILLION,
 		total_time_query / BILLION,
 		total_debug1 / BILLION,
-		total_debug2, // / BILLION,
-		total_debug3, // / BILLION,
+		total_debug2 / BILLION,
+		total_debug3 / BILLION,
 		total_debug4, // / BILLION,
 		total_debug5  // / BILLION 
 	);

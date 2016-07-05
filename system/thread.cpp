@@ -34,6 +34,7 @@ RC thread_t::run() {
 #if !NOGRAPHITE
 	_thd_id = CarbonGetTileId();
 #endif
+	glob_manager->set_thd_id( get_thd_id() );
 	if (warmup_finish) {
 		mem_allocator.register_thread(_thd_id);
 	}

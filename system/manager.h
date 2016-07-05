@@ -34,6 +34,9 @@ public:
 		uint32_t predecessor_size);
 	void 			remove_log_pending(uint64_t txn_id);
 
+    // thread id
+    void            set_thd_id(uint64_t thread_id) { _thread_id = thread_id; }
+    uint64_t        get_thd_id() { return _thread_id; }
 private:
 	// for SILO
 	volatile uint64_t * _epoch;		
@@ -48,11 +51,13 @@ private:
 	// for MVCC 
 	volatile ts_t	_last_min_ts_time;
 	ts_t			_min_ts;
-
+	
+    // thread id
+	static __thread uint64_t _thread_id;
 	// For logging
 	// set of txns in the middle of logging process 
 	// TODO. make this lock free.
-	LogPendingTable * 	_log_pending_table;
+	//LogPendingTable * 	_log_pending_table;
 	pthread_mutex_t 	_log_mutex;
 	//std::set<uint64_t>	_log_pending_set;
 };

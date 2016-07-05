@@ -99,14 +99,14 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM               LOG_SERIAL
+#define LOG_ALGORITHM               LOG_PARALLEL //SERIAL
 #define LOG_COMMAND					false
 #define LOG_REDO					true 
 #define LOG_RAM_DISK				true
 #define LOG_RECOVER					false
 #define LOG_BATCH_TIME				10 // in ms
 #define LOG_PARALLEL_BUFFER_FILL	false 
-#define NUM_LOGGER					THREAD_CNT
+#define NUM_LOGGER					16 //THREAD_CNT
 
 /***********************************************/
 // Benchmark
@@ -118,7 +118,7 @@
 #define FIRST_PART_LOCAL 			true
 #define MAX_TUPLE_SIZE				1024 // in bytes
 // ==== [YCSB] ====
-#define INIT_PARALLELISM			40
+#define INIT_PARALLELISM			32
 #define SYNTH_TABLE_SIZE 			(1024 * 1024 * 1)
 #define ZIPF_THETA 					0
 #define READ_PERC 					0

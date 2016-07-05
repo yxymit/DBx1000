@@ -59,7 +59,7 @@ public:
   //Moved to public for call in batch-log
   //void flushLogBuffer();
   //pthread_mutex_t lock;
-  
+  uint64_t _lsn;
   ofstream log;
   ifstream file;
 };

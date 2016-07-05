@@ -10,6 +10,7 @@
 #include "vll.h"
 #include "log.h"
 #include "parallel_log.h"
+#include "log_pending_table.h"
 
 void * f(void *);
 
@@ -21,11 +22,14 @@ void parser(int argc, char * argv[]);
 int main(int argc, char* argv[])
 {
 	parser(argc, argv);
-
+	
 	log_manager.init();
 	mem_allocator.init(g_part_cnt, MEM_SIZE / g_part_cnt); 
 	stats.init();
 	glob_manager = (Manager *) _mm_malloc(sizeof(Manager), 64);
+#if LOG_ALGORITHM == LOG_PARALLEL
+	log_pending_table = new LogPendingTable();
+#endif
 	new(glob_manager) Manager();
 	glob_manager->init();
 	if (g_cc_alg == DL_DETECT) 
@@ -98,7 +102,9 @@ int main(int argc, char* argv[])
 	for (uint32_t i = 0; i < thd_cnt - 1; i++) 
 		pthread_join(p_thds[i], NULL);
 	int64_t endtime = get_server_clock();
-	
+#if LOG_ALGORITHM == LOG_PARALLEL
+	assert( log_pending_table->get_size() == 0);
+#endif
 	cout << "PASS! SimTime = " << endtime - starttime << endl;
 	if (STATS_ENABLE)
 		stats.print();

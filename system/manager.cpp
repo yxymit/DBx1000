@@ -12,6 +12,7 @@ struct pending_entry {
 	vector<uint64_t> child;
 };
 
+__thread uint64_t Manager::_thread_id;
 //unordered_map<uint64_t, pending_entry *> _log_pending_map;
 unordered_map<uint64_t, pending_entry *> _log_pending_map;
 
@@ -37,7 +38,7 @@ void Manager::init() {
 		pthread_mutex_init( &mutexes[i], NULL );
 	// initialize log_pending_map
 	// unorderedmap<uint64_t, * pred_entry> _log_pending_map = {};
-	_log_pending_table = new LogPendingTable;
+	//_log_pending_table = new LogPendingTable;
 }
 
 uint64_t 
@@ -142,7 +143,7 @@ Manager::is_log_pending(uint64_t txn_id)
 void
 Manager::add_log_pending(uint64_t txn_id, uint64_t * predecessors, uint32_t predecessor_size)
 {
-	_log_pending_table->add_log_pending(txn_id, predecessors, predecessor_size);
+	//_log_pending_table->add_log_pending(txn_id, predecessors, predecessor_size);
 	/*
 	pthread_mutex_lock(&_log_mutex);
 	pending_entry * my_pending_entry = new pending_entry;
@@ -164,7 +165,7 @@ Manager::add_log_pending(uint64_t txn_id, uint64_t * predecessors, uint32_t pred
 void
 Manager::remove_log_pending(uint64_t txn_id)
 {
-	_log_pending_table->remove_log_pending(txn_id);
+	//_log_pending_table->remove_log_pending(txn_id);
 	/*
 	pthread_mutex_lock(&_log_mutex);
 	for(auto it = _log_pending_map.at(txn_id)->child.begin(); it!= _log_pending_map.at(txn_id)->child.end(); it++) {

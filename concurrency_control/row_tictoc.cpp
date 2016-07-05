@@ -58,7 +58,10 @@ Row_tictoc::access(txn_man * txn, TsType type, row_t * local_row)
 	lock();
 	txn->last_wts = _wts;
 	txn->last_rts = _rts;
-	local_row->copy(_row); 
+	local_row->copy(_row);
+  #if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
+	local_row->set_last_writer( _row->get_last_writer() );
+  #endif
 	release();
 #endif
 	return RCOK;
@@ -79,7 +82,6 @@ Row_tictoc::write_data(row_t * data, ts_t wts, txn_man * txn)
 	v |= wts;
 	_ts_word = v;
 	_row->copy(data);
-
   #if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
 	_row->set_last_writer( txn->get_txn_id() );
   #endif
@@ -94,6 +96,9 @@ Row_tictoc::write_data(row_t * data, ts_t wts, txn_man * txn)
 	_wts = wts;
 	_rts = wts;
 	_row->copy(data);
+  #if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
+	_row->set_last_writer( txn->get_txn_id() );
+  #endif
 #endif
 }
 

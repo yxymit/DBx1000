@@ -4,6 +4,8 @@
 #include "pthread.h"
 #include <unordered_set>
 
+class LogPendingTable;
+
 class ParallelLogManager 
 {
   public:

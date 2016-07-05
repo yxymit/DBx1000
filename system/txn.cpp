@@ -127,9 +127,9 @@ void txn_man::cleanup(RC rc) {
 	{
         if (wr_cnt > 0) {
 			uint64_t before_log_time = get_sys_clock();
-			
-			char * entry = NULL;
-			uint32_t size = create_log_entry(entry);
+			uint32_t size = get_log_entry_size();			
+			char entry[size];// = NULL;
+			create_log_entry(entry);
 			// call log_manager to log the entry.
 			// TODO for parallel logging, _predecessors stores the last writers.  
 #if LOG_ALGORITHM == LOG_SERIAL
@@ -173,6 +173,7 @@ row_t * txn_man::get_row(row_t * row, access_t type) {
 	rc = row->get_row(type, this, accesses[ row_cnt ]->data);
 #if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
 	_predecessors[row_cnt] = accesses[ row_cnt ]->data->get_last_writer();
+	//printf("pred = %ld\n", _predecessors[row_cnt]);
 #endif
 	if (rc == Abort) {
 		return NULL;
@@ -306,7 +307,7 @@ txn_man::recover() {
 }
 
 uint32_t
-txn_man::create_log_entry(char * &entry)
+txn_man::get_log_entry_size()
 {
   uint32_t buffsize = 0;
   buffsize += sizeof(txn_id) + sizeof(wr_cnt);
@@ -320,9 +321,12 @@ txn_man::create_log_entry(char * &entry)
   // for data
   for (int i=0; i < wr_cnt; i++)
     buffsize += accesses[i]->orig_row->get_tuple_size();
-  
-  entry = new char[buffsize];
-  
+  return buffsize;  
+}
+
+void 
+txn_man::create_log_entry(char * entry)
+{
   uint32_t offset = 0;
   memcpy(entry + offset, &txn_id, sizeof(txn_id));
   offset += sizeof(txn_id);
@@ -355,7 +359,6 @@ txn_man::create_log_entry(char * &entry)
     memcpy(entry + offset, data, length);
     offset += length;
   }
-  M_ASSERT(offset == buffsize, "offset=%d, buffsize=%d\n", offset, buffsize);
-  return buffsize;
+  //M_ASSERT(offset == buffsize, "offset=%d, buffsize=%d\n", offset, buffsize);
 }
 
