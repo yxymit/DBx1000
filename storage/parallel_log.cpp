@@ -45,12 +45,19 @@ void ParallelLogManager::init()
 {
   //wait_buffer = new vector<wait_log_record>[NUM_LOGGER];
   //buffer_length = 0;
+  #if LOG_RECOVER
+  _logger = new LogManager[NUM_LOGGER];
+  //uint64_t * recovery_lsn = new uint64_t[NUM_LOGGER];
+  unordered_set<uint64_t> recovered_txn;
+  pthread_mutex_init(&lock, NULL);
+  #else
   _logger = new LogManager[NUM_LOGGER];
   buffer_length = new int[NUM_LOGGER];
   for(int i = 0; i < NUM_LOGGER; i++) {
     _logger[i].init("Log_" + to_string(i) + ".data");
 	//wait_buffer[i] = new boost::lockfree::queue<wait_log_record *>(1024);
   }
+  #endif
 }
 /*
 void ParallelLogManager::checkWait(int logger_id) {
@@ -104,7 +111,7 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
 	char new_log_entry[entry_size + sizeof(int) + pred_log_size];
     //char * new_log_entry = new char[entry_size + pred_log_size];
     memcpy(new_log_entry, log_entry, entry_size);
-    memcpy(new_log_entry + entry_size, pred_size, sizeof(int));
+    memcpy(new_log_entry + entry_size, &pred_size, sizeof(int));
     uint32_t offset = entry_size + sizeof(int);
     for(int i = 0; i < pred_size; i++) {
       memcpy(new_log_entry + offset, &pred[i], sizeof(pred[i]));

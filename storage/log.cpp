@@ -231,7 +231,7 @@ LogManager::readFromLog(uint32_t & num_keys, string * &table_names, uint64_t * &
 
 bool
 LogManager::readFromLog(uint64_t &txn_id, uint32_t & num_keys, string * &table_names, uint64_t * &keys, 
-  uint32_t * &lengths, char ** &after_image, uint64_t &num_preds, uint64_t * &pred_txn_id) {
+  uint32_t * &lengths, char ** &after_image, int &num_preds, uint64_t * &pred_txn_id) {
     if (file.peek() != -1)
   {
     uint64_t len = 0;
@@ -271,9 +271,10 @@ LogManager::readFromLog(uint64_t &txn_id, uint32_t & num_keys, string * &table_n
       after_image[i] = new char [lengths[i]];
       ss.read(after_image[i], lengths[i]);
     }
-    for(int i = 0; i < NUM_LOGGER; i++)
+    ss.read((char*)&num_preds, sizeof(uint64_t));
+    for(int i = 0; i < num_preds; i++)
     {
-      ss.read((char*)&file_lsn[i], sizeof(uint64_t));
+      ss.read((char*)&pred_txn_id[i], sizeof(uint64_t));
     }
     return true;
   } else {

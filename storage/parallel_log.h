@@ -2,7 +2,7 @@
 
 #include "global.h"
 #include "pthread.h"
-//#include <unordered_set>
+#include <unordered_set>
 
 class LogPendingTable;
 
@@ -25,4 +25,5 @@ class ParallelLogManager
     //void flushLogBuffer();
     //ofstream log;
     pthread_mutex_t lock;
+    unordered_set<uint64_t> recovered_txn;
 };
