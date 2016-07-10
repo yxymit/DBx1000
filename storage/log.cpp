@@ -241,7 +241,7 @@ LogManager::readFromLog(uint64_t &txn_id, uint32_t & num_keys, string * &table_n
     //stringstream ss = stringstream(string(logStream));
     stringstream ss; 
 	ss << logStream;
-    uint64_t lsn, txn_id;
+    uint64_t lsn;
     ss.read((char*) &lsn, sizeof(uint64_t));
     ss.read((char*) &txn_id, sizeof(uint64_t));
     ss.read((char*) &num_keys, sizeof(uint32_t));

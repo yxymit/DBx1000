@@ -36,7 +36,7 @@ public:
   void addToBuffer(uint32_t my_buffer_index, char* my_buffer_entry, uint32_t size);
   bool readFromLog(uint32_t &num_keys, string * &table_names, uint64_t * &keys,
     uint32_t * &lengths, char ** &after_image);
-  bool readFromLog(uint64_t txn_id, uint32_t & num_keys, string * &table_names, uint64_t * &keys, uint32_t * &lengths, 
+  bool readFromLog(uint64_t &txn_id, uint32_t & num_keys, string * &table_names, uint64_t * &keys, uint32_t * &lengths, 
     char ** &after_image, uint64_t &num_preds, uint64_t * &pred_txn_id);
   
   void flushLogBuffer();
