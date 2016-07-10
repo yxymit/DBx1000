@@ -33,7 +33,8 @@ struct wait_log_record{
 //vector<wait_log_record> * wait_buffer;
 //boost::lockfree::queue<wait_log_record *> * wait_buffer[NUM_LOGGER];
 int * buffer_length;
-
+LogManager * _logger;
+uint64_t * preds;
 
 ParallelLogManager::ParallelLogManager()
 {
