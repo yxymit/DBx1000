@@ -12,7 +12,7 @@
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
-//#include <vector>
+#include <vector>
 //#include <unordered_set>
 #include "log_pending_table.h"
 
@@ -34,7 +34,7 @@ struct wait_log_record{
 //boost::lockfree::queue<wait_log_record *> * wait_buffer[NUM_LOGGER];
 int * buffer_length;
 LogManager * _logger;
-uint64_t * preds;
+vector<uint64_t> preds;
 
 ParallelLogManager::ParallelLogManager()
 {
@@ -153,7 +153,7 @@ void ParallelLogManager::recovery(uint32_t & num_keys, string * &table_names, ui
 {
     uint64_t txn_id;
     _logger[get_logger_id(thd_id)].readFromLog(&txn_id, &num_keys, &table_names, &keys, &lengths, &after_image, 
-      &num_preds, pred_txn_id);
+      &num_preds, &pred_txn_id);
     bool can_recover = false;
     preds.clear();
     for(unsigned i = 0; i < num_preds; i++) {
