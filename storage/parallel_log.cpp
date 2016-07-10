@@ -12,8 +12,8 @@
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
-#include <vector>
-#include <unordered_set>
+//#include <vector>
+//#include <unordered_set>
 #include "log_pending_table.h"
 
 #if LOG_ALGORITHM == LOG_PARALLEL
@@ -101,10 +101,11 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
   }
   //if(my_wait_log->preds.empty()) {
     //char * new_log_entry = new char[entry_size + pred_log_size + 4];
-	char new_log_entry[entry_size + pred_log_size];
+	char new_log_entry[entry_size + sizeof(int) + pred_log_size];
     //char * new_log_entry = new char[entry_size + pred_log_size];
     memcpy(new_log_entry, log_entry, entry_size);
-    uint32_t offset = entry_size;
+    memcpy(new_log_entry + entry_size, pred_size, sizeof(int));
+    uint32_t offset = entry_size + sizeof(int);
     for(int i = 0; i < pred_size; i++) {
       memcpy(new_log_entry + offset, &pred[i], sizeof(pred[i]));
       offset += sizeof(pred[i]);
