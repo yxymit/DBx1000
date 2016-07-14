@@ -19,7 +19,7 @@ public:
 		volatile bool pred_insert_done;
 		uint64_t txn_id;
 		TxnNode * next;
-		boost::lockfree::queue<TxnNode *> successorss{10};
+		boost::lockfree::queue<TxnNode *> successors{10};
 		
 		//vector<TxnNode *> successors;
 		volatile uint32_t semaphore;
