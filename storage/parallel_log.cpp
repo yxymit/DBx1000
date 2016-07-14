@@ -1,7 +1,8 @@
 #include "manager.h"
 #include "parallel_log.h"
 #include "log.h"
-//#include <boost/thread/thread.hpp>                                            
+#include "log_recover_table.h"  
+#include "log_pending_table.h"                                         
 #include <iostream>
 #include <fstream>
 #include <sys/time.h>
@@ -12,9 +13,8 @@
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
-#include <vector>
-//#include <unordered_set>
-#include "log_pending_table.h"
+#include <boost/lockfree/queue.hpp>
+#include <queue>
 
 #if LOG_ALGORITHM == LOG_PARALLEL
 
@@ -34,7 +34,6 @@ struct wait_log_record{
 //boost::lockfree::queue<wait_log_record *> * wait_buffer[NUM_LOGGER];
 int * buffer_length;
 LogManager * _logger;
-vector<uint64_t> preds;
 
 ParallelLogManager::ParallelLogManager()
 {
@@ -48,8 +47,6 @@ void ParallelLogManager::init()
   #if LOG_RECOVER
   _logger = new LogManager[NUM_LOGGER];
   //uint64_t * recovery_lsn = new uint64_t[NUM_LOGGER];
-  unordered_set<uint64_t> recovered_txn;
-  pthread_mutex_init(&lock, NULL);
   #else
   _logger = new LogManager[NUM_LOGGER];
   buffer_length = new int[NUM_LOGGER];
@@ -95,13 +92,13 @@ void
 ParallelLogManager::parallelLogTxn(char * log_entry, 
 								   uint32_t entry_size, 
 								   uint64_t * pred, 
-								   int pred_size, 
+								   uint32_t pred_size, 
 								   uint64_t txn_id, 
 								   int thd_id)
 {
   //wait_log_record * my_wait_log = new wait_log_record;
   uint32_t pred_log_size = 0;
-  for(int i = 0; i < pred_size; i++) {
+  for(auto i = 0; i < pred_size; i++) {
     //if(glob_manager->is_log_pending(pred[i]))
       //my_wait_log->preds.insert(pred[i]);
     pred_log_size += sizeof(pred[i]);
@@ -113,7 +110,7 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
     memcpy(new_log_entry, log_entry, entry_size);
     memcpy(new_log_entry + entry_size, &pred_size, sizeof(int));
     uint32_t offset = entry_size + sizeof(int);
-    for(int i = 0; i < pred_size; i++) {
+    for(auto i = 0; i < pred_size; i++) {
       memcpy(new_log_entry + offset, &pred[i], sizeof(pred[i]));
       offset += sizeof(pred[i]);
     }
@@ -148,23 +145,23 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
   }*/
 }
 
-void ParallelLogManager::recovery(uint32_t & num_keys, string * &table_names, uint64_t * &keys, uint32_t * &lengths, 
-    char ** &after_image, uint64_t &num_preds, uint64_t * &pred_txn_id, uint32_t thd_id)
+void ParallelLogManager::add_recover_txn(uint32_t & num_keys, string * &table_names, uint64_t * &keys, uint32_t * &lengths, 
+    char ** &after_image, uint32_t &predecessor_size, uint64_t * &predecessors, uint32_t thd_id)
 {
     uint64_t txn_id;
-    _logger[get_logger_id(thd_id)].readFromLog(&txn_id, &num_keys, &table_names, &keys, &lengths, &after_image, 
-      &num_preds, &pred_txn_id);
-    bool can_recover = false;
-    preds.clear();
+    _logger[get_logger_id(thd_id)].readFromLog(txn_id, num_keys, table_names, keys, lengths, 
+      after_image, predecessor_size, predecessors);
+    log_recover_table -> add_log_recover(txn_id, predecessors, predecessor_size, num_keys, 
+      table_names, keys, lengths, after_image);
+    //
+    /*bool can_recover = false;
+    
+    vector<uint64_t> preds;
     for(unsigned i = 0; i < num_preds; i++) {
       preds.push_back(pred_txn_id[i]);
     }
     while(! can_recover) {
         can_recover = true;
-        /*for(int i = 0; i < NUM_LOGGER; i++) {
-            if(recovery_lsn[i] < file_lsn[i])
-                can_recover = false;
-        }*/
         for(auto i = preds.begin(); i != preds.end(); ) {
           if(recovered_txn.find(*i) != recovered_txn.end()) {
             i++;
@@ -176,9 +173,8 @@ void ParallelLogManager::recovery(uint32_t & num_keys, string * &table_names, ui
     }
     pthread_mutex_lock(&lock);
     runTxn();
-    recovered_txn.emplace(txn_id);
+    //recovered_txn.emplace(txn_id);
     pthread_mutex_unlock(&lock);
-    //ATOM_ADD_FETCH(recovery_lsn[_logger_id], 1); 
+    //ATOM_ADD_FETCH(recovery_lsn[_logger_id], 1); */
 }
-
 #endif

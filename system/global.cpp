@@ -11,6 +11,7 @@
 #include "parallel_log.h"
 #include "batch_log.h"
 #include "log_pending_table.h"
+#include "log_recover_table.h"
 
 mem_alloc mem_allocator;
 Stats stats;
@@ -23,9 +24,10 @@ OptCC occ_man;
 LogManager log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
 BatchLog log_manager;
-#elif LOG_ALGORITHM == LOG_PARALLEL
+#elif (LOG_ALGORITHM == LOG_PARALLEL)
 ParallelLogManager log_manager; 
 LogPendingTable * log_pending_table;
+LogRecoverTable * log_recover_table;
 #endif
 
 #if CC_ALG == VLL

@@ -19,7 +19,7 @@ public:
 		volatile bool pred_insert_done;
 		uint64_t txn_id;
 		TxnNode * next;
-		boost::lockfree::queue<TxnNode *> successors{10};
+		boost::lockfree::queue<TxnNode *> successorss{10};
 		
 		//vector<TxnNode *> successors;
 		volatile uint32_t semaphore;
@@ -51,7 +51,7 @@ private:
 	uint32_t get_bucket_id(uint64_t txn_id);
 	uint32_t _num_buckets;
 	Bucket * _buckets;
-	hash<uint64_t> _Hash;
+	//hash<uint64_t> _Hash;
 	
 	TxnNode * find_txn(uint64_t txn_id);
 };

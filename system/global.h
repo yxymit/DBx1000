@@ -45,6 +45,7 @@ class LogManager;
 class BatchLog;
 class ParallelLogManager;
 class LogPendingTable;
+class LogRecoverTable;
 
 typedef uint32_t UInt32;
 typedef int32_t SInt32;
@@ -70,6 +71,7 @@ extern BatchLog log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL
 extern ParallelLogManager log_manager; 
 extern LogPendingTable * log_pending_table;
+extern LogRecoverTable * log_recover_table;
 #endif
 
 

@@ -11,6 +11,7 @@
 #include "log.h"
 #include "parallel_log.h"
 #include "log_pending_table.h"
+#include "log_recover_table.h"
 
 void * f(void *);
 
@@ -29,6 +30,7 @@ int main(int argc, char* argv[])
 	glob_manager = (Manager *) _mm_malloc(sizeof(Manager), 64);
 #if LOG_ALGORITHM == LOG_PARALLEL
 	log_pending_table = new LogPendingTable();
+	log_recover_table = new LogRecoverTable();
 #endif
 	new(glob_manager) Manager();
 	glob_manager->init();
