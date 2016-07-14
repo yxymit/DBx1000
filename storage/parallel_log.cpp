@@ -98,7 +98,7 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
 {
   //wait_log_record * my_wait_log = new wait_log_record;
   uint32_t pred_log_size = 0;
-  for(auto i = 0; i < pred_size; i++) {
+  for(uint32_t i = 0; i < pred_size; i++) {
     //if(glob_manager->is_log_pending(pred[i]))
       //my_wait_log->preds.insert(pred[i]);
     pred_log_size += sizeof(pred[i]);
@@ -110,7 +110,7 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
     memcpy(new_log_entry, log_entry, entry_size);
     memcpy(new_log_entry + entry_size, &pred_size, sizeof(int));
     uint32_t offset = entry_size + sizeof(int);
-    for(auto i = 0; i < pred_size; i++) {
+    for(uint32_t i = 0; i < pred_size; i++) {
       memcpy(new_log_entry + offset, &pred[i], sizeof(pred[i]));
       offset += sizeof(pred[i]);
     }

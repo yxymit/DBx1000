@@ -19,7 +19,7 @@ public:
         //pthread_mutex_t lock;
         uint64_t txn_id;
         TxnNode * next;
-        boost::lockfree::queue<TxnNode *> successors;{10};
+        boost::lockfree::queue<TxnNode *> successors{10};
         //queue<TxnNode *> successors;
         
         //vector<TxnNode *> successors;
@@ -50,7 +50,7 @@ public:
 
     Bucket * _buckets;
     queue<TxnNode *> * _free_nodes;
-    boost::lockfree::queue<TxnNode *> recover_ready_txns;{10};
+    boost::lockfree::queue<TxnNode *> recover_ready_txns{10};
     //queue<TxnNode *> recover_ready_txns;
 
     void add_log_recover(uint64_t txn_id, uint64_t * predecessors, uint32_t predecessor_size, 

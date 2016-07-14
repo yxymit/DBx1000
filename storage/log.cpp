@@ -272,7 +272,7 @@ LogManager::readFromLog(uint64_t &txn_id, uint32_t & num_keys, string * &table_n
       ss.read(after_image[i], lengths[i]);
     }
     ss.read((char*)&num_preds, sizeof(uint64_t));
-    for(int i = 0; i < num_preds; i++)
+    for(uint32_t i = 0; i < num_preds; i++)
     {
       ss.read((char*)&pred_txn_id[i], sizeof(uint64_t));
     }
