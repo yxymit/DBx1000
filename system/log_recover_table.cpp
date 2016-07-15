@@ -216,10 +216,10 @@ LogRecoverTable::remove_log_recover(TxnNode * node)
     PAUSE
     //COMPILER_BARRIER
     TxnNode * succ = NULL;
-    recover_ready_txn.push(node);
+    recover_ready_txns.push(node);
     node->recover_done = true;
     while (node->successors.pop(succ)) {
-        run_recover_txn(succ); 
+        remove_log_recover(succ); 
     }
     _free_nodes[glob_manager->get_thd_id()].push(node);
 }
