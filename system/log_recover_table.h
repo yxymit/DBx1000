@@ -31,6 +31,7 @@ public:
         uint32_t * lengths;
         char ** after_image;
         volatile bool recover_done;
+        volatile bool pred_insert_done;
     };
 
     class Bucket {

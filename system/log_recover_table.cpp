@@ -177,7 +177,7 @@ void LogRecoverTable::add_log_recover(uint64_t txn_id, uint64_t * predecessors, 
       new_node->lengths[i] = lengths[i];
       new_node->after_image[i] = after_image[i];
     }
-    
+    new_node->pred_insert_done = true;
     ATOM_SUB_FETCH(new_node->semaphore, 1);
 }
 LogRecoverTable::TxnNode * 
@@ -193,6 +193,7 @@ LogRecoverTable::add_empty_node(uint64_t txn_id)
     } else 
         new_node = new TxnNode(txn_id);
     new_node->recover_done = false;
+    new_node->pred_insert_done = false;
     ATOM_ADD_FETCH(new_node->semaphore, 1);
     uint32_t bid = get_bucket_id(txn_id);
     _buckets[bid].lock(true);
@@ -214,12 +215,12 @@ LogRecoverTable::remove_log_recover(TxnNode * node)
     while (node->semaphore > 0) 
     PAUSE
     //COMPILER_BARRIER
-    /*TxnNode * succ = NULL;
+    TxnNode * succ = NULL;
     recover_ready_txn.push(node);
     node->recover_done = true;
     while (node->successors.pop(succ)) {
-    run_recover_txn(succ); 
-    }*/
+        run_recover_txn(succ); 
+    }
     _free_nodes[glob_manager->get_thd_id()].push(node);
 }
 
