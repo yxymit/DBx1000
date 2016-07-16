@@ -19,6 +19,7 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	lock_ready = false;
 	ready_part = 0;
 	row_cnt = 0;
+	pred_size = 0;
 	wr_cnt = 0;
 	insert_cnt = 0;
 	accesses = (Access **) _mm_malloc(sizeof(Access *) * MAX_ROW_PER_TXN, 64);
@@ -135,7 +136,7 @@ void txn_man::cleanup(RC rc) {
 #if LOG_ALGORITHM == LOG_SERIAL
 			log_manager.logTxn(entry, size);
 #elif LOG_ALGORITHM == LOG_PARALLEL
-			log_manager.parallelLogTxn(entry, size, _predecessors, row_cnt, get_txn_id(), get_thd_id());
+			log_manager.parallelLogTxn(entry, size, _predecessors, pred_size, get_txn_id(), get_thd_id());
 #endif
 			uint64_t after_log_time = get_sys_clock();
 			INC_STATS(get_thd_id(), time_log, after_log_time - before_log_time);
@@ -143,6 +144,7 @@ void txn_man::cleanup(RC rc) {
 	}
 #endif
 	row_cnt = 0;
+	pred_size = 0;
 	wr_cnt = 0;
 	insert_cnt = 0;
 #if CC_ALG == DL_DETECT
@@ -172,7 +174,12 @@ row_t * txn_man::get_row(row_t * row, access_t type) {
 	
 	rc = row->get_row(type, this, accesses[ row_cnt ]->data);
 #if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
-	_predecessors[row_cnt] = accesses[ row_cnt ]->data->get_last_writer();
+	bool found = false;
+	for (int i = 0; i < pred_size; i ++ )  
+		if (_predecessors[pred_size] == accesses[ row_cnt ]->data->get_last_writer())
+			found = true;
+	if (!found)
+		_predecessors[pred_size ++] = accesses[ row_cnt ]->data->get_last_writer();
 	//printf("pred = %ld\n", _predecessors[row_cnt]);
 #endif
 	if (rc == Abort) {

@@ -88,6 +88,7 @@ public:
 	uint64_t 		end_ts;
 	// following are public for OCC
 	int 			row_cnt;
+	int 			pred_size;
 	int	 			wr_cnt;
 	Access **		accesses;
 	int 			num_accesses_alloc;
