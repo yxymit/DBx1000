@@ -145,14 +145,25 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
   }*/
 }
 
-void ParallelLogManager::add_recover_txn(uint32_t & num_keys, string * &table_names, uint64_t * &keys, uint32_t * &lengths, 
-    char ** &after_image, uint32_t &predecessor_size, uint64_t * &predecessors, uint32_t thd_id)
+void ParallelLogManager::add_recover_txn()
 {
     uint64_t txn_id;
-    _logger[get_logger_id(thd_id)].readFromLog(txn_id, num_keys, table_names, keys, lengths, 
-      after_image, predecessor_size, predecessors);
-    log_recover_table -> add_log_recover(txn_id, predecessors, predecessor_size, num_keys, 
-      table_names, keys, lengths, after_image);
+    uint32_t num_keys;
+    string * table_names;
+    uint64_t * keys;
+    uint32_t * lengths, 
+    char ** after_image;
+    uint32_t num_preds;
+    uint64_t * pred_txn_id;
+    uint32_t thd_id = glob_manager -> get_thd_id();
+    bool endfile = _logger[get_logger_id(thd_id)].readFromLog(txn_id, num_keys, table_names, keys, 
+      lengths, after_image, predecessor_size, predecessors);
+    while(!endfile) {
+      log_recover_table -> add_log_recover(txn_id, predecessors, predecessor_size, num_keys, 
+        table_names, keys, lengths, after_image);
+      endfile = _logger[get_logger_id(thd_id)].readFromLog(txn_id, num_keys, table_names, keys, 
+        lengths, after_image, predecessor_size, predecessors);
+    }
     //
     /*bool can_recover = false;
     

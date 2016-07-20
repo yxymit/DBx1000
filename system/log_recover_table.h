@@ -23,6 +23,7 @@ public:
         //queue<TxnNode *> successors;
         
         //vector<TxnNode *> successors;
+        // format : recover_done 1 bit | semaphore 31 bits
         volatile uint32_t semaphore;
         volatile uint32_t pred_size;
         uint32_t num_keys;
@@ -30,8 +31,10 @@ public:
         uint64_t * keys; 
         uint32_t * lengths;
         char ** after_image;
-        volatile bool recover_done;
-        volatile bool pred_insert_done;
+        void set_recover();
+        bool recover_done();
+        //volatile bool recover_done;
+        //volatile bool pred_insert_done;
     };
 
     class Bucket {
@@ -57,8 +60,8 @@ public:
     void add_log_recover(uint64_t txn_id, uint64_t * predecessors, uint32_t predecessor_size, 
         uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_image);
     TxnNode * add_empty_node(uint64_t txn_id);
-    void remove_log_recover(uint64_t txn_id);
-    void remove_log_recover(TxnNode * node);
+    void txn_pred_remover(uint64_t txn_id);
+    void txn_pred_remover(TxnNode * node);
     uint32_t get_size(); 
     uint32_t get_bucket_id(uint64_t txn_id);
 private:

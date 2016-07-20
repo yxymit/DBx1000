@@ -15,21 +15,10 @@ LogRecoverTable::Bucket::Bucket()
 void 
 LogRecoverTable::Bucket::insert(TxnNode * node)
 {
-    // TODO. can use read lock for insert.
-    /*
-    lock(false);
-    TxnNode * f;
-    do {
-        f = first;
-        node->next = f;
-    } while (!ATOM_CAS(first, f, node));
-    //first = node;
-    unlock(false);
-    */
-    lock(true);
+    //lock(true);
     node->next = first;
     first = node;
-    unlock(true);
+    //unlock(true);
 }
     
 LogRecoverTable::TxnNode * 
@@ -115,15 +104,15 @@ LogRecoverTable::TxnNode *
 LogRecoverTable::find_txn(uint64_t txn_id)
 {
     //uint64_t t1 = get_sys_clock();
-    uint32_t bid = get_bucket_id(txn_id);
-    _buckets[bid].lock(false);
+    //uint32_t bid = get_bucket_id(txn_id);
+    //_buckets[bid].lock(false);
     //printf("[thd=%ld] bid = %d, txn_id=%ld\n", glob_manager->get_thd_id(), bid, txn_id);
-    TxnNode * node = _buckets[bid].first;
+    TxnNode * node = _buckets[get_bucket_id(txn_id)].first;
     while (node != NULL && node->txn_id != txn_id) 
         node = node->next;
     if (node)
         ATOM_ADD_FETCH(node->semaphore, 1);
-    _buckets[bid].unlock(false);
+    //_buckets[bid].unlock(false);
     //INC_STATS(glob_manager->get_thd_id(), debug2, get_sys_clock() - t1);
     return node;
 }
@@ -132,40 +121,43 @@ void LogRecoverTable::add_log_recover(uint64_t txn_id, uint64_t * predecessors, 
     uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_image)
 {
     uint32_t bid = get_bucket_id(txn_id);
-    _buckets[bid].lock(false);
+    _buckets[bid].lock(true);
     TxnNode * new_node = find_txn(txn_id); 
     // IF Transaction does not already exist, create a node for the transaction
     if(new_node == NULL) {
-      _buckets[bid].lock(true);
+      //_buckets[bid].lock(true);
       if (!_free_nodes[glob_manager->get_thd_id()].empty()) {
         new_node = _free_nodes[glob_manager->get_thd_id()].front();
         _free_nodes[glob_manager->get_thd_id()].pop();
         new_node->txn_id = txn_id;
         //assert(new_node->pred_size == 0);
         //assert(new_node->pred_insert_done == false);
-      } else 
-      new_node = new TxnNode(txn_id);
-      ATOM_ADD_FETCH(new_node->semaphore, 1);
-      _buckets[bid].unlock(true);
+      } else {
+        new_node = new TxnNode(txn_id);
+      }
+      ATOM_ADD_FETCH(new_node->pred_size, 1);
+      _buckets[bid].insert(new_node);
+      //_buckets[bid].unlock(true);
     }
-    _buckets[bid].insert(new_node);
-    _buckets[bid].unlock(false);
+    _buckets[bid].unlock(true);
     // PUTTING in the current txn as a successor
     TxnNode * pred_node;
     for(uint32_t i = 0; i < predecessor_size; i++) {
       if (predecessors[i] != 0) {
+        _buckets[get_bucket_id(predecessors[i])].lock(true);
         pred_node = find_txn(predecessors[i]);
         if(pred_node == NULL) {
             pred_node = add_empty_node(predecessors[i]);
         }
-        if(!pred_node->recover_done) {
+        _buckets[get_bucket_id(predecessors[i])].unlock(true);
+        if(!pred_node->recover_done()) {
             ATOM_ADD_FETCH(new_node->pred_size, 1);
             pred_node->successors.push(new_node);
         }
         ATOM_SUB_FETCH(pred_node->semaphore, 1);
       }
     }
-    new_node->recover_done = false;
+    //new_node->recover_done = false;
     new_node->num_keys = num_keys;
     new_node->table_names = new string[num_keys];
     new_node->keys = new uint64_t[num_keys];
@@ -177,9 +169,10 @@ void LogRecoverTable::add_log_recover(uint64_t txn_id, uint64_t * predecessors, 
       new_node->lengths[i] = lengths[i];
       new_node->after_image[i] = after_image[i];
     }
-    new_node->pred_insert_done = true;
-    ATOM_SUB_FETCH(new_node->semaphore, 1);
+    //new_node->pred_insert_done = true;
+    txn_pred_remover(new_node);
 }
+
 LogRecoverTable::TxnNode * 
 LogRecoverTable::add_empty_node(uint64_t txn_id)
 {
@@ -192,45 +185,52 @@ LogRecoverTable::add_empty_node(uint64_t txn_id)
         assert(new_node->pred_size == 0);
     } else 
         new_node = new TxnNode(txn_id);
-    new_node->recover_done = false;
-    new_node->pred_insert_done = false;
+    //new_node->recover_done = false;
+    //new_node->pred_insert_done = false;
     ATOM_ADD_FETCH(new_node->semaphore, 1);
-    uint32_t bid = get_bucket_id(txn_id);
-    _buckets[bid].lock(true);
+    ATOM_ADD_FETCH(new_node->pred_size, 1);
+    //uint32_t bid = get_bucket_id(txn_id);
+    //_buckets[bid].lock(true);
 //uint64_t t2 = get_sys_clock();
-    _buckets[bid].insert(new_node);
-    _buckets[bid].unlock(true);
+    _buckets[get_bucket_id(txn_id)].insert(new_node);
+    //_buckets[bid].unlock(true);
     return new_node;
 //INC_STATS(glob_manager->get_thd_id(), debug2, get_sys_clock() - t2);
 //INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t1);
     //INC_STATS(txn_id % g_thread_cnt, time_log, get_sys_clock() - start_time);
 }
+
 void
-LogRecoverTable::remove_log_recover(TxnNode * node)
+LogRecoverTable::txn_pred_remover(TxnNode * node)
 {
     ATOM_SUB_FETCH(node->pred_size, 1);
     if (node->pred_size > 0)
-    return;
+        return;
     // wait for all successors to be inserted
-    while (node->semaphore > 0) 
-    PAUSE
+    /*while (node->semaphore > 0) 
+        PAUSE*/
     //COMPILER_BARRIER
-    TxnNode * succ = NULL;
     recover_ready_txns.push(node);
-    node->recover_done = true;
+    //_free_nodes[glob_manager->get_thd_id()].push(node);
+}
+
+//Called by the thread that redoes transactions after recovery is done. 
+void
+LogRecoverTable::txn_recover_done(TxnNode * node) {
+    node->set_recover();
+    TxnNode * succ = NULL;
     while (node->successors.pop(succ)) {
-        remove_log_recover(succ); 
+        txn_pred_remover(succ); 
     }
-    _free_nodes[glob_manager->get_thd_id()].push(node);
 }
 
 void
-LogRecoverTable::remove_log_recover(uint64_t txn_id)
+LogRecoverTable::txn_pred_remover(uint64_t txn_id)
 {   
     //uint32_t bid = get_bucket_id(txn_id);
     TxnNode * node = find_txn(txn_id);
     ATOM_SUB_FETCH(node->semaphore, 1);
-    remove_log_recover(node);
+    txn_pred_remover(node);
 }
 uint32_t 
 LogRecoverTable::get_bucket_id(uint64_t txn_id)
@@ -252,4 +252,17 @@ LogRecoverTable::get_size()
         }
     }
     return size;
+}
+
+void
+LogRecoverTable::TxnNode::set_recover() {
+    uint32_t src_phore = 0; 
+    uint32_t target_phore = (1u << 31);
+    while(!ATOM_CAS(semaphore, src_phore, target_phore))
+        PAUSE 
+}
+
+bool
+LogRecoverTable::TxnNode::recover_done() {
+    return (((1u << 31) & semaphore) != 0);
 }

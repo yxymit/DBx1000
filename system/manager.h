@@ -58,6 +58,6 @@ private:
 	// set of txns in the middle of logging process 
 	// TODO. make this lock free.
 	//LogPendingTable * 	_log_pending_table;
-	pthread_mutex_t 	_log_mutex;
+	//pthread_mutex_t 	_log_mutex;
 	//std::set<uint64_t>	_log_pending_set;
 };

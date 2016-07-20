@@ -17,8 +17,7 @@ class ParallelLogManager
     //void wait_log(uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, 
       //uint32_t * lengths, char ** after_images, uint64_t * file_lsn);
     //bool canParallelLog(uint64_t * lsn);
-   void add_recover_txn(uint32_t & num_keys, string * &table_names, uint64_t * &keys, uint32_t * &lengths, 
-    char ** &after_image, uint32_t &num_preds, uint64_t * &pred_txn_id, uint32_t thd_id);
+   void add_recover_txn();
 
   private:
     //void checkWait(int logger_id);
