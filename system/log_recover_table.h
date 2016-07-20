@@ -62,6 +62,7 @@ public:
     TxnNode * add_empty_node(uint64_t txn_id);
     void txn_pred_remover(uint64_t txn_id);
     void txn_pred_remover(TxnNode * node);
+    void txn_recover_done(TxnNode * node);
     uint32_t get_size(); 
     uint32_t get_bucket_id(uint64_t txn_id);
 private:
