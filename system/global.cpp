@@ -20,15 +20,22 @@ Manager * glob_manager;
 Query_queue * query_queue;
 Plock part_lock_man;
 OptCC occ_man;
+
+// Logging
 #if LOG_ALGORITHM == LOG_SERIAL
-LogManager log_manager;
+LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
-BatchLog log_manager;
-#elif (LOG_ALGORITHM == LOG_PARALLEL)
-ParallelLogManager log_manager; 
+BatchLog * log_manager;
+#elif LOG_ALGORITHM == LOG_PARALLEL
+ParallelLogManager * log_manager; 
 LogPendingTable * log_pending_table;
 LogRecoverTable * log_recover_table;
+boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
+//uint32_t num_threads_done;  
 #endif
+bool g_log_recover = LOG_RECOVER;
+uint32_t g_num_logger = NUM_LOGGER;
+
 
 #if CC_ALG == VLL
 VLLMan vll_man;

@@ -20,6 +20,7 @@
 #include <time.h> 
 #include <sys/time.h>
 #include <math.h>
+#include <boost/lockfree/queue.hpp>
 
 #include "pthread.h"
 #include "config.h"
@@ -46,6 +47,7 @@ class BatchLog;
 class ParallelLogManager;
 class LogPendingTable;
 class LogRecoverTable;
+class RecoverState; 
 
 typedef uint32_t UInt32;
 typedef int32_t SInt32;
@@ -64,16 +66,21 @@ extern Manager * glob_manager;
 extern Query_queue * query_queue;
 extern Plock part_lock_man;
 extern OptCC occ_man;
+
+// Logging
 #if LOG_ALGORITHM == LOG_SERIAL
-extern LogManager log_manager;
+extern LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
-extern BatchLog log_manager;
+extern BatchLog * log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL
-extern ParallelLogManager log_manager; 
+extern ParallelLogManager * log_manager; 
 extern LogPendingTable * log_pending_table;
 extern LogRecoverTable * log_recover_table;
+extern boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
+//extern uint32_t num_threads_done;  
 #endif
-
+extern bool g_log_recover;
+extern uint32_t g_num_logger;
 
 #if CC_ALG == VLL
 extern VLLMan vll_man;

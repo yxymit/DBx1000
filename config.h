@@ -4,7 +4,7 @@
 /***********************************************/
 // Simulation + Hardware
 /***********************************************/
-#define THREAD_CNT					4
+#define THREAD_CNT					16
 #define PART_CNT					1 
 // each transaction only accesses 1 virtual partition. But the lock/ts manager and index are not aware of such partitioning. VIRTUAL_PART_CNT describes the request distribution and is only used to generate queries. For HSTORE, VIRTUAL_PART_CNT should be the same as PART_CNT.
 #define VIRTUAL_PART_CNT			1
@@ -99,14 +99,16 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM               LOG_PARALLEL //SERIAL
-#define LOG_COMMAND					false
-#define LOG_REDO					true 
+#define LOG_ALGORITHM LOG_PARALLEL
+#define LOG_TYPE					LOG_DATA	
+//#define LOG_COMMAND					false
+#define LOG_REDO					false //true 
 #define LOG_RAM_DISK				true
-#define LOG_RECOVER					false
+#define LOG_NO_FLUSH				true
+#define LOG_RECOVER					false //false //true 
 #define LOG_BATCH_TIME				10 // in ms
 #define LOG_PARALLEL_BUFFER_FILL	false 
-#define NUM_LOGGER					16 //THREAD_CNT
+#define NUM_LOGGER					4 
 
 /***********************************************/
 // Benchmark
@@ -114,12 +116,12 @@
 // max number of rows touched per transaction
 #define MAX_ROW_PER_TXN				64
 #define QUERY_INTVL 				1UL
-#define MAX_TXN_PER_PART 			100000
+#define MAX_TXN_PER_PART 			1000000
 #define FIRST_PART_LOCAL 			true
 #define MAX_TUPLE_SIZE				1024 // in bytes
 // ==== [YCSB] ====
 #define INIT_PARALLELISM			32
-#define SYNTH_TABLE_SIZE 			(1024 * 1024 * 1)
+#define SYNTH_TABLE_SIZE 			(1024 * 1020 * 1)
 #define ZIPF_THETA 					0
 #define READ_PERC 					0
 #define WRITE_PERC 					1 //0.5
@@ -223,7 +225,12 @@ extern TestCases					g_test_case;
 #define BUFFER_SIZE                                     10
 
 // Logging Algorithm
-#define LOG_SERIAL                  1
-#define LOG_BATCH                   2
-#define LOG_PARALLEL                3
+#define LOG_NO						1
+#define LOG_SERIAL                  2
+#define LOG_BATCH                   3
+#define LOG_PARALLEL                4
+// Logging type
+#define LOG_DATA					1
+#define LOG_COMMAND					2
+
 #endif

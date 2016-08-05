@@ -11,6 +11,9 @@
 #include "index_hash.h"
 #include "log.h"
 #include "parallel_log.h"
+#include "log_recover_table.h"
+#include "log_pending_table.h"
+#include "manager.h"
 
 void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	this->h_thd = h_thd;
@@ -48,7 +51,7 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	_cur_tid = 0;
 #endif
 
-#if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
+#if LOG_ALGORITHM == LOG_PARALLEL
 	_predecessors = new uint64_t[MAX_ROW_PER_TXN];
 #endif
 }
@@ -123,23 +126,27 @@ void txn_man::cleanup(RC rc) {
 		}
 	}
 	// Logging
-#if LOG_REDO
+#if LOG_ALGORITHM != NO_LOG
 	if (rc == RCOK)
 	{
+
         if (wr_cnt > 0) {
 			uint64_t before_log_time = get_sys_clock();
 			uint32_t size = get_log_entry_size();			
 			char entry[size];// = NULL;
-			create_log_entry(entry);
-			// call log_manager to log the entry.
-			// TODO for parallel logging, _predecessors stores the last writers.  
+			create_log_entry(size, entry);
 #if LOG_ALGORITHM == LOG_SERIAL
-			log_manager.logTxn(entry, size);
+			log_manager->logTxn(entry, size);
+			INC_STATS(get_thd_id(), latency, get_sys_clock() - _txn_start_time);
 #elif LOG_ALGORITHM == LOG_PARALLEL
-			log_manager.parallelLogTxn(entry, size, _predecessors, pred_size, get_txn_id(), get_thd_id());
-#endif
+			INC_STATS(get_thd_id(), latency, - _txn_start_time);
+	uint64_t t = get_sys_clock();
+			_txn_node = log_pending_table->add_log_pending( get_txn_id(), _predecessors, row_cnt );
+	INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t);
+			log_manager->parallelLogTxn(entry, size, _predecessors, pred_size, _txn_node, get_thd_id());
 			uint64_t after_log_time = get_sys_clock();
 			INC_STATS(get_thd_id(), time_log, after_log_time - before_log_time);
+#endif
 		}
 	}
 #endif
@@ -173,14 +180,16 @@ row_t * txn_man::get_row(row_t * row, access_t type) {
 	}
 	
 	rc = row->get_row(type, this, accesses[ row_cnt ]->data);
-#if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
-	bool found = false;
-	for (int i = 0; i < pred_size; i ++ )  
-		if (_predecessors[pred_size] == accesses[ row_cnt ]->data->get_last_writer())
-			found = true;
-	if (!found)
-		_predecessors[pred_size ++] = accesses[ row_cnt ]->data->get_last_writer();
-	//printf("pred = %ld\n", _predecessors[row_cnt]);
+#if LOG_ALGORITHM == LOG_PARALLEL
+	uint64_t last_writer = accesses[ row_cnt ]->data->get_last_writer();
+	if (last_writer != 0) {
+		bool found = false;
+		for (int i = 0; i < pred_size; i ++ ) 
+			if (_predecessors[i] == last_writer)
+				found = true;
+		if (!found)
+			_predecessors[pred_size ++] = last_writer;
+	}
 #endif
 	if (rc == Abort) {
 		return NULL;
@@ -279,93 +288,175 @@ txn_man::release() {
 	mem_allocator.free(accesses, 0);
 }
 
+// Recovery for data logging
 void 
 txn_man::recover() {
-	/*
-	// call readFromLog()
-	uint32_t num_keys;
-	string * table_names;
-	uint64_t * keys;
-	uint32_t * lengths;
-	char ** after_images;
-	uint64_t starttime = get_sys_clock();
+#if LOG_ALGORITHM == LOG_SERIAL
+	serial_recover();
+#elif LOG_ALGORITHM == LOG_PARALLEL
+	parallel_recover();
+#endif
+}
+
+void 
+txn_man::serial_recover() {
+#if LOG_ALGORITHM == LOG_SERIAL 
+	if (get_thd_id() != 0)
+		return;
+
     uint64_t num_records = 0;
-	//ycsb_wl * wl = (ycsb_wl *) h_wl;
-	while (log_manager.readFromLog(num_keys, table_names, keys, lengths, after_images))
+	uint64_t starttime = get_sys_clock();
+	
+	// recover_state can be reused by all txns
+	RecoverState * recover_state = new RecoverState;
+//	recover_state.table_ids = new uint32_t [MAX_ROW_PER_TXN];
+//	recover_state.keys = new uint64_t [MAX_ROW_PER_TXN];
+//	recover_state.lengths = new uint32_t [MAX_ROW_PER_TXN];
+//	recover_state.after_image = new char * [MAX_ROW_PER_TXN];
+	char * entry = log_manager->readFromLog(); 
+	while (entry) 
 	{
         num_records ++;
-        assert(num_keys > 0); 
-		// update the database using these information.
-		// Here is the (pseudo) code:
-		//
-		// for each key in keys	:
-		// for (uint32_t i = 0; i < num_keys; i++) {
-		//   // Find the row using the key.
-		//   itemid_t * m_item = index_read(wl->the_index, keys[i], 0);
-		//   row_t * row = ((row_t *)m_item->location);
-		//   char * data = row->get_data();
-		//   memcpy(data, after_images[i], lengths[i]);
-		// }
+		recover_from_log_entry(entry, recover_state);
+		recover_txn(recover_state);
+		//if (num_records % 100000 == 0)
+		//	printf("num_records=%ld\n", num_records);
+		entry = log_manager->readFromLog(); 
 	}
 	uint64_t timespan = get_sys_clock() - starttime;
     INC_STATS(get_thd_id(), txn_cnt, num_records);
-	INC_STATS(get_thd_id(), time_man, timespan);
-	*/
+	INC_STATS(get_thd_id(), run_time, timespan);
+#endif
+}
+
+void 
+txn_man::parallel_recover() {
+#if LOG_ALGORITHM == LOG_PARALLEL
+	uint64_t starttime = get_sys_clock();
+	if (get_thd_id() < g_num_logger) {
+		// Logging thread. 
+		// Reads from log file and insert to the recovery graph. 
+		
+		char * entry = NULL;
+		uint64_t * predecessors = NULL;
+		uint32_t num_preds = 0;
+		log_manager->readFromLog(entry, predecessors, num_preds);
+		while (entry != NULL) {
+			// TODO avoid calling new too often. recycle through a queue.
+			RecoverState * recover_state = new RecoverState;
+			recover_from_log_entry(entry, recover_state);
+			log_recover_table->add_log_recover(recover_state, predecessors, num_preds); 
+			log_manager->readFromLog(entry, predecessors, num_preds);
+		}
+		ATOM_ADD_FETCH(ParallelLogManager::num_threads_done, 1);
+	} else {
+		// Execution thread.
+		// recover transactions that are ready 
+		uint32_t logger_id = get_thd_id() % g_num_logger; 
+		RecoverState * recover_state; 
+		uint64_t num_records = 0;
+		while (true) {
+			if (txns_ready_for_recovery[logger_id]->pop(recover_state)) {
+				recover_txn(recover_state);
+				log_recover_table->txn_recover_done(recover_state->txn_node);
+				// TODO. recycle recover_state.
+				delete recover_state;
+				num_records ++;
+			} else if (ParallelLogManager::num_threads_done < g_num_logger)
+				PAUSE
+			else 
+				break;
+		}
+    	INC_STATS(get_thd_id(), txn_cnt, num_records);
+	}
+	INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
+#endif
 }
 
 uint32_t
 txn_man::get_log_entry_size()
 {
-  uint32_t buffsize = 0;
-  buffsize += sizeof(txn_id) + sizeof(wr_cnt);
-  // for table names
-  // TODO. right now, only store tableID
-  buffsize += sizeof(uint32_t) * wr_cnt;
-  // for keys
-  buffsize += sizeof(uint64_t) * wr_cnt;
-  // for data length
-  buffsize += sizeof(uint32_t) * wr_cnt; 
-  // for data
-  for (int i=0; i < wr_cnt; i++)
-    buffsize += accesses[i]->orig_row->get_tuple_size();
-  return buffsize;  
+	uint32_t buffsize = 0;
+  	// size, txn_id and wr_cnt
+	buffsize += sizeof(uint32_t) + sizeof(txn_id) + sizeof(wr_cnt);
+  	// for table names
+  	// TODO. right now, only store tableID
+  	buffsize += sizeof(uint32_t) * wr_cnt;
+  	// for keys
+  	buffsize += sizeof(uint64_t) * wr_cnt;
+  	// for data length
+  	buffsize += sizeof(uint32_t) * wr_cnt; 
+  	// for data
+  	for (int i=0; i < wr_cnt; i++)
+    	buffsize += accesses[i]->orig_row->get_tuple_size();
+  	return buffsize;  
 }
 
 void 
-txn_man::create_log_entry(char * entry)
+txn_man::create_log_entry(uint32_t size, char * entry)
 {
-  uint32_t offset = 0;
-  memcpy(entry + offset, &txn_id, sizeof(txn_id));
-  offset += sizeof(txn_id);
-  memcpy(entry + offset, &wr_cnt, sizeof(wr_cnt));
-  offset += sizeof(wr_cnt);
-  // table IDs
-  for(int j = 0; j < wr_cnt; j++) { 
-    // TODO all tables have ID = 0
-    uint32_t table_id = 0;
-    memcpy(entry + offset, &table_id, sizeof(table_id));
-    offset += sizeof(table_id);
-  }
-  // keys
-  for (int j=0; j < wr_cnt; j++)
-  {
-	uint64_t key = accesses[j]->orig_row->get_primary_key();
-    memcpy(entry + offset, &key, sizeof(key));
-    offset += sizeof(key);
-  }
-  for (int j=0; j < wr_cnt; j++)
-  {
-    uint32_t length = accesses[j]->orig_row->get_tuple_size();
-    memcpy(entry + offset, &length, sizeof(length));
-    offset += sizeof(length);
-  }
-  for (int j=0; j < wr_cnt; j++)
-  {
-	char * data = accesses[j]->data->get_data();
-    uint32_t length = accesses[j]->orig_row->get_tuple_size();
-    memcpy(entry + offset, data, length);
-    offset += length;
-  }
-  //M_ASSERT(offset == buffsize, "offset=%d, buffsize=%d\n", offset, buffsize);
+  	uint32_t offset = 0;
+	memcpy(entry + offset, &size, sizeof(size));
+	offset += sizeof(size);
+	memcpy(entry + offset, &txn_id, sizeof(txn_id));
+	offset += sizeof(txn_id);
+	memcpy(entry + offset, &wr_cnt, sizeof(wr_cnt));
+	offset += sizeof(wr_cnt);
+  	// table IDs
+  	for(int j = 0; j < wr_cnt; j++) { 
+    	// TODO all tables have ID = 0
+	    uint32_t table_id = 0;
+    	memcpy(entry + offset, &table_id, sizeof(table_id));
+	    offset += sizeof(table_id);
+  	}
+	// keys
+  	for (int j=0; j < wr_cnt; j++)
+ 	{
+		uint64_t key = accesses[j]->orig_row->get_primary_key();
+	    memcpy(entry + offset, &key, sizeof(key));
+    	offset += sizeof(key);
+  	}
+  	// data length
+  	for (int j=0; j < wr_cnt; j++)
+  	{
+    	uint32_t length = accesses[j]->orig_row->get_tuple_size();
+	    memcpy(entry + offset, &length, sizeof(length));
+    	offset += sizeof(length);
+  	}
+  	// data
+  	for (int j=0; j < wr_cnt; j++)
+  	{
+		char * data = accesses[j]->data->get_data();
+	    uint32_t length = accesses[j]->orig_row->get_tuple_size();
+    	memcpy(entry + offset, data, length);
+	    offset += length;
+  	}
+  	assert( offset == size );
 }
 
+void
+txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state)
+{
+	char * ptr = entry;
+	uint32_t size = *(uint32_t *)entry;
+	ptr += sizeof(uint32_t);
+	recover_state->txn_id = *(uint64_t *)ptr;
+	ptr += sizeof(uint64_t);
+	uint32_t num_keys = *(uint32_t *)ptr;
+	recover_state->num_keys = num_keys; 
+	ptr += sizeof(uint32_t);
+
+	memcpy(recover_state->table_ids, ptr, sizeof(uint32_t) * num_keys);
+	ptr += sizeof(uint32_t) * num_keys;
+	memcpy(recover_state->keys, ptr, sizeof(uint64_t) * num_keys);
+	ptr += sizeof(uint64_t) * num_keys;
+	memcpy(recover_state->lengths, ptr, sizeof(uint32_t) * num_keys);
+	ptr += sizeof(uint32_t) * num_keys;
+	// Since we are using RAM disk and the after images are readonly,
+	// we don't copy the after_image to recover_state, instead, we just copy the pointer
+	for (uint32_t i = 0; i < num_keys; i ++) {
+		recover_state->after_image[i] = ptr;
+		ptr += recover_state->lengths[i];
+	}
+	assert(size == (uint64_t)(ptr - entry));
+}

@@ -22,6 +22,12 @@ void print_usage() {
 	printf("\t-GuINT      ; TS_BATCH_NUM\n");
 	
 	printf("\t-o STRING   ; output file\n\n");
+	
+	printf("[Logging]:\n");
+	printf("\t-LbINT      ; BUFFER_SIZE\n");
+	printf("\t-LrINT      ; LOG_RECOVER\n");
+	printf("\t-LnINT      ; NUM_LOGGER\n");
+	
 	printf("  [YCSB]:\n");
 	printf("\t-cINT       ; PART_PER_TXN\n");
 	printf("\t-eINT       ; PERC_MULTI_PART\n");
@@ -38,7 +44,6 @@ void print_usage() {
 	printf("  [TEST]:\n");
 	printf("\t-Ar         ; Test READ_WRITE\n");
 	printf("\t-Ac         ; Test CONFLIT\n");
-	printf("\t-LbINT      ; BUFFER_SIZE\n");
 }
 
 void parser(int argc, char * argv[]) {
@@ -106,11 +111,16 @@ void parser(int argc, char * argv[]) {
 			if (argv[i][2] == 'c')
 				g_test_case = CONFLICT;
 		}
+		// Logging
 		else if (argv[i][1] == 'L'){
-		  if (argv[i][2] == 'b'){
-		    g_buffer_size = atoi( &argv[i][3]);
-		    cout << g_buffer_size;
-		  }
+			if (argv[i][2] == 'b')
+				g_buffer_size = atoi( &argv[i][3]);
+			else if (argv[i][2] == 'r') {
+				char c = argv[i][3];
+				assert(c == '0' || c == '1');
+				g_log_recover = (c == '1')? true : false;
+			} else if (argv[i][2] == 'n') 
+				g_num_logger = atoi( &argv[i][3] );
 		}
 		else if (argv[i][1] == 'o') {
 			i++;

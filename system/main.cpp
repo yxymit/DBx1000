@@ -24,14 +24,23 @@ int main(int argc, char* argv[])
 {
 	parser(argc, argv);
 	
-	log_manager.init();
+#if LOG_ALGORITHM == LOG_SERIAL
+	log_manager = new LogManager;
+#elif LOG_ALGORITHM == LOG_PARALLEL 
+	log_manager = new ParallelLogManager;
+	log_pending_table = new LogPendingTable();
+	log_recover_table = new LogRecoverTable();
+	txns_ready_for_recovery = new boost::lockfree::queue<RecoverState *>  * [g_num_logger]; 
+	for (uint32_t i = 0; i < g_num_logger; i ++)
+		txns_ready_for_recovery[i] = new boost::lockfree::queue<RecoverState *>{100};
+#endif
+#if LOG_ALGORITHM != LOG_NO	
+	log_manager->init();
+#endif
+
 	mem_allocator.init(g_part_cnt, MEM_SIZE / g_part_cnt); 
 	stats.init();
 	glob_manager = (Manager *) _mm_malloc(sizeof(Manager), 64);
-#if LOG_ALGORITHM == LOG_PARALLEL
-	log_pending_table = new LogPendingTable();
-	log_recover_table = new LogRecoverTable();
-#endif
 	new(glob_manager) Manager();
 	glob_manager->init();
 	if (g_cc_alg == DL_DETECT) 
@@ -59,7 +68,7 @@ int main(int argc, char* argv[])
 		m_thds[i] = (thread_t *) _mm_malloc(sizeof(thread_t), 64);
 	// query_queue should be the last one to be initialized!!!
 	// because it collects txn latency
-	if (!LOG_RECOVER) {
+	if (!g_log_recover) {
 		query_queue = (Query_queue *) _mm_malloc(sizeof(Query_queue), 64);
 		query_queue->init(m_wl);
 		printf("query_queue initialized!\n");
@@ -110,6 +119,9 @@ int main(int argc, char* argv[])
 	cout << "PASS! SimTime = " << endtime - starttime << endl;
 	if (STATS_ENABLE)
 		stats.print();
+#if LOG_ALGORITHM != LOG_NO	
+	delete log_manager;
+#endif
     return 0;
 }
 

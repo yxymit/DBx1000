@@ -53,7 +53,6 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 				rc = Abort;
 				goto final;
 			}
-
 			// Computation //
 			// Only do computation when there are more than 1 requests.
             if (m_query->request_cnt > 1) {
@@ -67,8 +66,6 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 					*(uint64_t *)(&data[0]) = fval + 1;
                 } 
             }
-
-
 			iteration ++;
 			if (req->rtype == RD || req->rtype == WR || iteration == req->scan_len)
 				finish_req = true;
@@ -78,5 +75,20 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 final:
 	rc = finish(rc);
 	return rc;
+}
+
+void 
+ycsb_txn_man::recover_txn(RecoverState * recover_state)
+{
+	for (uint32_t i = 0; i < recover_state->num_keys; i ++) {
+		uint32_t table_id = recover_state->table_ids[i];
+		M_ASSERT(table_id == 0, "table_id=%d\n", table_id);
+		uint64_t key = recover_state->keys[i];
+		
+		itemid_t * m_item = index_read(_wl->the_index, key, 0);
+		row_t * row = ((row_t *)m_item->location);
+		
+		row->set_value(0, recover_state->after_image[i], recover_state->lengths[i]);
+	}
 }
 

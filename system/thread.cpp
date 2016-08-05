@@ -56,12 +56,11 @@ RC thread_t::run() {
 	uint64_t thd_txn_id = 1;
 	UInt64 txn_cnt = 0;
 
-	if (LOG_RECOVER) {
-        if (get_thd_id() == 0)
-		    m_txn->recover();
+	if (g_log_recover) {
+        //if (get_thd_id() == 0)
+		m_txn->recover();
 		return FINISH;
 	}
-
 
 	while (true) {
 		ts_t starttime = get_sys_clock();
@@ -101,6 +100,7 @@ RC thread_t::run() {
 			}
 		}
 		INC_STATS(_thd_id, time_query, get_sys_clock() - starttime);
+		m_txn->set_start_time(get_sys_clock());
 		m_txn->abort_cnt = 0;
 //#if CC_ALG == VLL
 //		_wl->get_txn_man(m_txn, this);
@@ -162,7 +162,7 @@ RC thread_t::run() {
 		ts_t endtime = get_sys_clock();
 		uint64_t timespan = endtime - starttime;
 		INC_STATS(get_thd_id(), run_time, timespan);
-		INC_STATS(get_thd_id(), latency, timespan);
+		//INC_STATS(get_thd_id(), latency, timespan);
 		//stats.add_lat(get_thd_id(), timespan);
 		if (rc == RCOK) {
 			INC_STATS(get_thd_id(), txn_cnt, 1);

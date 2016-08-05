@@ -32,7 +32,7 @@
 /************************************************/
 #define M_ASSERT(cond, ...) \
 	if (!(cond)) {\
-		printf("ASSERTION FAILURE [%s : %d] ", \
+		printf("ASSERTION FAILURE [%s : %d]\n", \
 		__FILE__, __LINE__); \
 		printf(__VA_ARGS__);\
 		assert(false);\

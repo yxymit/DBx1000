@@ -102,17 +102,20 @@ public:
 	// For LOGGING
 	void 			recover();
 
+	// Stats
+	void 			set_start_time(uint64_t time) { _txn_start_time = time; }
+
 protected:	
 	void 			insert_row(row_t * row, table_t * table);
 private:
 	// insert rows
 	uint64_t 		insert_cnt;
 	row_t * 		insert_rows[MAX_ROW_PER_TXN];
-	txnid_t 		txn_id;
+	uint64_t 		txn_id;
 	ts_t 			timestamp;
 
 #if CC_ALG == TICTOC || CC_ALG == SILO
-	bool _write_copy_ptr;
+	bool 			_write_copy_ptr;
 	bool 			_pre_abort;
 	bool 			_validation_no_wait;
 #endif
@@ -128,13 +131,25 @@ private:
 	RC 				validate_hekaton(RC rc);
 #endif
 
+	// Logging
+	void * 			_txn_node; // can be converted to LogPendingTable::TxnNode.
+	void 			serial_recover();
+	void 			parallel_recover();
+
+	// Stats
+	uint64_t 		_txn_start_time;
 
 ////////////////////////////////////////////////////
 // Logging 
 ////////////////////////////////////////////////////
+public:
+	virtual void	recover_txn(RecoverState * recover_state) {};
+private:
 	uint32_t 		get_log_entry_size();
-	void 			create_log_entry(char * entry);	
-#if LOG_REDO && LOG_ALGORITHM == LOG_PARALLEL
+	void 			create_log_entry(uint32_t size, char * entry);
+	void 			recover_from_log_entry(char * entry, RecoverState * recover_state);
+	
+#if LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t *		_predecessors;
 #endif
 };

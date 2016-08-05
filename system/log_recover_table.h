@@ -16,21 +16,21 @@ public:
         //void lock();
         //void unlock();
 
+        TxnNode * next;
         //pthread_mutex_t lock;
         uint64_t txn_id;
-        TxnNode * next;
         boost::lockfree::queue<TxnNode *> successors{10};
         //queue<TxnNode *> successors;
-        
         //vector<TxnNode *> successors;
         // format : recover_done 1 bit | semaphore 31 bits
         volatile uint32_t semaphore;
         volatile uint32_t pred_size;
-        uint32_t num_keys;
-        string * table_names;
-        uint64_t * keys; 
-        uint32_t * lengths;
-        char ** after_image;
+			
+		RecoverState * recover_state;
+//      uint32_t num_keys;
+//      string * table_names;
+//      uint64_t * keys; 
+//      uint32_t * lengths;
         void set_recover();
         bool recover_done();
         //volatile bool recover_done;
@@ -57,12 +57,14 @@ public:
     boost::lockfree::queue<TxnNode *> recover_ready_txns{10};
     //queue<TxnNode *> recover_ready_txns;
 
-    void add_log_recover(uint64_t txn_id, uint64_t * predecessors, uint32_t predecessor_size, 
-        uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_image);
+    //void add_log_recover(uint64_t txn_id, uint64_t * predecessors, uint32_t predecessor_size, 
+    //    uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_image);
+	void add_log_recover(RecoverState * recover_state, uint64_t * predecessors, uint32_t num_preds);
+
     TxnNode * add_empty_node(uint64_t txn_id);
-    void txn_pred_remover(uint64_t txn_id);
+    //void txn_pred_remover(uint64_t txn_id);
     void txn_pred_remover(TxnNode * node);
-    void txn_recover_done(TxnNode * node);
+    void txn_recover_done(void * node);
     uint32_t get_size(); 
     uint32_t get_bucket_id(uint64_t txn_id);
 private:
