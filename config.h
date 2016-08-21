@@ -99,7 +99,7 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM LOG_NO
+#define LOG_ALGORITHM LOG_PARALLEL
 #define LOG_TYPE					LOG_DATA	
 //#define LOG_COMMAND					false
 #define LOG_REDO					false //true 
