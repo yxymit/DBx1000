@@ -34,6 +34,11 @@ public:
 		uint32_t predecessor_size);
 	void 			remove_log_pending(uint64_t txn_id);
 
+    // per-thread random number generator
+    void            init_rand(uint64_t thd_id) {  srand48_r(thd_id, &_buffer); }
+    uint64_t        rand_uint64();
+    double          rand_double();
+
     // thread id
     void            set_thd_id(uint64_t thread_id) { _thread_id = thread_id; }
     uint64_t        get_thd_id() { return _thread_id; }
@@ -51,7 +56,10 @@ private:
 	// for MVCC 
 	volatile ts_t	_last_min_ts_time;
 	ts_t			_min_ts;
-	
+
+    // per-thread random number
+    static __thread drand48_data _buffer;
+
     // thread id
 	static __thread uint64_t _thread_id;
 	// For logging

@@ -25,11 +25,11 @@ int main(int argc, char* argv[])
 	parser(argc, argv);
 	
 #if LOG_ALGORITHM == LOG_SERIAL
-	log_manager = new LogManager;
+	MALLOC_CONSTRUCTOR(LogManager, log_manager);
 #elif LOG_ALGORITHM == LOG_PARALLEL 
-	log_manager = new ParallelLogManager;
-	log_pending_table = new LogPendingTable();
-	log_recover_table = new LogRecoverTable();
+	MALLOC_CONSTRUCTOR(ParallelLogManager, log_manager);
+	MALLOC_CONSTRUCTOR(LogPendingTable, log_pending_table);
+	MALLOC_CONSTRUCTOR(LogRecoverTable, log_recover_table);
 	txns_ready_for_recovery = new boost::lockfree::queue<RecoverState *>  * [g_num_logger]; 
 	for (uint32_t i = 0; i < g_num_logger; i ++)
 		txns_ready_for_recovery[i] = new boost::lockfree::queue<RecoverState *>{100};

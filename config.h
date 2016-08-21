@@ -99,7 +99,7 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM LOG_PARALLEL
+#define LOG_ALGORITHM LOG_NO
 #define LOG_TYPE					LOG_DATA	
 //#define LOG_COMMAND					false
 #define LOG_REDO					false //true 
@@ -107,8 +107,10 @@
 #define LOG_NO_FLUSH				true
 #define LOG_RECOVER					false //false //true 
 #define LOG_BATCH_TIME				10 // in ms
+// For LOG_PARALLEL
 #define LOG_PARALLEL_BUFFER_FILL	false 
 #define NUM_LOGGER					4 
+#define LOG_PARALLEL_NUM_BUCKETS    1000
 
 /***********************************************/
 // Benchmark
@@ -121,7 +123,7 @@
 #define MAX_TUPLE_SIZE				1024 // in bytes
 // ==== [YCSB] ====
 #define INIT_PARALLELISM			32
-#define SYNTH_TABLE_SIZE 			(1024 * 1020 * 1)
+#define SYNTH_TABLE_SIZE 			(1024 * 1020 * 10)
 #define ZIPF_THETA 					0
 #define READ_PERC 					0
 #define WRITE_PERC 					1 //0.5
@@ -129,7 +131,7 @@
 #define SCAN_LEN					20
 #define PART_PER_TXN 				1
 #define PERC_MULTI_PART				1
-#define REQ_PER_QUERY				1 
+#define REQ_PER_QUERY				2 
 #define FIELD_PER_TUPLE				10
 // ==== [TPCC] ====
 // For large warehouse count, the tables do not fit in memory

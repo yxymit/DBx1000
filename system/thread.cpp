@@ -53,7 +53,7 @@ RC thread_t::run() {
 	glob_manager->set_txn_man(m_txn);
 
 	base_query * m_query = NULL;
-	uint64_t thd_txn_id = 1;
+	uint64_t thd_txn_id = LOG_PARALLEL_NUM_BUCKETS;
 	UInt64 txn_cnt = 0;
 
 	if (g_log_recover) {

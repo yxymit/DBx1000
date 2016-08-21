@@ -31,12 +31,13 @@ public:
 		Bucket();
 		void insert(TxnNode * node);
 		TxnNode * remove(uint64_t txn_id);
+		TxnNode * find_txn(uint64_t txn_id);
 		//pthread_mutex_t _lock;
 		//bool _latch;
 		//char pad[64];
 		void lock(bool write);
 		void unlock(bool write);
-		// format: modify_lock (1 bit) | semaphore (63 bits)
+		// format: modify_lock (1 bit) | semaphore (63 bits). For now, semaphore is not in use
 		volatile uint64_t	_lock_word;
 		TxnNode * 	first;
 	};
@@ -49,13 +50,11 @@ public:
 	void remove_log_pending(TxnNode * node);
 	uint32_t get_size(); 
 private:
-	queue<TxnNode *> * _free_nodes;
+	queue<TxnNode *> ** _free_nodes;
 	//vector<TxnNode *> _free_nodes;
 	uint32_t get_bucket_id(uint64_t txn_id);
 	uint32_t _num_buckets;
 	Bucket ** _buckets;
 	//Bucket * _buckets;
 	//hash<uint64_t> _Hash;
-	
-	TxnNode * find_txn(uint64_t txn_id);
 };

@@ -41,17 +41,36 @@ LogPendingTable::Bucket::remove(uint64_t txn_id)
 	return node; 
 }
 
+LogPendingTable::TxnNode *
+LogPendingTable::Bucket::find_txn(uint64_t txn_id)
+{
+	TxnNode * node = NULL;
+	if (!first)
+		return node;
+	INC_STATS(glob_manager->get_thd_id(), debug5, 1);
+	lock(true);
+	node = first;
+	while (node != NULL && node->txn_id != txn_id) 
+		node = node->next;
+	if (node)
+		ATOM_ADD_FETCH(node->semaphore, 1);
+	unlock(true);
+	return node;
+}
+
 void 
 LogPendingTable::Bucket::lock(bool write)
 {
 	if (write) {
 		uint64_t src_word = 0; 
 		uint64_t target_word = (1UL << 63);
-//uint64_t t = get_sys_clock();
+		//uint64_t t = get_sys_clock();
 		while (!ATOM_CAS(_lock_word, src_word, target_word)) {
+			//INC_STATS(glob_manager->get_thd_id(), debug4, 1);
 			PAUSE
 		}
-//INC_STATS(glob_manager->get_thd_id(), debug3, get_sys_clock() - t);
+		//INC_STATS(glob_manager->get_thd_id(), debug5, 1);
+		//INC_STATS(glob_manager->get_thd_id(), debug3, get_sys_clock() - t);
 	}
 	else {
 		bool done = false;
@@ -98,26 +117,15 @@ LogPendingTable::TxnNode::TxnNode(uint64_t txn_id)
 //////////////////////
 LogPendingTable::LogPendingTable()
 {
-	_num_buckets = 1000;
+	_num_buckets = LOG_PARALLEL_NUM_BUCKETS * g_thread_cnt;
 	//_buckets = new Bucket[_num_buckets];
 	_buckets = new Bucket * [_num_buckets];
 	for (uint32_t i = 0; i < _num_buckets; i ++)
 		_buckets[i] = (Bucket *) _mm_malloc(sizeof(Bucket), 64); //new Bucket;
-	_free_nodes = new queue<TxnNode *> [g_thread_cnt]; //* _free_nodes;
-}
-
-LogPendingTable::TxnNode * 
-LogPendingTable::find_txn(uint64_t txn_id)
-{
-	uint32_t bid = get_bucket_id(txn_id);
-	_buckets[bid]->lock(false);
-	TxnNode * node = _buckets[bid]->first;
-	while (node != NULL && node->txn_id != txn_id) 
-		node = node->next;
-	if (node)
-		ATOM_ADD_FETCH(node->semaphore, 1);
-	_buckets[bid]->unlock(false);
-	return node;
+	_free_nodes = new queue<TxnNode *> * [g_thread_cnt]; //* _free_nodes;
+	for (uint32_t i = 0; i < g_thread_cnt; i ++) {
+		MALLOC_CONSTRUCTOR(queue<TxnNode *>, _free_nodes[i]);
+	}
 }
 
 void * 
@@ -125,27 +133,31 @@ LogPendingTable::add_log_pending(uint64_t txn_id, uint64_t * predecessors,
 							 uint32_t predecessor_size)
 {
 	TxnNode * new_node; 
-	if (!_free_nodes[glob_manager->get_thd_id()].empty()) {
-		new_node = _free_nodes[glob_manager->get_thd_id()].front();
-		_free_nodes[glob_manager->get_thd_id()].pop();
+	if (!_free_nodes[glob_manager->get_thd_id()]->empty()) {
+		new_node = _free_nodes[glob_manager->get_thd_id()]->front();
+		_free_nodes[glob_manager->get_thd_id()]->pop();
 		new_node->txn_id = txn_id;
 		assert(new_node->pred_size == 0);
-		//assert(new_node->pred_insert_done == false);
-	} else 
-		new_node = new TxnNode(txn_id);
+	} else { 
+		new_node = (TxnNode *) _mm_malloc(sizeof(TxnNode), 64);
+		new(new_node) TxnNode(txn_id);
+	}
 
-	uint32_t bid = get_bucket_id(txn_id);
-uint64_t t2 = get_sys_clock();
-	_buckets[bid]->insert(new_node);
-INC_STATS(glob_manager->get_thd_id(), debug2, get_sys_clock() - t2);
-//uint64_t t1 = get_sys_clock();
+	_buckets[ get_bucket_id(txn_id) ]->insert(new_node);
 	ATOM_ADD_FETCH(new_node->pred_size, 1);
-//INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t1);
-	// The following code causes contention on the graph?
+	// this part finally becomes the bottleneck
 	for (uint32_t i = 0; i < predecessor_size; i ++) {
 		TxnNode * node = NULL;
-		if (predecessors[i] != 0)
-			node = find_txn(predecessors[i]);
+		assert (predecessors[i] != 0);
+		// NOTE. the find_txn function might seem non-scalable. This is primarily because
+		// as the number of threads increases, this function is called a larger number of times.
+		// To get around this, we should add warmup to the experiments.
+		
+		uint32_t bid = get_bucket_id(predecessors[i]);
+		//uint64_t pred = glob_manager->rand_uint64();
+		//uint32_t bid = get_bucket_id(pred);
+		node = _buckets[bid]->find_txn(predecessors[i]);
+		//INC_STATS(glob_manager->get_thd_id(), debug4, 1);
 		if (node) 
 		{
 			ATOM_ADD_FETCH(new_node->pred_size, 1);
@@ -165,7 +177,6 @@ LogPendingTable::remove_log_pending(TxnNode * node)
 		return;
 
 	uint32_t bid = get_bucket_id(node->txn_id);
-	//TxnNode * n = _buckets[bid].remove(node->txn_id);
 	TxnNode * n = _buckets[bid]->remove(node->txn_id);
 	assert(n == node);
 	// wait for all successors to be inserted
@@ -176,7 +187,7 @@ LogPendingTable::remove_log_pending(TxnNode * node)
 	INC_STATS(glob_manager->get_thd_id(), latency, get_sys_clock());
 	while (node->successors.pop(succ)) 
 		remove_log_pending(succ); 
-	_free_nodes[glob_manager->get_thd_id()].push(node);
+	_free_nodes[glob_manager->get_thd_id()]->push(node);
 }
 
 void

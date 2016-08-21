@@ -5,7 +5,6 @@
 #include <vector>
 #include <unordered_map>
 #include "log_pending_table.h"
-//#include <junction/junction/Core.h>
 
 struct pending_entry {
 	uint32_t pred_size;
@@ -13,7 +12,7 @@ struct pending_entry {
 };
 
 __thread uint64_t Manager::_thread_id;
-//unordered_map<uint64_t, pending_entry *> _log_pending_map;
+__thread drand48_data Manager::_buffer;
 unordered_map<uint64_t, pending_entry *> _log_pending_map;
 
 void Manager::init() {
@@ -127,6 +126,23 @@ Manager::update_epoch()
 		*_last_epoch_update_time = time;
 	}
 }
+
+uint64_t
+Manager::rand_uint64()
+{
+    int64_t rint64 = 0;
+    lrand48_r(&_buffer, &rint64);
+    return rint64;
+}
+
+double
+Manager::rand_double()
+{
+    double r = 0;
+    drand48_r(&_buffer, &r);
+    return r;
+}
+
 
 // TODO. make this lock free.
 /*

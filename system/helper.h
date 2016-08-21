@@ -136,6 +136,10 @@
 	for (UInt32 i = 0; i < size; i++) \
 		*name[i] = value; \
 
+#define MALLOC_CONSTRUCTOR(type, var) \
+	var = (type *) _mm_malloc(sizeof(type), 64); \
+	new(var) type();
+
 enum Data_type {DT_table, DT_page, DT_row };
 
 // TODO currently, only DR_row supported

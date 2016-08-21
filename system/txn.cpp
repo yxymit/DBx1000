@@ -52,7 +52,7 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 #endif
 
 #if LOG_ALGORITHM == LOG_PARALLEL
-	_predecessors = new uint64_t[MAX_ROW_PER_TXN];
+	_predecessors = (uint64_t *) _mm_malloc(sizeof(uint64_t) * MAX_ROW_PER_TXN, 64);
 #endif
 }
 
@@ -126,7 +126,7 @@ void txn_man::cleanup(RC rc) {
 		}
 	}
 	// Logging
-#if LOG_ALGORITHM != NO_LOG
+#if LOG_ALGORITHM != LOG_NO
 	if (rc == RCOK)
 	{
 
@@ -141,12 +141,13 @@ void txn_man::cleanup(RC rc) {
 #elif LOG_ALGORITHM == LOG_PARALLEL
 			INC_STATS(get_thd_id(), latency, - _txn_start_time);
 	uint64_t t = get_sys_clock();
-			_txn_node = log_pending_table->add_log_pending( get_txn_id(), _predecessors, row_cnt );
+			_txn_node = log_pending_table->add_log_pending( get_txn_id(), _predecessors, pred_size );
 	INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t);
 			log_manager->parallelLogTxn(entry, size, _predecessors, pred_size, _txn_node, get_thd_id());
+	INC_STATS(glob_manager->get_thd_id(), debug2, get_sys_clock() - t);
+#endif
 			uint64_t after_log_time = get_sys_clock();
 			INC_STATS(get_thd_id(), time_log, after_log_time - before_log_time);
-#endif
 		}
 	}
 #endif

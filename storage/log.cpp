@@ -72,8 +72,12 @@ LogManager::logTxn(char * log_entry, uint32_t size)
 {
   //ATOM_ADD_FETCH(_lsn, 1);
   // lsn here is the byte offset of the entry in the file 
+#if LOG_NO_FLUSH
+  ATOM_FETCH_ADD(_lsn, size);
+#else 
   uint64_t lsn = ATOM_FETCH_ADD(_lsn, size);
-  _ram_disk->write(log_entry, lsn, size); 
+  _ram_disk->write(log_entry, lsn, size);
+#endif
   return;
 }
 #else 

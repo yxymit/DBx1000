@@ -44,13 +44,15 @@ ParallelLogManager::~ParallelLogManager()
 {
 	for(uint32_t i = 0; i < g_num_logger; i++)
 		delete _logger[i];
+	delete _logger;
 }
 
 void ParallelLogManager::init()
 {
 	_logger = new LogManager * [g_num_logger];
 	for(uint32_t i = 0; i < g_num_logger; i++) { 
-		_logger[i] = new LogManager();
+		MALLOC_CONSTRUCTOR(LogManager, _logger[i]);
+		//_logger[i] = new LogManager();
 		_logger[i]->init("Log_" + to_string(i) + ".data");
 	}
 }
@@ -110,8 +112,8 @@ ParallelLogManager::parallelLogTxn(char * log_entry,
 	memcpy(new_log_entry + sizeof(uint32_t) + entry_size, pred, pred_log_size);
 	//memcpy(new_log_entry + entry_size, "DONE", sizeof("DONE"));
 	//entry_size += 4;
-	//uint64_t t1 = get_sys_clock();
 	//printf("logger	= %d\n", thd_id); //get_logger_id(thd_id));
+	//uint64_t t = get_sys_clock();
 	_logger[ get_logger_id(thd_id) ]->logTxn(new_log_entry, total_size);
 	//INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t1);
 	// FLUSH DONE
