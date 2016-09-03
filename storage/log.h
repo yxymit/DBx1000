@@ -13,7 +13,7 @@ public:
 	RecoverState(); 
 	~RecoverState();
 #if LOG_TYPE == LOG_DATA
-		uint64_t txn_id;
+	uint64_t txn_id;
 	uint32_t num_keys;
 	uint32_t * table_ids;
 	//string * table_names;

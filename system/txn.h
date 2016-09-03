@@ -10,15 +10,13 @@ class row_t;
 class table_t;
 class base_query;
 class INDEX;
+class PredecessorInfo; 	
 
 // each thread has a txn_man. 
 // a txn_man corresponds to a single transaction.
 
 //For VLL
 enum TxnType {VLL_Blocked, VLL_Free};
-
-
-
 
 class Access {
 public:
@@ -88,7 +86,6 @@ public:
 	uint64_t 		end_ts;
 	// following are public for OCC
 	int 			row_cnt;
-	int 			pred_size;
 	int	 			wr_cnt;
 	Access **		accesses;
 	int 			num_accesses_alloc;
@@ -132,7 +129,7 @@ private:
 #endif
 
 	// Logging
-	void * 			_txn_node; // can be converted to LogPendingTable::TxnNode.
+	//void * 			_txn_node; // can be converted to LogPendingTable::TxnNode.
 	void 			serial_recover();
 	void 			parallel_recover();
 
@@ -150,6 +147,6 @@ private:
 	void 			recover_from_log_entry(char * entry, RecoverState * recover_state);
 	
 #if LOG_ALGORITHM == LOG_PARALLEL
-	uint64_t *		_predecessors;
+	PredecessorInfo * _predecessor_info; 	
 #endif
 };

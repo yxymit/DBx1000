@@ -5,6 +5,8 @@
 #include <boost/lockfree/queue.hpp>
 #include <queue>
 
+class PredecessorInfo;
+
 class LogRecoverTable 
 {
 public:
@@ -13,28 +15,26 @@ public:
     class TxnNode {
     public:
         TxnNode(uint64_t txn_id);
-        //void lock();
-        //void unlock();
 
         TxnNode * next;
-        //pthread_mutex_t lock;
         uint64_t txn_id;
-        boost::lockfree::queue<TxnNode *> successors{10};
-        //queue<TxnNode *> successors;
-        //vector<TxnNode *> successors;
-        // format : recover_done 1 bit | semaphore 31 bits
-        volatile uint32_t semaphore;
-        volatile uint32_t pred_size;
+        //boost::lockfree::queue<TxnNode *> successors{10};
+        boost::lockfree::queue<TxnNode *> raw_succ{10};
+        boost::lockfree::queue<TxnNode *> waw_succ{10};
+      
+	  	// Format: recover_done (1) | recoverable (1) | semaphore (62)
+	   	volatile uint64_t semaphore;  
+		// For data logging, raw and waw are handled differently.
+		// RAW checks if a txn is recoverable.
+		// WAW checks if a txn can start recovery.
+		// Format: raw_size (32 bits) | waw_size (32 bits)
+		volatile uint64_t pred_size;
 			
 		RecoverState * recover_state;
-//      uint32_t num_keys;
-//      string * table_names;
-//      uint64_t * keys; 
-//      uint32_t * lengths;
-        void set_recover();
-        bool recover_done();
-        //volatile bool recover_done;
-        //volatile bool pred_insert_done;
+        void set_recover_done();
+        bool is_recover_done();
+        void set_recoverable();
+		bool is_recoverable();
     };
 
     class Bucket {
@@ -44,7 +44,6 @@ public:
         TxnNode * remove(uint64_t txn_id);
         pthread_mutex_t _lock;
         bool _latch;
-        //char pad[64];
         void lock(bool write);
         void unlock(bool write);
         // format: modify_lock (1 bit) | semaphore (63 bits)
@@ -52,28 +51,20 @@ public:
         TxnNode *   first;
     };
 
-    Bucket * _buckets;
+    Bucket ** _buckets;
     queue<TxnNode *> * _free_nodes;
     boost::lockfree::queue<TxnNode *> recover_ready_txns{10};
-    //queue<TxnNode *> recover_ready_txns;
 
-    //void add_log_recover(uint64_t txn_id, uint64_t * predecessors, uint32_t predecessor_size, 
-    //    uint32_t num_keys, string * table_names, uint64_t * keys, uint32_t * lengths, char ** after_image);
-	void add_log_recover(RecoverState * recover_state, uint64_t * predecessors, uint32_t num_preds);
+	void add_log_recover(RecoverState * recover_state, PredecessorInfo * pred_info); 
 
     TxnNode * add_empty_node(uint64_t txn_id);
-    //void txn_pred_remover(uint64_t txn_id);
-    void txn_pred_remover(TxnNode * node);
+    void raw_pred_remover(TxnNode * node);
+    void waw_pred_remover(TxnNode * node);
+
     void txn_recover_done(void * node);
     uint32_t get_size(); 
     uint32_t get_bucket_id(uint64_t txn_id);
 private:
-    
-    //vector<TxnNode *> _free_nodes;
-    
     uint32_t _num_buckets;
-    
-    //hash<uint64_t> _Hash;
-    
     TxnNode * find_txn(uint64_t txn_id);
 };

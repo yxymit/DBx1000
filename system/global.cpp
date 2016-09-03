@@ -12,6 +12,7 @@
 #include "batch_log.h"
 #include "log_pending_table.h"
 #include "log_recover_table.h"
+#include "free_queue.h"
 
 mem_alloc mem_allocator;
 Stats stats;
@@ -31,7 +32,8 @@ ParallelLogManager * log_manager;
 LogPendingTable * log_pending_table;
 LogRecoverTable * log_recover_table;
 boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
-//uint32_t num_threads_done;  
+//uint32_t num_threads_done; 
+FreeQueue * free_queue_recover_state; 
 #endif
 bool g_log_recover = LOG_RECOVER;
 uint32_t g_num_logger = NUM_LOGGER;

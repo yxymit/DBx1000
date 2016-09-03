@@ -99,18 +99,16 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM LOG_PARALLEL
+#define LOG_ALGORITHM 				LOG_PARALLEL
 #define LOG_TYPE					LOG_DATA	
-//#define LOG_COMMAND					false
-#define LOG_REDO					false //true 
 #define LOG_RAM_DISK				true
-#define LOG_NO_FLUSH				true
-#define LOG_RECOVER					false //false //true 
+#define LOG_NO_FLUSH				false
+#define LOG_RECOVER					false 
 #define LOG_BATCH_TIME				10 // in ms
 // For LOG_PARALLEL
 #define LOG_PARALLEL_BUFFER_FILL	false 
 #define NUM_LOGGER					4 
-#define LOG_PARALLEL_NUM_BUCKETS    1000
+#define LOG_PARALLEL_NUM_BUCKETS    2000000
 
 /***********************************************/
 // Benchmark
@@ -118,7 +116,7 @@
 // max number of rows touched per transaction
 #define MAX_ROW_PER_TXN				64
 #define QUERY_INTVL 				1UL
-#define MAX_TXN_PER_PART 			1000000
+#define MAX_TXN_PER_PART 			100000
 #define FIRST_PART_LOCAL 			true
 #define MAX_TUPLE_SIZE				1024 // in bytes
 // ==== [YCSB] ====
