@@ -374,6 +374,51 @@ txn_man::parallel_recover() {
 #endif
 }
 
+
+void 
+txn_man::naive_parallel_recover() {
+#if LOG_ALGORITHM == LOG_PARALLEL
+	uint64_t starttime = get_sys_clock();
+	if (get_thd_id() < g_num_logger) {
+		// Logging thread. 
+		// Reads from log file and insert to the recovery graph. 
+		
+		char * entry = NULL;
+		uint64_t * predecessors = NULL;
+		uint32_t num_preds = 0;
+		log_manager->readFromLog(entry, predecessors, num_preds);
+		while (entry != NULL) {
+			// TODO avoid calling new too often. recycle through a queue.
+			RecoverState * recover_state = new RecoverState;
+			recover_from_log_entry(entry, recover_state);
+			log_recover_table->add_log_recover(recover_state, predecessors, num_preds); 
+			log_manager->readFromLog(entry, predecessors, num_preds);
+		}
+		ATOM_ADD_FETCH(ParallelLogManager::num_threads_done, 1);
+	} else {
+		// Execution thread.
+		// recover transactions that are ready 
+		uint32_t logger_id = get_thd_id() % g_num_logger; 
+		RecoverState * recover_state; 
+		uint64_t num_records = 0;
+		while (true) {
+			if (txns_ready_for_recovery[logger_id]->pop(recover_state)) {
+				recover_txn(recover_state);
+				log_recover_table->txn_recover_done(recover_state->txn_node);
+				// TODO. recycle recover_state.
+				delete recover_state;
+				num_records ++;
+			} else if (ParallelLogManager::num_threads_done < g_num_logger)
+				PAUSE
+			else 
+				break;
+		}
+    	INC_STATS(get_thd_id(), txn_cnt, num_records);
+	}
+	INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
+#endif
+}
+
 uint32_t
 txn_man::get_log_entry_size()
 {

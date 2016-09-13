@@ -135,6 +135,7 @@ private:
 	void * 			_txn_node; // can be converted to LogPendingTable::TxnNode.
 	void 			serial_recover();
 	void 			parallel_recover();
+	void 			naive_parallel_recover();
 
 	// Stats
 	uint64_t 		_txn_start_time;
