@@ -13,6 +13,7 @@
 #include "parallel_log.h"
 #include "log_recover_table.h"
 #include "log_pending_table.h"
+#include "free_queue.h"
 #include "manager.h"
 
 void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
@@ -22,7 +23,6 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	lock_ready = false;
 	ready_part = 0;
 	row_cnt = 0;
-	pred_size = 0;
 	wr_cnt = 0;
 	insert_cnt = 0;
 	accesses = (Access **) _mm_malloc(sizeof(Access *) * MAX_ROW_PER_TXN, 64);
@@ -33,13 +33,6 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	_pre_abort = g_pre_abort; 
  	// XXX XXX
 	_validation_no_wait = true;
-/*	if (g_validation_lock == "no-wait")
-		_validation_no_wait = true;
-	else if (g_validation_lock == "waiting")
-		_validation_no_wait = false;
-	else 
-		assert(false);
-		*/
 #endif
 #if CC_ALG == TICTOC
 	_max_wts = 0;
@@ -52,8 +45,9 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 #endif
 
 #if LOG_ALGORITHM == LOG_PARALLEL
-	_predecessors = (uint64_t *) _mm_malloc(sizeof(uint64_t) * MAX_ROW_PER_TXN, 64);
+	_predecessor_info = new PredecessorInfo;; 	
 #endif
+
 }
 
 void txn_man::set_txn_id(txnid_t txn_id) {
@@ -135,24 +129,29 @@ void txn_man::cleanup(RC rc) {
 			uint32_t size = get_log_entry_size();			
 			char entry[size];// = NULL;
 			create_log_entry(size, entry);
-#if LOG_ALGORITHM == LOG_SERIAL
+  #if LOG_ALGORITHM == LOG_SERIAL
 			log_manager->logTxn(entry, size);
 			INC_STATS(get_thd_id(), latency, get_sys_clock() - _txn_start_time);
-#elif LOG_ALGORITHM == LOG_PARALLEL
+  #elif LOG_ALGORITHM == LOG_PARALLEL
 			INC_STATS(get_thd_id(), latency, - _txn_start_time);
-	uint64_t t = get_sys_clock();
-			_txn_node = log_pending_table->add_log_pending( get_txn_id(), _predecessors, pred_size );
-	INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t);
-			log_manager->parallelLogTxn(entry, size, _predecessors, pred_size, _txn_node, get_thd_id());
-	INC_STATS(glob_manager->get_thd_id(), debug2, get_sys_clock() - t);
-#endif
+			// get all preds with raw dependency
+			uint32_t num_preds = _predecessor_info->num_raw_preds();
+			uint64_t raw_preds[ num_preds ];
+			_predecessor_info->get_raw_preds(raw_preds);	
+			void * txn_node = log_pending_table->add_log_pending( get_txn_id(), raw_preds, num_preds);
+			log_manager->parallelLogTxn(entry, size, _predecessor_info); 
+			// FLUSH DONE
+			log_pending_table->remove_log_pending(txn_node);
+  #endif
 			uint64_t after_log_time = get_sys_clock();
 			INC_STATS(get_thd_id(), time_log, after_log_time - before_log_time);
 		}
 	}
+  #if LOG_ALGORITHM == LOG_PARALLEL
+	_predecessor_info->clear();
+  #endif
 #endif
 	row_cnt = 0;
-	pred_size = 0;
 	wr_cnt = 0;
 	insert_cnt = 0;
 #if CC_ALG == DL_DETECT
@@ -184,12 +183,7 @@ row_t * txn_man::get_row(row_t * row, access_t type) {
 #if LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t last_writer = accesses[ row_cnt ]->data->get_last_writer();
 	if (last_writer != 0) {
-		bool found = false;
-		for (int i = 0; i < pred_size; i ++ ) 
-			if (_predecessors[i] == last_writer)
-				found = true;
-		if (!found)
-			_predecessors[pred_size ++] = last_writer;
+		_predecessor_info->insert_pred(last_writer, type);
 	}
 #endif
 	if (rc == Abort) {
@@ -310,23 +304,18 @@ txn_man::serial_recover() {
 	
 	// recover_state can be reused by all txns
 	RecoverState * recover_state = new RecoverState;
-//	recover_state.table_ids = new uint32_t [MAX_ROW_PER_TXN];
-//	recover_state.keys = new uint64_t [MAX_ROW_PER_TXN];
-//	recover_state.lengths = new uint32_t [MAX_ROW_PER_TXN];
-//	recover_state.after_image = new char * [MAX_ROW_PER_TXN];
 	char * entry = log_manager->readFromLog(); 
 	while (entry) 
 	{
         num_records ++;
 		recover_from_log_entry(entry, recover_state);
 		recover_txn(recover_state);
-		//if (num_records % 100000 == 0)
-		//	printf("num_records=%ld\n", num_records);
 		entry = log_manager->readFromLog(); 
 	}
 	uint64_t timespan = get_sys_clock() - starttime;
     INC_STATS(get_thd_id(), txn_cnt, num_records);
-	INC_STATS(get_thd_id(), run_time, timespan);
+	if (get_thd_id() == 0)
+		INC_STATS(get_thd_id(), run_time, timespan);
 #endif
 }
 
@@ -337,40 +326,38 @@ txn_man::parallel_recover() {
 	if (get_thd_id() < g_num_logger) {
 		// Logging thread. 
 		// Reads from log file and insert to the recovery graph. 
-		
 		char * entry = NULL;
-		uint64_t * predecessors = NULL;
-		uint32_t num_preds = 0;
-		log_manager->readFromLog(entry, predecessors, num_preds);
+		log_manager->readFromLog(entry, _predecessor_info);
 		while (entry != NULL) {
-			// TODO avoid calling new too often. recycle through a queue.
-			RecoverState * recover_state = new RecoverState;
+			RecoverState * recover_state = (RecoverState *) free_queue_recover_state[get_thd_id()].get_element();
+			if (recover_state == NULL)
+				recover_state = new RecoverState;
 			recover_from_log_entry(entry, recover_state);
-			log_recover_table->add_log_recover(recover_state, predecessors, num_preds); 
-			log_manager->readFromLog(entry, predecessors, num_preds);
+			log_recover_table->add_log_recover(recover_state, _predecessor_info); 
+			log_manager->readFromLog(entry, _predecessor_info);
 		}
 		ATOM_ADD_FETCH(ParallelLogManager::num_threads_done, 1);
-	} else {
-		// Execution thread.
-		// recover transactions that are ready 
-		uint32_t logger_id = get_thd_id() % g_num_logger; 
-		RecoverState * recover_state; 
-		uint64_t num_records = 0;
-		while (true) {
-			if (txns_ready_for_recovery[logger_id]->pop(recover_state)) {
-				recover_txn(recover_state);
-				log_recover_table->txn_recover_done(recover_state->txn_node);
-				// TODO. recycle recover_state.
-				delete recover_state;
-				num_records ++;
-			} else if (ParallelLogManager::num_threads_done < g_num_logger)
-				PAUSE
-			else 
-				break;
-		}
-    	INC_STATS(get_thd_id(), txn_cnt, num_records);
 	}
-	INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
+	// Execution thread.
+	// recover transactions that are ready 
+	uint32_t logger_id = get_thd_id() % g_num_logger; 
+	RecoverState * recover_state; 
+	uint64_t num_records = 0;
+	while (true) {
+		if (txns_ready_for_recovery[logger_id]->pop(recover_state)) {
+			//printf("[thd=%ld] recover a txn\n", get_thd_id());
+			recover_txn(recover_state);
+			log_recover_table->txn_recover_done(recover_state->txn_node);
+			free_queue_recover_state[logger_id].return_element((void *) recover_state);
+			num_records ++;
+		} else if (ParallelLogManager::num_threads_done < g_num_logger)
+			PAUSE
+		else 
+			break;
+	}
+   	INC_STATS(get_thd_id(), txn_cnt, num_records);
+	if (get_thd_id() == 0)
+		INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
 #endif
 }
 
@@ -441,6 +428,8 @@ txn_man::get_log_entry_size()
 void 
 txn_man::create_log_entry(uint32_t size, char * entry)
 {
+	// Format
+	// size | txn_id | cnt | tableID[wr_cnt] | key[cnt] | data_length[cnt] | data[cnt] 
   	uint32_t offset = 0;
 	memcpy(entry + offset, &size, sizeof(size));
 	offset += sizeof(size);

@@ -35,6 +35,74 @@ struct wait_log_record{
 //1int * buffer_length;
 volatile uint32_t ParallelLogManager::num_threads_done = 0;  
 
+PredecessorInfo::PredecessorInfo()
+{
+	_raw_size = 0;
+	_waw_size = 0;
+	_preds_raw = (uint64_t *) _mm_malloc(sizeof(uint64_t) * MAX_ROW_PER_TXN, 64);
+	_preds_waw = (uint64_t *) _mm_malloc(sizeof(uint64_t) * MAX_ROW_PER_TXN, 64);
+}
+
+void 
+PredecessorInfo::clear()
+{
+	_raw_size = 0;
+	_waw_size = 0;
+}
+	
+void 
+PredecessorInfo::insert_pred(uint64_t pred, access_t type)
+{
+	uint64_t * preds = (type == WR)? _preds_waw : _preds_raw;
+	uint32_t &preds_size = (type == WR)? _waw_size : _raw_size;
+	bool found = false;
+	for (uint32_t i = 0; i < preds_size; i ++ ) 
+		if (preds[i] == pred)
+			found = true;
+	if (!found)
+		preds[preds_size++] = pred;
+}
+
+void 
+PredecessorInfo::get_raw_preds(uint64_t * preds)
+{
+	memcpy(preds, _preds_raw, _raw_size * sizeof(uint64_t));
+	memcpy(preds + _raw_size * sizeof(uint64_t), _preds_waw, _waw_size * sizeof(uint64_t));
+}
+
+uint32_t
+PredecessorInfo::serialize(char * buffer)
+{
+	uint32_t offset = 0;
+	// RAW only predecessors
+	memcpy(buffer, &_raw_size, sizeof(uint32_t));
+	offset += sizeof(uint32_t);
+	memcpy(buffer + offset, _preds_raw, sizeof(uint64_t) * _raw_size);
+	offset += sizeof(uint64_t) * _raw_size;
+	// WAW/RAW predecessors
+	memcpy(buffer + offset, &_waw_size, sizeof(uint32_t));
+	offset += sizeof(uint32_t);
+	memcpy(buffer + offset, _preds_waw, sizeof(uint64_t) * _waw_size);
+	offset += sizeof(uint64_t) * _waw_size;
+	return offset;
+}
+
+uint32_t 
+PredecessorInfo::deserialize(char * buffer)
+{
+	uint32_t offset = 0;
+	// RAW only predecessors
+	_raw_size = *(uint32_t *) buffer;
+	_preds_raw = (uint64_t *) (buffer + sizeof(uint32_t));
+	offset += sizeof(uint32_t) + sizeof(uint64_t) * _raw_size;
+
+	// WAW/RAW predecessors
+	_waw_size = *(uint32_t *) (buffer + offset);
+	_preds_waw = (uint64_t *) (buffer + offset + sizeof(uint32_t));
+	offset += sizeof(uint32_t) + sizeof(uint64_t) * _waw_size;
+	return offset;
+}
+
 ParallelLogManager::ParallelLogManager()
 {
 	pthread_mutex_init(&lock, NULL);
@@ -88,61 +156,34 @@ void ParallelLogManager::checkWait(int logger_id) {
 	}
 }
 */
-void
-ParallelLogManager::parallelLogTxn(char * log_entry, 
-									 uint32_t entry_size, 
-									 uint64_t * pred, 
-									 uint32_t pred_size, 
-									 void * txn_node, 
-									 int thd_id)
+void 
+ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size, PredecessorInfo * pred_info)
 {
 	// Format
-	// total_size | log_entry | predecessors 
-	//uint64_t t = get_sys_clock();
-	uint32_t pred_log_size = sizeof(uint64_t) * pred_size;
-	for (uint32_t i = 0; i < pred_size; i ++)
-		assert(pred[i] != 0);
-	uint32_t total_size = sizeof(uint32_t) + entry_size + pred_log_size;
+	// total_size | log_entry (format seen in txn_man::create_log_entry) | predecessors 
+	uint32_t total_size = sizeof(uint32_t) + entry_size 
+						  + sizeof(uint32_t) * 2
+						  + sizeof(uint64_t) * (pred_info->_raw_size + pred_info->_waw_size);
 
 	char new_log_entry[total_size];
 	assert(total_size > 0);	
 	assert(entry_size == *(uint32_t *)log_entry);
+	uint32_t offset = 0;
+	// Total Size
 	memcpy(new_log_entry, &total_size, sizeof(uint32_t));
-	memcpy(new_log_entry + sizeof(uint32_t), log_entry, entry_size);
-	memcpy(new_log_entry + sizeof(uint32_t) + entry_size, pred, pred_log_size);
-	//memcpy(new_log_entry + entry_size, "DONE", sizeof("DONE"));
-	//entry_size += 4;
-	//printf("logger	= %d\n", thd_id); //get_logger_id(thd_id));
-	//uint64_t t = get_sys_clock();
-	_logger[ get_logger_id(thd_id) ]->logTxn(new_log_entry, total_size);
-	//INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t1);
-	// FLUSH DONE
-	log_pending_table->remove_log_pending(txn_node);
-	//INC_STATS(glob_manager->get_thd_id(), debug1, get_sys_clock() - t);
-	/*} else {
-		my_wait_log->log_entry = log_entry;
-		my_wait_log->entry_size = entry_size;
-		my_wait_log->txn_id = txn_id;
-		my_wait_log->thd_id = thd_id;
-		wait_buffer[ get_logger_id(thd_id) ]->push(my_wait_log);
-		char * new_log_entry = new char[entry_size + pred_log_size];
-		memcpy(new_log_entry, log_entry, entry_size);
-		uint32_t offset = entry_size;
-		for(int i = 0; i < pred_size; i++) {
-			memcpy(new_log_entry + offset, &pred[i], sizeof(pred[i]));
-			offset += sizeof(pred[i]);
-		}
-		_logger[ get_logger_id(thd_id) ].logTxn(new_log_entry, entry_size);
-		buffer_length[ get_logger_id(thd_id) ]++;
-		//wait_count = (wait_count + 1) % WAIT_FREQ;
-		//if(wait_count == 0) {
-			//checkWait( get_logger_id(thd_id) );
-		//}
-	}*/
+	offset += sizeof(uint32_t);
+	// Log Entry
+	memcpy(new_log_entry + offset, log_entry, entry_size);
+	offset += entry_size;
+	// Predecessors
+	offset += pred_info->serialize(new_log_entry + offset);
+	assert(offset == total_size);
+
+	_logger[ get_logger_id( glob_manager->get_thd_id() ) ]->logTxn(new_log_entry, total_size);
 }
 
 void 
-ParallelLogManager::readFromLog(char * &entry, uint64_t * &predecessors, uint32_t &num_preds)
+ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info)
 {
 	uint64_t thd_id = glob_manager->get_thd_id();
 	assert(thd_id < g_num_logger);
@@ -152,35 +193,18 @@ ParallelLogManager::readFromLog(char * &entry, uint64_t * &predecessors, uint32_
 	char * raw_entry = _logger[ get_logger_id(thd_id) ]->readFromLog();
 	if (raw_entry == NULL) {
 		entry = NULL;
-		predecessors = NULL;
-		num_preds = 0;
 		return;
 	}
-	//static int times = 0;
-	//cout << times++ << endl;
+
+	// Total Size
 	uint32_t total_size = *(uint32_t *)raw_entry;
 	assert(total_size > 0);
+	// Log Entry
 	entry = raw_entry + sizeof(uint32_t); 
 	uint32_t entry_size = *(uint32_t *)entry;
-	num_preds = (total_size - entry_size - sizeof(uint32_t)) / sizeof(uint64_t);
-	predecessors = (uint64_t *)(raw_entry + sizeof(uint32_t) + entry_size);
-	/*uint64_t txn_id;
-	uint32_t num_keys;
-	string * table_names;
-	uint64_t * keys;
-	uint32_t * lengths;
-	char ** after_image;
-	uint32_t predecessor_size;
-	uint64_t * predecessors;
-	uint32_t thd_id = glob_manager -> get_thd_id();
-	bool endfile = _logger[get_logger_id(thd_id)].readFromLog(txn_id, num_keys, table_names, keys, 
-		lengths, after_image, predecessor_size, predecessors);
-	while(!endfile) {
-		log_recover_table -> add_log_recover(txn_id, predecessors, predecessor_size, num_keys, 
-			table_names, keys, lengths, after_image);
-		endfile = _logger[get_logger_id(thd_id)].readFromLog(txn_id, num_keys, table_names, keys, 
-			lengths, after_image, predecessor_size, predecessors);
-	}	
-	*/
+	uint32_t offset = sizeof(uint32_t) + entry_size;
+	// Predecessors
+	offset += pred_info->deserialize(raw_entry + offset);	
+	assert(offset == total_size);
 }
 #endif

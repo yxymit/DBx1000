@@ -48,6 +48,7 @@ class ParallelLogManager;
 class LogPendingTable;
 class LogRecoverTable;
 class RecoverState; 
+class FreeQueue;
 
 typedef uint32_t UInt32;
 typedef int32_t SInt32;
@@ -77,6 +78,7 @@ extern ParallelLogManager * log_manager;
 extern LogPendingTable * log_pending_table;
 extern LogRecoverTable * log_recover_table;
 extern boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
+extern FreeQueue * free_queue_recover_state; 
 //extern uint32_t num_threads_done;  
 #endif
 extern bool g_log_recover;

@@ -24,7 +24,7 @@ row_t::init(table_t * host_table, uint64_t part_id, uint64_t row_id) {
 	int tuple_size = schema->get_tuple_size();
 	data = (char *) _mm_malloc(sizeof(char) * tuple_size, 64);
 #if LOG_ALGORITHM == LOG_PARALLEL
-	_last_writer = glob_manager->rand_uint64() % LOG_PARALLEL_NUM_BUCKETS;
+	_last_writer = 0; //glob_manager->rand_uint64() % LOG_PARALLEL_NUM_BUCKETS;
 #endif
 	return RCOK;
 }
