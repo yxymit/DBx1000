@@ -333,7 +333,8 @@ txn_man::parallel_recover() {
 			if (recover_state == NULL)
 				recover_state = new RecoverState;
 			recover_from_log_entry(entry, recover_state);
-			log_recover_table->add_log_recover(recover_state, _predecessor_info); 
+			log_recover_table->add_log_recover(recover_state, _predecessor_info);
+			log_recover_table->garbage_collection();
 			log_manager->readFromLog(entry, _predecessor_info);
 		}
 		ATOM_ADD_FETCH(ParallelLogManager::num_threads_done, 1);
@@ -362,7 +363,7 @@ txn_man::parallel_recover() {
 }
 
 
-void 
+/*void 
 txn_man::naive_parallel_recover() {
 #if LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t starttime = get_sys_clock();
@@ -404,7 +405,7 @@ txn_man::naive_parallel_recover() {
 	}
 	INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
 #endif
-}
+}*/
 
 uint32_t
 txn_man::get_log_entry_size()

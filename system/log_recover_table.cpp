@@ -220,6 +220,12 @@ LogRecoverTable::raw_pred_remover(TxnNode * node)
 }
 
 void
+LogRecoverTable::garbage_collection()
+{
+  
+}
+
+void
 LogRecoverTable::waw_pred_remover(TxnNode * node)
 {
 	uint64_t pred_size = ATOM_SUB_FETCH(node->pred_size, 1);

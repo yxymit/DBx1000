@@ -56,7 +56,8 @@ public:
     boost::lockfree::queue<TxnNode *> recover_ready_txns{10};
 
 	void add_log_recover(RecoverState * recover_state, PredecessorInfo * pred_info); 
-
+  void garbage_collection();
+	
     TxnNode * add_empty_node(uint64_t txn_id);
     void raw_pred_remover(TxnNode * node);
     void waw_pred_remover(TxnNode * node);
