@@ -279,11 +279,12 @@ LogManager::readFromLog(uint64_t &txn_id, uint32_t & num_keys, string * &table_n
 */
 RecoverState::RecoverState()
 {
+#if LOG_TYPE == LOG_DATA
 	table_ids = new uint32_t [MAX_ROW_PER_TXN];
 	keys = new uint64_t [MAX_ROW_PER_TXN];
 	lengths = new uint32_t [MAX_ROW_PER_TXN];
 	after_image = new char * [MAX_ROW_PER_TXN];
-
+#endif
 //#if LOG_ALGORITHM == LOG_PARALLEL
 //	predecessors = new uint32_t [MAX_ROW_PER_TXN];
 //	num_predecessors = 0;
@@ -292,10 +293,12 @@ RecoverState::RecoverState()
 
 RecoverState::~RecoverState()
 {
+#if LOG_TYPE == LOG_DATA
 	delete table_ids;
 	delete keys;
 	delete lengths;
 	delete after_image;
+#endif
 }
 
 RamDisk::RamDisk(string file_name)

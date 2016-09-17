@@ -140,8 +140,11 @@ private:
 ////////////////////////////////////////////////////
 // Logging 
 ////////////////////////////////////////////////////
-public:
-	virtual void	recover_txn(RecoverState * recover_state) {};
+protected:	
+	virtual uint32_t get_cmd_log_size() { assert(false); }
+	virtual void 	get_cmd_log_entry(uint32_t size, char * entry) { assert(false); }
+	virtual void 	recover_txn(RecoverState * recover_state) { assert(false); }
+
 private:
 	uint32_t 		get_log_entry_size();
 	void 			create_log_entry(uint32_t size, char * entry);

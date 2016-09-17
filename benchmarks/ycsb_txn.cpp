@@ -23,13 +23,13 @@ void ycsb_txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 
 RC ycsb_txn_man::run_txn(base_query * query) {
 	RC rc;
-	ycsb_query * m_query = (ycsb_query *) query;
+	_query = (ycsb_query *) query;
 	ycsb_wl * wl = (ycsb_wl *) h_wl;
 	itemid_t * m_item = NULL;
   	row_cnt = 0;
 
-	for (uint32_t rid = 0; rid < m_query->request_cnt; rid ++) {
-		ycsb_request * req = &m_query->requests[rid];
+	for (uint32_t rid = 0; rid < _query->request_cnt; rid ++) {
+		ycsb_request * req = &_query->requests[rid];
 		int part_id = wl->key_to_part( req->key );
 		bool finish_req = false;
 		UInt32 iteration = 0;
@@ -55,7 +55,7 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 			}
 			// Computation //
 			// Only do computation when there are more than 1 requests.
-            if (m_query->request_cnt > 1) {
+            if (_query->request_cnt > 1) {
                 if (req->rtype == RD || req->rtype == SCAN) {
 					char * data = row_local->get_data();
 					__attribute__((unused)) uint64_t fval = *(uint64_t *)(&data[0]);
@@ -80,6 +80,7 @@ final:
 void 
 ycsb_txn_man::recover_txn(RecoverState * recover_state)
 {
+#if LOG_TYPE == LOG_DATA
 	for (uint32_t i = 0; i < recover_state->num_keys; i ++) {
 		uint32_t table_id = recover_state->table_ids[i];
 		M_ASSERT(table_id == 0, "table_id=%d\n", table_id);
@@ -90,5 +91,60 @@ ycsb_txn_man::recover_txn(RecoverState * recover_state)
 		
 		row->set_value(0, recover_state->after_image[i], recover_state->lengths[i]);
 	}
+#elif LOG_TYPE == LOG_COMMAND
+	char * cmd = recover_state->cmd;
+	uint32_t num_keys = *(uint32_t *) cmd;
+	uint32_t offset = sizeof(uint32_t);
+	for (uint32_t i = 0; i < num_keys; i ++) {
+		uint64_t key = *(uint64_t *)(cmd + offset);
+		offset += sizeof(uint64_t);
+		access_t rtype = *(access_t *)(cmd + offset);
+		offset += sizeof(uint32_t);
+
+		itemid_t * m_item = index_read(_wl->the_index, key, 0);
+		row_t * row = ((row_t *)m_item->location);
+			
+		assert(row);
+		// Computation //
+		if (rtype == RD || rtype == SCAN) {
+			char * data = row->get_data();
+			__attribute__((unused)) uint64_t fval = *(uint64_t *)(&data[0]);
+		} else {
+			assert(rtype == WR);
+			char * data = row->get_data();
+			uint64_t fval = *(uint64_t *)(&data[0]);
+			*(uint64_t *)(&data[0]) = fval + 1;
+		} 
+	}
+#else
+	assert(false);
+#endif
+}
+
+uint32_t 
+ycsb_txn_man::get_cmd_log_size()
+{
+	// format
+	//   num_keys | key * num_keys
+	uint32_t num_keys = _query->request_cnt;
+	uint32_t size = sizeof(uint32_t) + sizeof(uint64_t) * num_keys + 
+					sizeof(access_t) * num_keys;
+	return size;
+}
+
+void 
+ycsb_txn_man::get_cmd_log_entry(uint32_t size, char * entry)
+{
+	uint32_t num_keys = _query->request_cnt;
+	uint32_t offset  = 0;
+	*(uint32_t *)entry = num_keys;
+	offset += sizeof(uint32_t);
+	for (uint32_t i = 0; i < num_keys; i ++) {
+		memcpy(entry + offset, &_query->requests[i].key, sizeof(uint64_t));
+		offset += sizeof(uint64_t);
+		memcpy(entry + offset, &_query->requests[i].rtype, sizeof(access_t));
+		offset += sizeof(access_t);
+	}
+	assert(offset == size);
 }
 

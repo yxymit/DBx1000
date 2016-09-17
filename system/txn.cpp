@@ -137,7 +137,7 @@ void txn_man::cleanup(RC rc) {
 			// get all preds with raw dependency
 			uint32_t num_preds = _predecessor_info->num_raw_preds();
 			uint64_t raw_preds[ num_preds ];
-			_predecessor_info->get_raw_preds(raw_preds);	
+			_predecessor_info->get_raw_preds(raw_preds);
 			void * txn_node = log_pending_table->add_log_pending( get_txn_id(), raw_preds, num_preds);
 			log_manager->parallelLogTxn(entry, size, _predecessor_info); 
 			// FLUSH DONE
@@ -410,6 +410,7 @@ txn_man::naive_parallel_recover() {
 uint32_t
 txn_man::get_log_entry_size()
 {
+#if LOG_TYPE == LOG_DATA
 	uint32_t buffsize = 0;
   	// size, txn_id and wr_cnt
 	buffsize += sizeof(uint32_t) + sizeof(txn_id) + sizeof(wr_cnt);
@@ -423,12 +424,19 @@ txn_man::get_log_entry_size()
   	// for data
   	for (int i=0; i < wr_cnt; i++)
     	buffsize += accesses[i]->orig_row->get_tuple_size();
-  	return buffsize;  
+  	return buffsize; 
+#elif LOG_TYPE == LOG_COMMAND
+	// total entry size + cmd_log_size
+	return sizeof(uint32_t) + get_cmd_log_size();
+#else
+	assert(false);
+#endif
 }
 
 void 
 txn_man::create_log_entry(uint32_t size, char * entry)
 {
+#if LOG_TYPE == LOG_DATA
 	// Format
 	// size | txn_id | cnt | tableID[wr_cnt] | key[cnt] | data_length[cnt] | data[cnt] 
   	uint32_t offset = 0;
@@ -468,11 +476,18 @@ txn_man::create_log_entry(uint32_t size, char * entry)
 	    offset += length;
   	}
   	assert( offset == size );
+#elif LOG_TYPE == LOG_COMMAND
+	*(uint32_t *)entry = size;
+	get_cmd_log_entry(size - sizeof(uint32_t), entry + sizeof(uint32_t));
+#else
+	assert(false);
+#endif
 }
 
 void
 txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state)
 {
+#if LOG_TYPE == LOG_DATA
 	char * ptr = entry;
 	uint32_t size = *(uint32_t *)entry;
 	ptr += sizeof(uint32_t);
@@ -495,4 +510,9 @@ txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state)
 		ptr += recover_state->lengths[i];
 	}
 	assert(size == (uint64_t)(ptr - entry));
+#elif LOG_TYPE == LOG_COMMAND
+
+#else 
+	assert(false);
+#endif
 }
