@@ -71,7 +71,7 @@ extern OptCC occ_man;
 
 // Logging
 #if LOG_ALGORITHM == LOG_SERIAL
-extern LogManager * log_manager;
+extern SerialLogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
 extern BatchLog * log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL
