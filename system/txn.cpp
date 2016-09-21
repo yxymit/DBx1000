@@ -131,7 +131,7 @@ void txn_man::cleanup(RC rc) {
 			char entry[size];// = NULL;
 			create_log_entry(size, entry);
   #if LOG_ALGORITHM == LOG_SERIAL
-			log_manager->logTxn(entry, size);
+			log_manager->serialLogTxn(entry, size);
 			INC_STATS(get_thd_id(), latency, get_sys_clock() - _txn_start_time);
   #elif LOG_ALGORITHM == LOG_PARALLEL
 			INC_STATS(get_thd_id(), latency, - _txn_start_time);
@@ -497,7 +497,7 @@ txn_man::create_log_entry(uint32_t size, char * entry)
 	assert(false);
 #endif
 }
-
+#if LOG_SERIAL
 void
 txn_man::serial_recover_from_log_entry(char * entry, RecoverState * recover_state)
 {
@@ -542,7 +542,7 @@ txn_man::serial_recover_from_log_entry(char * entry, RecoverState * recover_stat
 	assert(false);
 #endif
 }
-
+#endif
 void
 txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state)
 {
