@@ -43,6 +43,7 @@ class Plock;
 class OptCC;
 class VLLMan;
 class LogManager;
+class SerialLogManager;
 class BatchLog;
 class ParallelLogManager;
 class LogPendingTable;
