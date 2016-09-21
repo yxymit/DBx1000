@@ -24,7 +24,8 @@ OptCC occ_man;
 
 // Logging
 #if LOG_ALGORITHM == LOG_SERIAL
-LogManager * log_manager;
+SerialLogManager * log_manager;
+queue<RecoverState *> ** txns_ready_for_recovery;
 #elif LOG_ALGORITHM == LOG_BATCH
 BatchLog * log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL

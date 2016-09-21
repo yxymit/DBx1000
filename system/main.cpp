@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
 	parser(argc, argv);
 	
 #if LOG_ALGORITHM == LOG_SERIAL
-	MALLOC_CONSTRUCTOR(LogManager, log_manager);
+	MALLOC_CONSTRUCTOR(SerialLogManager, log_manager);
 #elif LOG_ALGORITHM == LOG_PARALLEL
 	MALLOC_CONSTRUCTOR(ParallelLogManager, log_manager);
 	MALLOC_CONSTRUCTOR(LogPendingTable, log_pending_table);
