@@ -304,9 +304,7 @@ txn_man::serial_recover() {
         char * entry = NULL;
         log_manager->readFromLog(entry);
         while (entry != NULL) {
-            RecoverState * recover_state = (RecoverState *) free_queue_recover_state[0].get_element();
-            if (recover_state == NULL)
-                recover_state = new RecoverState;
+            RecoverState * recover_state = new RecoverState;
             serial_recover_from_log_entry(entry, recover_state);
             log_manager->readFromLog(entry);
         }
