@@ -9,6 +9,7 @@
 #include "occ.h"
 #include "vll.h"
 #include "log.h"
+#include "serial_log.h"
 #include "parallel_log.h"
 #include "log_pending_table.h"
 #include "log_recover_table.h"
