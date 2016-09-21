@@ -503,7 +503,7 @@ txn_man::serial_recover_from_log_entry(char * entry, RecoverState * recover_stat
 {
 #if LOG_TYPE == LOG_DATA
 	char * ptr = entry;
-	uint32_t size = *(uint32_t *)entry;
+	//uint32_t size = *(uint32_t *)entry;
 	ptr += sizeof(uint32_t);
 	uint64_t txn_id = *(uint64_t *)ptr;
 	//recover_state->txn_id = txn_id;
@@ -511,32 +511,29 @@ txn_man::serial_recover_from_log_entry(char * entry, RecoverState * recover_stat
 	uint32_t num_keys = *(uint32_t *)ptr;
 	//recover_state->num_keys = num_keys; 
 	ptr += sizeof(uint32_t);
-	RecoverState * recovery_tuples = new RecoverState[num_keys];
-	uint32_t * table_ids = new uint32_t[num_keys];
-	uint64_t * keys = new uint32_t[keys];
-	uint32_t * lengths = new uint32_t[lengths];
+	RecoverState ** recovery_tuples = new RecoverState * [num_keys];
 	for(uint32_t i = 0; i < num_keys; i++) {
-		memcpy(recovery_tuples[i]->table_ids[0], ptr, sizeof(uint32_t));
+		memcpy(recovery_tuples[i]->table_ids, ptr, sizeof(uint32_t));
 		ptr += sizeof(uint32_t);
 	}
 	for(uint32_t i = 0; i < num_keys; i++) {
-		memcpy(recovery_tuples[i]->keys[0], ptr, sizeof(uint64_t));
+		memcpy(recovery_tuples[i]->keys, ptr, sizeof(uint64_t));
 		ptr += sizeof(uint64_t);
 	}
 	for(uint32_t i = 0; i < num_keys; i++) {
-		memcpy(recovery_tuples[i]->lengths[0], ptr, sizeof(uint32_t));
+		memcpy(recovery_tuples[i]->lengths, ptr, sizeof(uint32_t));
 		ptr += sizeof(uint32_t);
 	}
 	// Since we are using RAM disk and the after images are readonly,
 	// we don't copy the after_image to recover_state, instead, we just copy the pointer
 	for (uint32_t i = 0; i < num_keys; i ++) {
-		log_tuples[i]->after_image[0] = ptr;
+		recovery_tuples[i]->after_image[0] = ptr;
 		ptr += recovery_tuples[i]->lengths[0];
 	}
 	//assert(size == (uint64_t)(ptr - entry));
 	for(uint32_t i = 0; i < num_keys; i++) {
-		log_tuples[i]->txn_id = _txn_id;
-		log_tuples[i]->num_keys = 1;
+		recovery_tuples[i]->txn_id = txn_id;
+		recovery_tuples[i]->num_keys = 1;
 		txns_ready_for_recovery[recovery_tuples[i]->keys[0]% g_num_logger]->push(recovery_tuples[i]);
 	}
 #elif LOG_TYPE == LOG_COMMAND
