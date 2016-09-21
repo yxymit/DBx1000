@@ -20,6 +20,7 @@
 #include <time.h> 
 #include <sys/time.h>
 #include <math.h>
+#include <queue>
 #include <boost/lockfree/queue.hpp>
 
 #include "pthread.h"

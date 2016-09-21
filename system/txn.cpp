@@ -316,9 +316,10 @@ txn_man::serial_recover() {
     RecoverState * recover_state; 
     uint64_t num_records = 0;
     while (true) {
-        if (txns_ready_for_recovery[logger_id]->pop(recover_state)) {
+        if (!txns_ready_for_recovery[logger_id].empty()) {
+            recover_state = txns_ready_for_recovery[logger_id].front();
+            txns_ready_for_recovery[logger_id].pop();
             recover_txn(recover_state);
-            free_queue_recover_state[logger_id].return_element((void *) recover_state);
             num_records ++;
         } else if (SerialLogManager::num_files_done < g_num_logger)
             PAUSE
