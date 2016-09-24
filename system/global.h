@@ -20,6 +20,7 @@
 #include <time.h> 
 #include <sys/time.h>
 #include <math.h>
+#include <queue>
 #include <boost/lockfree/queue.hpp>
 
 #include "pthread.h"
@@ -43,6 +44,7 @@ class Plock;
 class OptCC;
 class VLLMan;
 class LogManager;
+class SerialLogManager;
 class BatchLog;
 class ParallelLogManager;
 class LogPendingTable;
@@ -70,7 +72,8 @@ extern OptCC occ_man;
 
 // Logging
 #if LOG_ALGORITHM == LOG_SERIAL
-extern LogManager * log_manager;
+extern SerialLogManager * log_manager;
+extern queue<RecoverState *> ** txns_ready_for_recovery;
 #elif LOG_ALGORITHM == LOG_BATCH
 extern BatchLog * log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL

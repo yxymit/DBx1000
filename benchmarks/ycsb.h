@@ -35,7 +35,11 @@ public:
 	void init(thread_t * h_thd, workload * h_wl, uint64_t part_id); 
 	RC run_txn(base_query * query);
 	void recover_txn(RecoverState * recover_state);
+
+	uint32_t get_cmd_log_size();
+	void get_cmd_log_entry(uint32_t size, char * entry);
 private:
+	ycsb_query * _query;
 	uint64_t row_cnt;
 	ycsb_wl * _wl;
 };

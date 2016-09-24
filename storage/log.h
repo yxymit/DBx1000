@@ -12,8 +12,9 @@ class RecoverState {
 public:
 	RecoverState(); 
 	~RecoverState();
-#if LOG_TYPE == LOG_DATA
+	
 	uint64_t txn_id;
+#if LOG_TYPE == LOG_DATA
 	uint32_t num_keys;
 	uint32_t * table_ids;
 	//string * table_names;
@@ -21,7 +22,7 @@ public:
 	uint32_t * lengths;
 	char ** after_image;
 #elif LOG_TYPE == LOG_COMMAND
-	 
+	char * cmd;	 
 #endif
 
 #if LOG_ALGORITHM == LOG_PARALLEL
