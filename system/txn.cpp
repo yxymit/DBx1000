@@ -304,28 +304,27 @@ txn_man::serial_recover() {
         char * entry = NULL;
         log_manager->readFromLog(entry);
         while (entry != NULL) {
-            RecoverState * recover_state = new RecoverState;
-            serial_recover_from_log_entry(entry, recover_state);
+            serial_recover_from_log_entry(entry);
             log_manager->readFromLog(entry);
         }
-        ATOM_ADD_FETCH(SerialLogManager::num_files_done, g_num_logger);
-    }
-    // Execution thread.
-    // recover transactions that are ready 
-    uint32_t logger_id = get_thd_id() % g_num_logger; 
-    RecoverState * recover_state; 
-    uint64_t num_records = 0;
-    while (true) {
-        if (!txns_ready_for_recovery[logger_id]->empty()) {
-            recover_state = txns_ready_for_recovery[logger_id]->front();
-            txns_ready_for_recovery[logger_id]->pop();
-            recover_txn(recover_state);
-            num_records ++;
-        } else if (SerialLogManager::num_files_done < g_num_logger)
-            PAUSE
-        else 
-            break;
-    }
+    } else {
+	    // Execution thread.
+	    // recover transactions that are ready 
+	    uint32_t logger_id = get_thd_id() % (g_num_logger-1); 
+	    RecoverState * recover_state; 
+	    uint64_t num_records = 0;
+	    while (true) {
+	        if (!txns_ready_for_recovery[logger_id]->empty()) {
+	            recover_state = txns_ready_for_recovery[logger_id]->front();
+	            txns_ready_for_recovery[logger_id]->pop();
+	            recover_txn(recover_state);
+	            num_records ++;
+	        } else if (SerialLogManager::num_files_done < g_num_logger)
+	            PAUSE
+	        else 
+	            break;
+	    }
+	}
     INC_STATS(get_thd_id(), txn_cnt, num_records);
     //if (get_thd_id() == 0)
     INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
@@ -498,7 +497,7 @@ txn_man::create_log_entry(uint32_t size, char * entry)
 }
 #if LOG_SERIAL
 void
-txn_man::serial_recover_from_log_entry(char * entry, RecoverState * recover_state)
+txn_man::serial_recover_from_log_entry(char * entry)
 {
 #if LOG_TYPE == LOG_DATA
 	char * ptr = entry;
@@ -523,6 +522,7 @@ txn_man::serial_recover_from_log_entry(char * entry, RecoverState * recover_stat
 		memcpy(recovery_tuples[i]->lengths, ptr, sizeof(uint32_t));
 		ptr += sizeof(uint32_t);
 	}
+	uint64_t serial_lsn = *(uint64_t *)ptr;
 	// Since we are using RAM disk and the after images are readonly,
 	// we don't copy the after_image to recover_state, instead, we just copy the pointer
 	for (uint32_t i = 0; i < num_keys; i ++) {
@@ -533,7 +533,7 @@ txn_man::serial_recover_from_log_entry(char * entry, RecoverState * recover_stat
 	for(uint32_t i = 0; i < num_keys; i++) {
 		recovery_tuples[i]->txn_id = txn_id;
 		recovery_tuples[i]->num_keys = 1;
-		txns_ready_for_recovery[recovery_tuples[i]->keys[0]% g_num_logger]->push(recovery_tuples[i]);
+		txns_ready_for_recovery[recovery_tuples[i]->keys[0]% (g_num_logger - 1)]->push(recovery_tuples[i]);
 	}
 #elif LOG_TYPE == LOG_COMMAND
 
