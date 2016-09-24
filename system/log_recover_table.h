@@ -53,6 +53,7 @@ public:
 
     Bucket ** _buckets;
     queue<TxnNode *> * _free_nodes;
+    queue<TxnNode *> * _gc_queue;
     boost::lockfree::queue<TxnNode *> recover_ready_txns{10};
 
 	void add_log_recover(RecoverState * recover_state, PredecessorInfo * pred_info); 
