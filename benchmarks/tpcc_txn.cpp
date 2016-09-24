@@ -58,43 +58,53 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 	item = index_read(index, key, wh_to_part(w_id));
 	assert(item != NULL);
 	row_t * r_wh = ((row_t *)item->location);
-	row_t * r_wh_local;
+	//row_t * r_wh_local;
+	char * wh_data;
 	if (g_wh_update)
-		r_wh_local = get_row(r_wh, WR);
+		rc = get_row(r_wh, WR, wh_data);
 	else 
-		r_wh_local = get_row(r_wh, RD);
+		rc = get_row(r_wh, RD, wh_data);
 
-	if (r_wh_local == NULL) {
+	if (rc == Abort) {
 		return finish(Abort);
 	}
-	double w_ytd;
-	
-	r_wh_local->get_value(W_YTD, w_ytd);
+	double w_ytd = *(double *)row_t::get_value(r_wh->get_schema(), W_YTD, wh_data);
+	//r_wh_local->get_value(W_YTD, w_ytd);
 	if (g_wh_update) {
-		r_wh_local->set_value(W_YTD, w_ytd + query->h_amount);
+		double amount = w_ytd + query->h_amount;
+		row_t::set_value(r_wh->get_schema(), W_YTD, wh_data, (char *)&amount);
+		//r_wh_local->set_value(W_YTD, w_ytd + query->h_amount);
 	}
 	char w_name[11];
-	char * tmp_str = r_wh_local->get_value(W_NAME);
+	//char * tmp_str = r_wh_local->get_value(W_NAME);
+	char * tmp_str = row_t::get_value(r_wh->get_schema(), W_NAME, wh_data);
 	memcpy(w_name, tmp_str, 10);
 	w_name[10] = '\0';
 	/*=====================================================+
 		EXEC SQL UPDATE district SET d_ytd = d_ytd + :h_amount
 		WHERE d_w_id=:w_id AND d_id=:d_id;
 	+=====================================================*/
+	// TODO TODO TODO
 	key = distKey(query->d_id, query->d_w_id);
 	item = index_read(_wl->i_district, key, wh_to_part(w_id));
 	assert(item != NULL);
 	row_t * r_dist = ((row_t *)item->location);
-	row_t * r_dist_local = get_row(r_dist, WR);
-	if (r_dist_local == NULL) {
+	//row_t * r_dist_local = get_row(r_dist, WR);
+	char * r_dist_data = NULL;
+    rc = get_row(r_dist, WR, r_dist_data);
+	if (rc != RCOK) {
 		return finish(Abort);
 	}
 
-	double d_ytd;
-	r_dist_local->get_value(D_YTD, d_ytd);
-	r_dist_local->set_value(D_YTD, d_ytd + query->h_amount);
+	//double d_ytd;
+	double d_ytd = *(double *)row_t::get_value(r_dist->get_schema(), D_YTD, r_dist_data);
+    d_ytd += query->h_amount;
+    row_t::set_value(r_dist->get_schema(), D_YTD, r_dist_data, (char *)&d_ytd);
+	//r_dist_local->get_value(D_YTD, d_ytd);
+	//r_dist_local->set_value(D_YTD, d_ytd + query->h_amount);
 	char d_name[11];
-	tmp_str = r_dist_local->get_value(D_NAME);
+	//tmp_str = r_dist_local->get_value(D_NAME);
+	tmp_str = row_t::get_value(r_dist->get_schema(), D_NAME, r_dist_data);
 	memcpy(d_name, tmp_str, 10);
 	d_name[10] = '\0';
 
@@ -173,23 +183,25 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 	   	EXEC SQL UPDATE customer SET c_balance = :c_balance, c_data = :c_new_data
    		WHERE c_w_id = :c_w_id AND c_d_id = :c_d_id AND c_id = :c_id;
    	+======================================================================*/
-	row_t * r_cust_local = get_row(r_cust, WR);
-	if (r_cust_local == NULL) {
+	//row_t * r_cust_local = get_row(r_cust, WR);
+	char * r_cust_data = NULL;
+    rc = get_row(r_cust, WR, r_cust_data);
+	if (rc != RCOK) {
 		return finish(Abort);
 	}
-	double c_balance;
-	double c_ytd_payment;
-	double c_payment_cnt;
+	double c_balance = *(double *)row_t::get_value(r_cust->get_schema(), C_BALANCE, r_cust_data);
+    c_balance -= query->h_amount;
+    row_t::set_value(r_cust->get_schema(), C_BALANCE, r_cust_data, (char *)&c_balance);
 
-	r_cust_local->get_value(C_BALANCE, c_balance);
-	r_cust_local->set_value(C_BALANCE, c_balance - query->h_amount);
-	r_cust_local->get_value(C_YTD_PAYMENT, c_ytd_payment);
-	r_cust_local->set_value(C_YTD_PAYMENT, c_ytd_payment + query->h_amount);
-	r_cust_local->get_value(C_PAYMENT_CNT, c_payment_cnt);
-	r_cust_local->set_value(C_PAYMENT_CNT, c_payment_cnt + 1);
+    double c_ytd_payment = *(double *)row_t::get_value(r_cust->get_schema(), C_YTD_PAYMENT, r_cust_data);
+    c_ytd_payment -= query->h_amount;
+    row_t::set_value(r_cust->get_schema(), C_YTD_PAYMENT, r_cust_data, (char *)&c_ytd_payment);
 
-	char * c_credit = r_cust_local->get_value(C_CREDIT);
+    double c_payment_cnt = *(double *)row_t::get_value(r_cust->get_schema(), C_PAYMENT_CNT, r_cust_data);
+    c_payment_cnt += 1;
+    row_t::set_value(r_cust->get_schema(), C_PAYMENT_CNT, r_cust_data, (char *)&c_payment_cnt);
 
+	char * c_credit = row_t::get_value(r_cust->get_schema(), C_CREDIT, r_cust_data);
 	if ( strstr(c_credit, "BC") ) {
 	
 		/*=====================================================+
@@ -261,27 +273,29 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 	item = index_read(index, key, wh_to_part(w_id));
 	assert(item != NULL);
 	row_t * r_wh = ((row_t *)item->location);
-	row_t * r_wh_local = get_row(r_wh, RD);
-	if (r_wh_local == NULL) {
+	char * r_wh_data = NULL;
+    rc = get_row(r_wh, RD, r_wh_data); //row_t * r_wh_local = get_row(r_wh, RD);
+	if (rc != RCOK)
 		return finish(Abort);
-	}
 
-
-	double w_tax;
-	r_wh_local->get_value(W_TAX, w_tax); 
+	//double w_tax;
+	//r_wh_local->get_value(W_TAX, w_tax); 
+	
 	key = custKey(c_id, d_id, w_id);
 	index = _wl->i_customer_id;
 	item = index_read(index, key, wh_to_part(w_id));
 	assert(item != NULL);
 	row_t * r_cust = (row_t *) item->location;
-	row_t * r_cust_local = get_row(r_cust, RD);
-	if (r_cust_local == NULL) {
-		return finish(Abort); 
-	}
-	uint64_t c_discount;
+
+	char * r_cust_data = NULL;
+    rc = get_row(r_cust, RD, r_cust_data);
+	if (rc != RCOK)
+		return finish(Abort);
+	
+	//uint64_t c_discount;
 	//char * c_last;
 	//char * c_credit;
-	r_cust_local->get_value(C_DISCOUNT, c_discount);
+	//r_cust_local->get_value(C_DISCOUNT, c_discount);
 	//c_last = r_cust_local->get_value(C_LAST);
 	//c_credit = r_cust_local->get_value(C_CREDIT);
  	
@@ -296,16 +310,16 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 	item = index_read(_wl->i_district, key, wh_to_part(w_id));
 	assert(item != NULL);
 	row_t * r_dist = ((row_t *)item->location);
-	row_t * r_dist_local = get_row(r_dist, WR);
-	if (r_dist_local == NULL) {
-		return finish(Abort);
-	}
-	//double d_tax;
-	int64_t o_id;
-	//d_tax = *(double *) r_dist_local->get_value(D_TAX);
-	o_id = *(int64_t *) r_dist_local->get_value(D_NEXT_O_ID);
-	o_id ++;
-	r_dist_local->set_value(D_NEXT_O_ID, o_id);
+    
+	char * r_dist_data = NULL;
+    rc = get_row(r_dist, WR, r_dist_data);
+    if (rc != RCOK)
+        return finish(Abort);
+
+
+	int64_t o_id = *(int64_t *) row_t::get_value(r_dist->get_schema(), D_NEXT_O_ID, r_dist_data);
+    o_id ++;
+    row_t::set_value(r_dist->get_schema(), D_NEXT_O_ID, r_dist_data, (char *)&o_id);	
 
 	/*========================================================================================+
 	EXEC SQL INSERT INTO ORDERS (o_id, o_d_id, o_w_id, o_c_id, o_entry_d, o_ol_cnt, o_all_local)
@@ -348,15 +362,16 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 		item = index_read(_wl->i_item, key, 0);
 		assert(item != NULL);
 		row_t * r_item = ((row_t *)item->location);
-
-		row_t * r_item_local = get_row(r_item, RD);
-		if (r_item_local == NULL) {
+		
+		char * r_item_data = NULL;
+        rc = get_row(r_item, RD, r_item_data);
+        if (rc != RCOK)
 			return finish(Abort);
-		}
-		int64_t i_price;
+		
+		//int64_t i_price;
 		//char * i_name;
 		//char * i_data;
-		r_item_local->get_value(I_PRICE, i_price);
+		//r_item_local->get_value(I_PRICE, i_price);
 		//i_name = r_item_local->get_value(I_NAME);
 		//i_data = r_item_local->get_value(I_DATA);
 
@@ -380,29 +395,29 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 		index_read(stock_index, stock_key, wh_to_part(ol_supply_w_id), stock_item);
 		assert(item != NULL);
 		row_t * r_stock = ((row_t *)stock_item->location);
-		row_t * r_stock_local = get_row(r_stock, WR);
-		if (r_stock_local == NULL) {
+		
+		char * r_stock_data = NULL;
+        rc = get_row(r_stock, WR, r_stock_data);
+		if (rc != RCOK)
 			return finish(Abort);
-		}
 		
 		// XXX s_dist_xx are not retrieved.
 		UInt64 s_quantity;
 		int64_t s_remote_cnt;
-		s_quantity = *(int64_t *)r_stock_local->get_value(S_QUANTITY);
+		s_quantity = *(int64_t *)row_t::get_value(r_stock->get_schema(), S_QUANTITY, r_stock_data);
 #if !TPCC_SMALL
-		int64_t s_ytd;
-		int64_t s_order_cnt;
-		//char * s_data = "test";
-		r_stock_local->get_value(S_YTD, s_ytd);
-		r_stock_local->set_value(S_YTD, s_ytd + ol_quantity);
-		r_stock_local->get_value(S_ORDER_CNT, s_order_cnt);
-		r_stock_local->set_value(S_ORDER_CNT, s_order_cnt + 1);
-		//s_data = r_stock_local->get_value(S_DATA);
+		int64_t s_ytd = *(int64_t *)row_t::get_value(r_stock->get_schema(), S_YTD, r_stock_data);
+        s_ytd += ol_quantity;
+        row_t::set_value(r_stock->get_schema(), S_YTD, r_stock_data, (char *)&s_ytd);
+
+        int64_t s_order_cnt = *(int64_t *)row_t::get_value(r_stock->get_schema(), S_ORDER_CNT, r_stock_data);
+        s_order_cnt ++;
+        row_t::set_value(r_stock->get_schema(), S_ORDER_CNT, r_stock_data, (char *)&s_order_cnt);
 #endif
 		if (remote) {
-			s_remote_cnt = *(int64_t*)r_stock_local->get_value(S_REMOTE_CNT);
-			s_remote_cnt ++;
-			r_stock_local->set_value(S_REMOTE_CNT, &s_remote_cnt);
+            s_remote_cnt = *(int64_t*)row_t::get_value(r_stock->get_schema(), S_REMOTE_CNT, r_stock_data);
+            s_remote_cnt ++;
+            row_t::set_value(r_stock->get_schema(), S_REMOTE_CNT, r_stock_data, (char *)&s_remote_cnt);
 		}
 		uint64_t quantity;
 		if (s_quantity > ol_quantity + 10) {
@@ -410,7 +425,7 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 		} else {
 			quantity = s_quantity - ol_quantity + 91;
 		}
-		r_stock_local->set_value(S_QUANTITY, &quantity);
+		row_t::set_value(r_stock->get_schema(), S_QUANTITY, r_stock_data, (char *)&quantity);
 
 		/*====================================================+
 		EXEC SQL INSERT

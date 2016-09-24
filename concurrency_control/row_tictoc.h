@@ -30,11 +30,12 @@ class row_t;
 class Row_tictoc {
 public:
 	void 				init(row_t * row);
-	RC 					access(txn_man * txn, TsType type, row_t * local_row);
+	//RC 					access(txn_man * txn, TsType type, row_t * local_row);
+	RC 					access(txn_man * txn, TsType type, char * data);
 #if SPECULATE
 	RC					write_speculate(row_t * data, ts_t version, bool spec_read); 
 #endif
-	void				write_data(row_t * data, ts_t wts, txn_man * txn);
+	void				write_data(char * data, ts_t wts, txn_man * txn);
 	void				write_ptr(row_t * data, ts_t wts, char *& data_to_free);
 	bool 				renew_lease(ts_t wts, ts_t rts);
 	bool 				try_renew(ts_t wts, ts_t rts, ts_t &new_rts, uint64_t thd_id);

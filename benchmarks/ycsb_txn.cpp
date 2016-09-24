@@ -45,23 +45,20 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 			}
 #endif
 			row_t * row = ((row_t *)m_item->location);
-			row_t * row_local; 
 			access_t type = req->rtype;
 			
-			row_local = get_row(row, type);
-			if (row_local == NULL) {
-				rc = Abort;
+			char * data = NULL;	
+			rc = get_row(row, type, data);
+			if (rc == Abort) 
 				goto final;
-			}
+			assert(data);	
 			// Computation //
 			// Only do computation when there are more than 1 requests.
             if (_query->request_cnt > 1) {
                 if (req->rtype == RD || req->rtype == SCAN) {
-					char * data = row_local->get_data();
 					__attribute__((unused)) uint64_t fval = *(uint64_t *)(&data[0]);
                 } else {
                     assert(req->rtype == WR);
-					char * data = row->get_data();
 					uint64_t fval = *(uint64_t *)(&data[0]);
 					*(uint64_t *)(&data[0]) = fval + 1;
                 } 
@@ -126,6 +123,7 @@ ycsb_txn_man::get_cmd_log_size()
 {
 	// format
 	//   num_keys | key * num_keys
+	// here, num_keys also indicates the size of the cmd
 	uint32_t num_keys = _query->request_cnt;
 	uint32_t size = sizeof(uint32_t) + sizeof(uint64_t) * num_keys + 
 					sizeof(access_t) * num_keys;

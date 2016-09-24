@@ -24,7 +24,8 @@ Row_tictoc::init(row_t * row)
 }
 	
 RC
-Row_tictoc::access(txn_man * txn, TsType type, row_t * local_row)
+//Row_tictoc::access(txn_man * txn, TsType type, row_t * local_row)
+Row_tictoc::access(txn_man * txn, TsType type, char * data)
 {
 #if ATOMIC_WORD
 	uint64_t v = 0;
@@ -39,9 +40,9 @@ Row_tictoc::access(txn_man * txn, TsType type, row_t * local_row)
 			PAUSE
 			v = _ts_word;
 		}
-		local_row->copy(_row);
+		memcpy(data, _row->get_data(), _row->get_tuple_size());
   #if LOG_ALGORITHM == LOG_PARALLEL
-		local_row->set_last_writer( _row->get_last_writer() );
+		txn->last_writer = _row->get_last_writer();
   #endif
 		COMPILER_BARRIER
 		v2 = _ts_word;
@@ -58,9 +59,9 @@ Row_tictoc::access(txn_man * txn, TsType type, row_t * local_row)
 	lock();
 	txn->last_wts = _wts;
 	txn->last_rts = _rts;
-	local_row->copy(_row);
+	memcpy(data, _row->get_data(), _row->get_tuple_size());
   #if LOG_ALGORITHM == LOG_PARALLEL
-	local_row->set_last_writer( _row->get_last_writer() );
+	txn->last_writer = _row->get_last_writer();
   #endif
 	release();
 #endif
@@ -68,7 +69,7 @@ Row_tictoc::access(txn_man * txn, TsType type, row_t * local_row)
 }
 
 void 
-Row_tictoc::write_data(row_t * data, ts_t wts, txn_man * txn)
+Row_tictoc::write_data(char * data, ts_t wts, txn_man * txn)
 {
 #if ATOMIC_WORD
   	uint64_t v = _ts_word;

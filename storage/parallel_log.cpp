@@ -67,7 +67,7 @@ void
 PredecessorInfo::get_raw_preds(uint64_t * preds)
 {
 	memcpy(preds, _preds_raw, _raw_size * sizeof(uint64_t));
-	memcpy(preds + _raw_size * sizeof(uint64_t), _preds_waw, _waw_size * sizeof(uint64_t));
+	memcpy(preds + _raw_size, _preds_waw, _waw_size * sizeof(uint64_t));
 }
 
 uint32_t

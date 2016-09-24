@@ -93,7 +93,6 @@ void txn_man::cleanup(RC rc) {
 			continue;
 		}
 #endif
-
 		if (ROLL_BACK && type == XP &&
 					(CC_ALG == DL_DETECT || 
 					CC_ALG == NO_WAIT || 
@@ -123,12 +122,14 @@ void txn_man::cleanup(RC rc) {
 #if LOG_ALGORITHM != LOG_NO
 	if (rc == RCOK)
 	{
-
         if (wr_cnt > 0) {
 			uint64_t before_log_time = get_sys_clock();
-			uint32_t size = get_log_entry_size();			
+			uint32_t size = get_log_entry_size();
 			char entry[size];// = NULL;
 			create_log_entry(size, entry);
+			uint32_t s;
+			memcpy(&s, entry, sizeof(uint32_t));
+			assert(size == s);
   #if LOG_ALGORITHM == LOG_SERIAL
 			log_manager->logTxn(entry, size);
 			INC_STATS(get_thd_id(), latency, get_sys_clock() - _txn_start_time);
@@ -137,8 +138,10 @@ void txn_man::cleanup(RC rc) {
 			// get all preds with raw dependency
 			uint32_t num_preds = _predecessor_info->num_raw_preds();
 			uint64_t raw_preds[ num_preds ];
+			
 			_predecessor_info->get_raw_preds(raw_preds);
 			void * txn_node = log_pending_table->add_log_pending( get_txn_id(), raw_preds, num_preds);
+
 			log_manager->parallelLogTxn(entry, size, _predecessor_info); 
 			// FLUSH DONE
 			log_pending_table->remove_log_pending(txn_node);
@@ -159,19 +162,21 @@ void txn_man::cleanup(RC rc) {
 #endif
 }
 
-row_t * txn_man::get_row(row_t * row, access_t type) {
-	if (CC_ALG == HSTORE)
-		return row;
+RC txn_man::get_row(row_t * row, access_t type, char * &data) {
+	if (CC_ALG == HSTORE) {
+		data = row->get_data();
+		return RCOK;
+	}
 	uint64_t starttime = get_sys_clock();
 	RC rc = RCOK;
 	if (accesses[row_cnt] == NULL) {
 		Access * access = (Access *) _mm_malloc(sizeof(Access), 64);
 		accesses[row_cnt] = access;
 #if (CC_ALG == SILO || CC_ALG == TICTOC)
-		access->data = (row_t *) _mm_malloc(sizeof(row_t), 64);
-		access->data->init(MAX_TUPLE_SIZE);
-		access->orig_data = (row_t *) _mm_malloc(sizeof(row_t), 64);
-		access->orig_data->init(MAX_TUPLE_SIZE);
+		access->data = new char [row->get_tuple_size()] ;//(row_t *) _mm_malloc(sizeof(row_t), 64);
+		//access->data->init(MAX_TUPLE_SIZE);
+		access->orig_data = NULL; //(row_t *) _mm_malloc(sizeof(row_t), 64);
+		//access->orig_data->init(MAX_TUPLE_SIZE);
 #elif (CC_ALG == DL_DETECT || CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE)
 		access->orig_data = (row_t *) _mm_malloc(sizeof(row_t), 64);
 		access->orig_data->init(MAX_TUPLE_SIZE);
@@ -181,13 +186,13 @@ row_t * txn_man::get_row(row_t * row, access_t type) {
 	
 	rc = row->get_row(type, this, accesses[ row_cnt ]->data);
 #if LOG_ALGORITHM == LOG_PARALLEL
-	uint64_t last_writer = accesses[ row_cnt ]->data->get_last_writer();
+	//uint64_t last_writer = accesses[ row_cnt ]->data->get_last_writer();
 	if (last_writer != 0) {
 		_predecessor_info->insert_pred(last_writer, type);
 	}
 #endif
 	if (rc == Abort) {
-		return NULL;
+		return Abort;
 	}
 	accesses[row_cnt]->type = type;
 	accesses[row_cnt]->orig_row = row;
@@ -201,6 +206,8 @@ row_t * txn_man::get_row(row_t * row, access_t type) {
 #endif
 
 #if ROLL_BACK && (CC_ALG == DL_DETECT || CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE)
+	// orig_data should be char *
+	assert(false);
 	if (type == WR) {
 		accesses[row_cnt]->orig_data->table = row->get_table();
 		accesses[row_cnt]->orig_data->copy(row);
@@ -218,7 +225,9 @@ row_t * txn_man::get_row(row_t * row, access_t type) {
 
 	uint64_t timespan = get_sys_clock() - starttime;
 	INC_TMP_STATS(get_thd_id(), time_man, timespan);
-	return accesses[row_cnt - 1]->data;
+	data = accesses[row_cnt - 1]->data;
+	return RCOK;
+	//return accesses[row_cnt - 1]->data;
 }
 
 void txn_man::insert_row(row_t * row, table_t * table) {
@@ -427,7 +436,7 @@ txn_man::get_log_entry_size()
   	return buffsize; 
 #elif LOG_TYPE == LOG_COMMAND
 	// total entry size + cmd_log_size
-	return sizeof(uint32_t) + get_cmd_log_size();
+	return sizeof(uint32_t) + sizeof(txn_id) + get_cmd_log_size();
 #else
 	assert(false);
 #endif
@@ -477,8 +486,14 @@ txn_man::create_log_entry(uint32_t size, char * entry)
   	}
   	assert( offset == size );
 #elif LOG_TYPE == LOG_COMMAND
-	*(uint32_t *)entry = size;
-	get_cmd_log_entry(size - sizeof(uint32_t), entry + sizeof(uint32_t));
+	// Format
+	// size | txn_id | cmd_log_entry
+	uint32_t offset = 0;
+	memcpy(entry, &size, sizeof(size));
+	offset += sizeof(size);
+	memcpy(entry + offset, &txn_id, sizeof(txn_id));
+	offset += sizeof(txn_id);
+	get_cmd_log_entry(size - sizeof(uint32_t) - sizeof(txn_id), entry + offset);
 #else
 	assert(false);
 #endif
@@ -511,7 +526,18 @@ txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state)
 	}
 	assert(size == (uint64_t)(ptr - entry));
 #elif LOG_TYPE == LOG_COMMAND
-
+	// Format
+	// size | txn_id | cmd_log_entry
+	uint32_t offset = 0;
+	uint32_t size;
+	memcpy(&size, entry, sizeof(size));
+	offset += sizeof(size);
+	uint64_t tid;
+	memcpy(&tid, entry + offset, sizeof(tid));
+	offset += sizeof(tid);
+	char * cmd = entry + offset;
+	recover_state->txn_id = tid;
+	recover_state->cmd = cmd;
 #else 
 	assert(false);
 #endif

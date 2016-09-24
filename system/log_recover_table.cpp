@@ -129,13 +129,19 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
 		// TODO recycle the nodes when GC is turned on
 		new_node = (TxnNode *) _mm_malloc(sizeof(TxnNode), 64);
 		new(new_node) TxnNode(txn_id);
-		ATOM_ADD_FETCH(new_node->pred_size, (1UL << 32) + 1);
-		//ATOM_ADD_FETCH(new_node->raw_pred_size, 1); // not yet recoverable
-		//ATOM_ADD_FETCH(new_node->waw_pred_size, 1); // cannot start recovery
+#if LOG_TYPE == LOG_DATA
+		new_node->pred_size = (1UL << 32) + 1;
+#else 
+		new_node->pred_size = 1;
+#endif
       	_buckets[bid]->insert(new_node);
     } 
     _buckets[bid]->unlock(true);
-    
+#if LOG_TYPE == LOG_DATA
+	// For data logging, recoverability is determined using the RAW network
+	// but the actually recovery follows the WAW network.
+	// Therefore, recoverability can flow faster among txns, allowing more txns
+	// to recover in parallel.
 	TxnNode * pred_node;
 	// Handle RAW.
 	uint32_t num_preds = pred_info->num_raw_preds();
@@ -180,6 +186,42 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
 	new_node->recover_state = recover_state;
     raw_pred_remover(new_node);
     waw_pred_remover(new_node);
+#elif LOG_TYPE == LOG_COMMAND
+	// For command logging, recoverability follows the RAW network,
+	// the actually recovery follows all the three dependency networks (RAW, WAW and WAR).
+	// This is because different from data logging, a txn need to read from the database during 
+	// command logging recovery (and thus the RAW and WAR constraint).
+	// The WAR dependency can be got rid of by having multiple versions of each tuple in the database, 
+	// so that each read can identify the correct version.
+
+	// Given that we have already implemented the RAW and WAW networks for data logging, we 
+	// use the WAW network for all dependency in command logging.  
+	TxnNode * pred_node;
+	// we assume all WAW also has RAW, so this returns all predecessors 
+	uint32_t num_preds = pred_info->num_raw_preds(); 
+	uint64_t preds[ num_preds ];
+	pred_info->get_raw_preds(preds);	
+	for (uint32_t i = 0; i < num_preds; i ++) {
+		_buckets[get_bucket_id( preds[i] )]->lock(true);
+	    pred_node = find_txn( preds[i]);
+     	if (pred_node == NULL) 
+			pred_node = add_empty_node( preds[i]);
+	    else 
+			ATOM_ADD_FETCH(pred_node->semaphore, 1);
+	    
+		_buckets[get_bucket_id( preds[i] )]->unlock(true);
+    	if( !pred_node->is_recover_done() ) { 
+			// if the WAW predecessor is not recovered, put to success list.
+        	ATOM_ADD_FETCH(new_node->pred_size, 1);
+        	pred_node->waw_succ.push(new_node);
+	    }
+		COMPILER_BARRIER
+		ATOM_SUB_FETCH(pred_node->semaphore, 1);
+	}
+	new_node->recover_state = recover_state;
+//    raw_pred_remover(new_node);
+    waw_pred_remover(new_node);
+#endif
 }
 
 LogRecoverTable::TxnNode * 
@@ -188,9 +230,13 @@ LogRecoverTable::add_empty_node(uint64_t txn_id)
 	// TODO recycle nodes
     TxnNode * new_node = (TxnNode *) _mm_malloc(sizeof(TxnNode), 64);
 	new(new_node) TxnNode(txn_id);
-    
-	ATOM_ADD_FETCH(new_node->semaphore, 1);
-    ATOM_ADD_FETCH(new_node->pred_size, (1UL << 32) + 1);
+   	 
+	new_node->semaphore = 1;
+#if LOG_TYPE == LOG_DATA
+	new_node->pred_size = (1UL << 32) + 1;
+#else 
+	new_node->pred_size = 1;
+#endif
     _buckets[get_bucket_id(txn_id)]->insert(new_node);
     return new_node;
 }
@@ -233,7 +279,7 @@ LogRecoverTable::waw_pred_remover(TxnNode * node)
 	if (pred_size == 0UL) {
 		// recoverable and ready for recovery
 	    node->recover_state->txn_node = (void *) node;
-		M_ASSERT(node->is_recoverable(), "semaphore=%#lx\n", node->semaphore); 
+		//M_ASSERT(node->is_recoverable(), "semaphore=%#lx\n", node->semaphore); 
 		txns_ready_for_recovery[ glob_manager->get_thd_id() % g_num_logger ]->push(node->recover_state);
 	}
 }
@@ -273,7 +319,11 @@ LogRecoverTable::get_size()
 
 void
 LogRecoverTable::TxnNode::set_recover_done() {
-    uint64_t src_phore = (1UL << 62); 
+#if LOG_TYPE == LOG_DATA
+    uint64_t src_phore = (1UL << 62);
+#else
+	uint64_t src_phore = 0;
+#endif
     uint64_t target_phore = (1UL << 63);
     while(!ATOM_CAS(semaphore, src_phore, target_phore))
         PAUSE 

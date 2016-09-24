@@ -121,6 +121,22 @@ char * row_t::get_value(char * col_name) {
 	return &data[pos];
 }
 
+char * 
+row_t::get_value(Catalog * schema, uint32_t col_id, char * data)
+{
+	return &data[ schema->get_field_index(col_id) ];
+}
+
+void 
+row_t::set_value(Catalog * schema, uint32_t col_id, char * data, char * value)
+{
+	memcpy( &data[ schema->get_field_index(col_id) ],
+			value,
+			schema->get_field_size(col_id)
+		  );
+}
+
+
 char * row_t::get_data() { return data; }
 
 void row_t::set_data(char * data, uint64_t size) { 
@@ -131,14 +147,19 @@ void row_t::copy(row_t * src) {
 	set_data(src->get_data(), src->get_tuple_size());
 }
 
+void row_t::copy(char * src) {
+	set_data(src, get_tuple_size());
+}
+
 void row_t::free_row() {
 	free(data);
 }
 
-RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
+//RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
+RC row_t::get_row(access_t type, txn_man * txn, char *& data) {
 	RC rc = RCOK;
 #if CC_ALG == WAIT_DIE || CC_ALG == NO_WAIT || CC_ALG == DL_DETECT
-	uint64_t thd_id = txn->get_thd_id();
+/*	uint64_t thd_id = txn->get_thd_id();
 	lock_t lt = (type == RD || type == SCAN)? LOCK_SH : LOCK_EX;
 #if CC_ALG == DL_DETECT
 	uint64_t * txnids;
@@ -249,11 +270,12 @@ RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
 	rc = this->manager->access(txn, R_REQ);
 	row = txn->cur_row;
 	return rc;
+*/
 #elif CC_ALG == TICTOC || CC_ALG == SILO
 	// like OCC, tictoc also makes a local copy for each read/write
-	row->table = get_table();
+	//row->table = get_table();
 	TsType ts_type = (type == RD)? R_REQ : P_REQ; 
-	rc = this->manager->access(txn, ts_type, row);
+	rc = this->manager->access(txn, ts_type, data);
 	return rc;
 #elif CC_ALG == HSTORE || CC_ALG == VLL
 	row = this;
@@ -270,9 +292,9 @@ RC row_t::get_row(access_t type, txn_man * txn, row_t *& row) {
 // delete during history cleanup.
 // For TIMESTAMP, the row will be explicity deleted at the end of access().
 // (cf. row_ts.cpp)
-void row_t::return_row(access_t type, txn_man * txn, row_t * row) {	
+void row_t::return_row(access_t type, txn_man * txn, char * data) {	
 #if CC_ALG == WAIT_DIE || CC_ALG == NO_WAIT || CC_ALG == DL_DETECT
-	assert (row == NULL || row == this || type == XP);
+/*	assert (row == NULL || row == this || type == XP);
 	if (ROLL_BACK && type == XP) {// recover from previous writes.
 		this->copy(row);
 	}
@@ -302,8 +324,9 @@ void row_t::return_row(access_t type, txn_man * txn, row_t * row) {
 	row->free_row();
 	mem_allocator.free(row, sizeof(row_t));
 	return;
+*/
 #elif CC_ALG == TICTOC || CC_ALG == SILO
-	assert (row != NULL);
+	assert (data != NULL);
 	return;
 #elif CC_ALG == HSTORE || CC_ALG == VLL
 	return;

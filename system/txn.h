@@ -22,8 +22,10 @@ class Access {
 public:
 	access_t 	type;
 	row_t * 	orig_row;
-	row_t * 	data;
-	row_t * 	orig_data;
+	char * 		data;
+	//row_t * 	data;
+	//row_t * 	orig_data;
+	char * 		orig_data;
 	void cleanup();
 #if CC_ALG == TICTOC
 	ts_t 		wts;
@@ -95,6 +97,7 @@ public:
 	itemid_t *		index_read(INDEX * index, idx_key_t key, int part_id);
 	void 			index_read(INDEX * index, idx_key_t key, int part_id, itemid_t *& item);
 	row_t * 		get_row(row_t * row, access_t type);
+	RC				get_row(row_t * row, access_t type, char * &data);
 
 	// For LOGGING
 	void 			recover();
@@ -151,6 +154,8 @@ private:
 	void 			recover_from_log_entry(char * entry, RecoverState * recover_state);
 	
 #if LOG_ALGORITHM == LOG_PARALLEL
-	PredecessorInfo * _predecessor_info; 	
+	PredecessorInfo * _predecessor_info; 
+public:
+	uint64_t		last_writer;
 #endif
 };

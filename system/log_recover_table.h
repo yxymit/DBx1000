@@ -22,7 +22,8 @@ public:
         boost::lockfree::queue<TxnNode *> raw_succ{10};
         boost::lockfree::queue<TxnNode *> waw_succ{10};
       
-	  	// Format: recover_done (1) | recoverable (1) | semaphore (62)
+	  	// Format (data logging): recover_done (1) | recoverable (1) | semaphore (62)
+		// For command logging, recoverable bit is not used. 
 	   	volatile uint64_t semaphore;  
 		// For data logging, raw and waw are handled differently.
 		// RAW checks if a txn is recoverable.

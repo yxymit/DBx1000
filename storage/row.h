@@ -50,6 +50,7 @@ public:
 	uint64_t get_row_id() { return _row_id; };
 
 	void copy(row_t * src);
+	void copy(char * src);
 
 	void 		set_primary_key(uint64_t key) { _primary_key = key; };
 	uint64_t 	get_primary_key() {return _primary_key; };
@@ -73,6 +74,8 @@ public:
 	DECL_GET_VALUE(UInt32);
 	DECL_GET_VALUE(SInt32);
 
+	static char * get_value(Catalog * schema, uint32_t col_id, char * data);
+	static void   set_value(Catalog * schema, uint32_t col_id, char * data, char * value);
 
 	void set_data(char * data, uint64_t size);
 	char * get_data();
@@ -80,8 +83,9 @@ public:
 	void free_row();
 
 	// for concurrency control. can be lock, timestamp etc.
-	RC get_row(access_t type, txn_man * txn, row_t *& row);
-	void return_row(access_t type, txn_man * txn, row_t * row);
+	//RC get_row(access_t type, txn_man * txn, row_t *& row);
+	RC get_row(access_t type, txn_man * txn, char *&data);
+	void return_row(access_t type, txn_man * txn, char * data);
 	
   #if CC_ALG == DL_DETECT || CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE
     Row_lock * manager;
