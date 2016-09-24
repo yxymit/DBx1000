@@ -298,7 +298,7 @@ void
 txn_man::serial_recover() {
 #if LOG_ALGORITHM == LOG_SERIAL 
 	uint64_t starttime = get_sys_clock();
-    if (get_thd_id() = 0) {
+    if (get_thd_id() == 0) {
         // Master thread. 
         // Reads from log file and insert to the recover work queues. 
         char * entry = NULL;
