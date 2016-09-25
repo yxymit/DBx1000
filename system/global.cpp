@@ -24,16 +24,15 @@ Plock part_lock_man;
 OptCC occ_man;
 
 // Logging
+boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
 #if LOG_ALGORITHM == LOG_SERIAL
 SerialLogManager * log_manager;
-queue<RecoverState *> ** txns_ready_for_recovery;
 #elif LOG_ALGORITHM == LOG_BATCH
 BatchLog * log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL
 ParallelLogManager * log_manager; 
 LogPendingTable * log_pending_table;
 LogRecoverTable * log_recover_table;
-boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
 //uint32_t num_threads_done; 
 FreeQueue * free_queue_recover_state; 
 #endif

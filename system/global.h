@@ -71,16 +71,16 @@ extern Plock part_lock_man;
 extern OptCC occ_man;
 
 // Logging
+extern boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
 #if LOG_ALGORITHM == LOG_SERIAL
 extern SerialLogManager * log_manager;
-extern queue<RecoverState *> ** txns_ready_for_recovery;
+//extern queue<RecoverState *> ** txns_ready_for_recovery;
 #elif LOG_ALGORITHM == LOG_BATCH
 extern BatchLog * log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL
 extern ParallelLogManager * log_manager; 
 extern LogPendingTable * log_pending_table;
 extern LogRecoverTable * log_recover_table;
-extern boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
 extern FreeQueue * free_queue_recover_state; 
 //extern uint32_t num_threads_done;  
 #endif
