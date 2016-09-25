@@ -104,6 +104,7 @@ LogRecoverTable::LogRecoverTable()
 	for (uint32_t i = 0; i < _num_buckets; i ++)
 		_buckets[i] = (Bucket *) _mm_malloc(sizeof(Bucket), 64); //new Bucket;
     _free_nodes = new queue<TxnNode *> [g_thread_cnt]; //* _free_nodes;
+    _gc_queue = new queue<TxnNode *> [g_num_logger];
 }
 
 LogRecoverTable::TxnNode * 
@@ -137,11 +138,13 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
       	_buckets[bid]->insert(new_node);
     } 
     _buckets[bid]->unlock(true);
+    _gc_queue->push(new_node);
 #if LOG_TYPE == LOG_DATA
 	// For data logging, recoverability is determined using the RAW network
 	// but the actually recovery follows the WAW network.
 	// Therefore, recoverability can flow faster among txns, allowing more txns
 	// to recover in parallel.
+	
 	TxnNode * pred_node;
 	// Handle RAW.
 	uint32_t num_preds = pred_info->num_raw_preds();
@@ -268,7 +271,13 @@ LogRecoverTable::raw_pred_remover(TxnNode * node)
 void
 LogRecoverTable::garbage_collection()
 {
-  
+  if(_gc_queue->front()->is_recover_done())
+    {
+      TxnNode * n = _gc_queue->front();
+      //  cout << "+\n";
+      _gc_queue->pop();
+      delete n;
+    }
 }
 
 void
