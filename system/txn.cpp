@@ -313,11 +313,9 @@ txn_man::serial_recover() {
         char * entry = NULL;
         log_manager->readFromLog(entry);
         while (entry != NULL) {
-            RecoverState * recover_state = new RecoverState;
-            serial_recover_from_log_entry(entry, recover_state);
+            serial_recover_from_log_entry(entry);
             log_manager->readFromLog(entry);
         }
-        ATOM_ADD_FETCH(SerialLogManager::num_files_done, g_num_logger);
     }
     // Execution thread.
     // recover transactions that are ready 
@@ -513,7 +511,7 @@ txn_man::create_log_entry(uint32_t size, char * entry)
 }
 #if LOG_SERIAL
 void
-txn_man::serial_recover_from_log_entry(char * entry, RecoverState * recover_state)
+txn_man::serial_recover_from_log_entry(char * entry)
 {
 #if LOG_TYPE == LOG_DATA
 	char * ptr = entry;
@@ -538,6 +536,7 @@ txn_man::serial_recover_from_log_entry(char * entry, RecoverState * recover_stat
 		memcpy(recovery_tuples[i]->lengths, ptr, sizeof(uint32_t));
 		ptr += sizeof(uint32_t);
 	}
+	//uint64_t serial_lsn = *(uint64_t *)ptr;
 	// Since we are using RAM disk and the after images are readonly,
 	// we don't copy the after_image to recover_state, instead, we just copy the pointer
 	for (uint32_t i = 0; i < num_keys; i ++) {
