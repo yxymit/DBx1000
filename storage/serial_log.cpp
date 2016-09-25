@@ -19,7 +19,7 @@ volatile uint32_t SerialLogManager::num_files_done = 0;
 
 SerialLogManager::SerialLogManager()
 {
-	serial_lsn = 0;
+	_serial_lsn = 0;
 } 
 
 SerialLogManager::~SerialLogManager()
@@ -44,7 +44,7 @@ SerialLogManager::serialLogTxn(char * log_entry, uint32_t entry_size)
 	// Format
 	// total_size | log_entry (format seen in txn_man::create_log_entry) | serial_lsn 
 	uint32_t total_size = sizeof(uint32_t) + entry_size + sizeof(uint64_t);
-	uint64_t _serial_lsn = ATOM_ADD_FETCH(serial_lsn, 1);
+	uint64_t serial_lsn = ATOM_ADD_FETCH(_serial_lsn, 1);
 	char new_log_entry[total_size];
 	assert(total_size > 0);	
 	assert(entry_size == *(uint32_t *)log_entry);
@@ -56,10 +56,10 @@ SerialLogManager::serialLogTxn(char * log_entry, uint32_t entry_size)
 	memcpy(new_log_entry + offset, log_entry, entry_size);
 	offset += entry_size;
 	// Global Serial LSN
-	memcpy(new_log_entry, &_serial_lsn, sizeof(uint64_t));
+	memcpy(new_log_entry + offset, &serial_lsn, sizeof(uint64_t));
 	offset += sizeof(uint64_t);
 	assert(offset == total_size);
-	_logger[_serial_lsn % g_num_logger]->logTxn(new_log_entry, total_size);
+	_logger[serial_lsn % g_num_logger]->logTxn(new_log_entry, total_size);
 }
 
 void 
@@ -67,11 +67,12 @@ SerialLogManager::readFromLog(char * &entry)
 {
 	// Decode the log entry.
 	// This process is the reverse of parallelLogTxn() 
-	ATOM_ADD_FETCH(serial_lsn, 1);
-	char * raw_entry = _logger[serial_lsn % g_num_logger]->readFromLog();
+	//ATOM_ADD_FETCH(_serial_lsn, 1);
+	char * raw_entry = _logger[_serial_lsn % g_num_logger]->readFromLog();
+	_serial_lsn ++;
 	if (raw_entry == NULL) {
 		entry = NULL;
-		ATOM_ADD_FETCH(num_files_done, 1);
+		num_files_done ++;
 		return;
 	}
 	// Total Size

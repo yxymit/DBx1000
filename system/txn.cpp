@@ -328,7 +328,7 @@ txn_man::serial_recover() {
             //txns_ready_for_recovery[logger_id]->pop();
             recover_txn(recover_state);
             num_records ++;
-        } else if (SerialLogManager::num_files_done < g_num_logger)
+        } else if (SerialLogManager::num_files_done < 1)
             PAUSE
         else 
             break;

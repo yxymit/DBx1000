@@ -11,13 +11,13 @@ class SerialLogManager
     ~SerialLogManager();
     void init();
 
-  // For logging
+	// For logging
     void serialLogTxn(char * log_entry, uint32_t entry_size); 
-  // For recovery 
+	// For recovery 
     void readFromLog(char * &entry);
     static volatile uint32_t num_files_done; 
   private:
-    uint64_t serial_lsn;
+    uint64_t _serial_lsn;
     pthread_mutex_t lock;
-  LogManager ** _logger;
+	LogManager ** _logger;
 };
