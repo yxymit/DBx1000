@@ -117,6 +117,27 @@ LogRecoverTable::find_txn(uint64_t txn_id)
     return node;
 }
 
+LogRecoverTable::delete_txn(uint64_t txn_id)
+{ 
+  uint32_t bid = get_bucket_id(txn_id); 
+  _buckets[bid]->lock(true);
+
+  TxnNode * pred = NULL;
+  TxnNode * node = _buckets[get_bucket_id(txn_id)]->first;
+  while (node != NULL && node->txn_id != txn_id) {
+    pred = node;
+    node = node->next;
+  }
+  if (pred == NULL) {
+    _buckets[get_bucket_id(txn_id)]->first = node->next;
+  }
+  else {
+    pred->next = node->next;
+  }
+  return node;
+}
+
+
 void 
 LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo * pred_info)
 {
@@ -276,6 +297,7 @@ LogRecoverTable::garbage_collection()
       TxnNode * n = _gc_queue->front();
       //  cout << "+\n";
       _gc_queue->pop();
+      delete_txn(n->txn_id);
       delete n;
     }
 }
