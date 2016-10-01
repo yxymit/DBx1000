@@ -134,6 +134,7 @@ LogRecoverTable::delete_txn(uint64_t txn_id)
   else {
     pred->next = node->next;
   }
+  _buckets[bid]->unlock(true);
   return node;
 }
 
