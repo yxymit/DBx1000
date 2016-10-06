@@ -30,11 +30,12 @@ void Manager::init() {
 
 	_all_txns = new txn_man * [g_thread_cnt];
 	for (UInt32 i = 0; i < g_thread_cnt; i++) {
-		*all_ts[i] = UINT64_MAX;
+		*all_ts[i] = 0; //UINT64_MAX;
 		_all_txns[i] = NULL;
 	}
 	for (UInt32 i = 0; i < BUCKET_CNT; i++)
 		pthread_mutex_init( &mutexes[i], NULL );
+	pthread_mutex_init( &ts_mutex, NULL );
 	// initialize log_pending_map
 	// unorderedmap<uint64_t, * pred_entry> _log_pending_map = {};
 	//_log_pending_table = new LogPendingTable;
@@ -90,10 +91,30 @@ ts_t Manager::get_min_ts(uint64_t tid) {
 	return _min_ts;
 }
 
+uint64_t 
+Manager::get_max_ts() {
+	uint64_t max = 0;
+   	for (uint32_t i = 0; i < g_thread_cnt; i++) 
+    	if (max < *all_ts[i])
+   	    	max = *all_ts[i];
+	return max;
+}
+
 void Manager::add_ts(uint64_t thd_id, ts_t ts) {
-	assert( ts >= *all_ts[thd_id] || 
-		*all_ts[thd_id] == UINT64_MAX);
+	// For Epoch-based parallel command logging
+	// during forward processing, add_ts is frequently called, but get_max_ts() is not.
+	// during recovery, add_ts is rarely called, but get_min_ts() is frequently called. 
+	assert(ts > *all_ts[thd_id]);
 	*all_ts[thd_id] = ts;
+	if (g_log_recover) {
+		pthread_mutex_lock( &ts_mutex );
+		uint64_t min = UINT64_MAX;
+	   	for (uint32_t i = 0; i < g_num_logger; i++) 
+   		 	if (min > *all_ts[i])
+   		    	min = *all_ts[i];
+		_min_ts = min;
+		pthread_mutex_unlock( &ts_mutex );
+	}
 }
 
 void Manager::set_txn_man(txn_man * txn) {

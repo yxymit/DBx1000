@@ -136,8 +136,26 @@ row_t::set_value(Catalog * schema, uint32_t col_id, char * data, char * value)
 		  );
 }
 
+char * 
+row_t::get_data(txn_man * txn, access_t type) 
+{
+#if LOG_ALGORITHM == LOG_PARALLEL && LOG_TYPE == LOG_COMMAND && LOG_RECOVER
+	// TODO
+	// for paralle command recovery, should use multi-versioning.
+	// if type == RD, return the correct version. 
+	// else if type == WR, create a new version (value copied from the previous version) 
+	// Predecessor information can be accessed using txn->getPredecessorInfo();
+	return NULL;
+#else
+	return data; 
+#endif
+}
 
-char * row_t::get_data() { return data; }
+char * 
+row_t::get_data() 
+{ 
+	return data; 
+}
 
 void row_t::set_data(char * data, uint64_t size) { 
 	memcpy(this->data, data, size);

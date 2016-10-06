@@ -16,10 +16,11 @@
 #if LOG_ALGORITHM == LOG_SERIAL
 
 volatile uint32_t SerialLogManager::num_files_done = 0;
+uint64_t SerialLogManager::_serial_lsn = 0;
 
 SerialLogManager::SerialLogManager()
 {
-	_serial_lsn = 0;
+	//_serial_lsn = 0;
 } 
 
 SerialLogManager::~SerialLogManager()

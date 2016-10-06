@@ -3,6 +3,8 @@
 #include "global.h"
 #include "pthread.h"
 
+class PredecessorInfo;
+
 struct buffer_entry {
 	char * data;
 	int size;
@@ -12,7 +14,8 @@ class RecoverState {
 public:
 	RecoverState(); 
 	~RecoverState();
-	
+	void clear();
+
 	uint64_t txn_id;
 #if LOG_TYPE == LOG_DATA
 	uint32_t num_keys;
@@ -23,6 +26,10 @@ public:
 	char ** after_image;
 #elif LOG_TYPE == LOG_COMMAND
 	char * cmd;	 
+  #if LOG_ALGORITHM == LOG_PARALLEL
+	uint64_t epoch_num; 
+	PredecessorInfo * _predecessor_info; 
+  #endif 
 #endif
 
 #if LOG_ALGORITHM == LOG_PARALLEL
@@ -73,10 +80,12 @@ public:
 
 	void init();
 	void init(string log_file_name);
-	uint64_t getMaxlsn();
+	uint64_t get_lsn() { return _lsn; };
 	void setLSN(uint64_t flushLSN);
 	
 	void logTxn(char * log_entry, uint32_t size);
+	// for parallel command logging (Epoch). 
+	bool logTxn(char * log_entry, uint32_t size, uint64_t lsn);
 	void addToBuffer(uint32_t my_buffer_index, char* my_buffer_entry, uint32_t size);
 	char * readFromLog(); 
 	//bool readFromLog(uint32_t &num_keys, string * &table_names, uint64_t * &keys,
@@ -96,6 +105,6 @@ public:
 	//void wait_log(uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, 
 	  //uint32_t * lengths, char ** after_images, uint64_t * file_lsn);
  private:
-	uint64_t _lsn;
+	volatile uint64_t _lsn;
 	RamDisk * _ram_disk;
 };

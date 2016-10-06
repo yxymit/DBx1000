@@ -36,11 +36,11 @@ int main(int argc, char* argv[])
 	MALLOC_CONSTRUCTOR(ParallelLogManager, log_manager);
 	MALLOC_CONSTRUCTOR(LogPendingTable, log_pending_table);
 	MALLOC_CONSTRUCTOR(LogRecoverTable, log_recover_table);
-	free_queue_recover_state = new FreeQueue [g_num_logger]; 
 	//txns_ready_for_recovery = new boost::lockfree::queue<RecoverState *>  * [g_num_logger]; 
 	//for (uint32_t i = 0; i < g_num_logger; i ++)
 	//	txns_ready_for_recovery[i] = new boost::lockfree::queue<RecoverState *>{100};
 #endif
+	free_queue_recover_state = new FreeQueue [g_num_logger]; 
 #if LOG_ALGORITHM != LOG_NO	
 	log_manager->init();
 #endif

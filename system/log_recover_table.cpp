@@ -138,7 +138,9 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
       	_buckets[bid]->insert(new_node);
     } 
     _buckets[bid]->unlock(true);
+#if LOG_GARBAGE_COLLECT
     _gc_queue->push(new_node);
+#endif
 #if LOG_TYPE == LOG_DATA
 	// For data logging, recoverability is determined using the RAW network
 	// but the actually recovery follows the WAW network.

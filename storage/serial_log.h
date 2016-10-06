@@ -17,7 +17,7 @@ class SerialLogManager
     void readFromLog(char * &entry);
     static volatile uint32_t num_files_done; 
   private:
-    uint64_t _serial_lsn;
+    static uint64_t _serial_lsn;
     pthread_mutex_t lock;
 	LogManager ** _logger;
 };

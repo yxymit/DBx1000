@@ -37,6 +37,7 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 #endif
 #if CC_ALG == TICTOC
 	_max_wts = 0;
+	_min_cts = 0;
 	// XXX XXX 
 	//_write_copy_ptr = (g_write_copy_form == "ptr");
 	_write_copy_ptr = false; //(g_write_copy_form == "ptr");
@@ -44,6 +45,8 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 #elif CC_ALG == SILO
 	_cur_tid = 0;
 #endif
+
+	_last_epoch_time = 0;	
 
 #if LOG_ALGORITHM == LOG_PARALLEL
 	_predecessor_info = new PredecessorInfo;; 	
@@ -75,7 +78,9 @@ ts_t txn_man::get_ts() {
 	return this->timestamp;
 }
 
-void txn_man::cleanup(RC rc) {
+RC txn_man::cleanup(RC in_rc) 
+{
+	RC rc = in_rc;
 #if CC_ALG == HEKATON
 	row_cnt = 0;
 	wr_cnt = 0;
@@ -142,8 +147,21 @@ void txn_man::cleanup(RC rc) {
 			
 			_predecessor_info->get_raw_preds(raw_preds);
 			void * txn_node = log_pending_table->add_log_pending( get_txn_id(), raw_preds, num_preds);
-
-			log_manager->parallelLogTxn(entry, size, _predecessor_info); 
+		#if LOG_TYPE == LOG_COMMAND
+			// should periodically write epoch log.
+			// Only a single thread does this. 
+			if (get_thd_id() == 0 && get_sys_clock() / TIMESTAMP_SYNC_EPOCH / 1000000 > _last_epoch_time) {
+				_last_epoch_time = get_sys_clock() / TIMESTAMP_SYNC_EPOCH / 1000000;
+				log_manager->logEpoch(glob_manager->get_max_ts());
+				printf("logEpoch\n");
+			}
+		#endif 
+			bool success = log_manager->parallelLogTxn(entry, size, _predecessor_info, _commit_ts);
+			if (!success) {
+				assert(LOG_TYPE == LOG_COMMAND);
+				_min_cts = log_manager->get_max_epoch_ts();
+				rc = Abort;
+			}
 			// FLUSH DONE
 			log_pending_table->remove_log_pending(txn_node);
   #endif
@@ -161,6 +179,7 @@ void txn_man::cleanup(RC rc) {
 #if CC_ALG == DL_DETECT
 	dl_detector.clear_dep(get_txn_id());
 #endif
+	return rc;
 }
 
 RC txn_man::get_row(row_t * row, access_t type, char * &data) {
@@ -174,7 +193,7 @@ RC txn_man::get_row(row_t * row, access_t type, char * &data) {
 		Access * access = (Access *) _mm_malloc(sizeof(Access), 64);
 		accesses[row_cnt] = access;
 #if (CC_ALG == SILO || CC_ALG == TICTOC)
-		access->data = new char [row->get_tuple_size()] ;//(row_t *) _mm_malloc(sizeof(row_t), 64);
+		access->data = new char [MAX_TUPLE_SIZE];
 		//access->data->init(MAX_TUPLE_SIZE);
 		access->orig_data = NULL; //(row_t *) _mm_malloc(sizeof(row_t), 64);
 		//access->orig_data->init(MAX_TUPLE_SIZE);
@@ -268,7 +287,7 @@ RC txn_man::finish(RC rc) {
 	if (rc == RCOK)
 		rc = validate_tictoc();
 	else 
-		cleanup(rc);
+		rc = cleanup(rc);
 #elif CC_ALG == SILO
 	if (rc == RCOK)
 		rc = validate_silo();
@@ -327,6 +346,7 @@ txn_man::serial_recover() {
             //recover_state = txns_ready_for_recovery[logger_id]->front();
             //txns_ready_for_recovery[logger_id]->pop();
             recover_txn(recover_state);
+			free_queue_recover_state[logger_id].return_element((void *) recover_state);
             num_records ++;
         } else if (SerialLogManager::num_files_done < 1)
             PAUSE
@@ -349,12 +369,19 @@ txn_man::parallel_recover() {
 		char * entry = NULL;
 		log_manager->readFromLog(entry, _predecessor_info);
 		while (entry != NULL) {
-			RecoverState * recover_state = (RecoverState *) free_queue_recover_state[get_thd_id()].get_element();
+			RecoverState * recover_state = (RecoverState *) free_queue_recover_state[ get_thd_id() % g_num_logger].get_element();
 			if (recover_state == NULL)
 				recover_state = new RecoverState;
+			else 
+				recover_state->clear();
 			recover_from_log_entry(entry, recover_state);
+  #if LOG_TYPE == LOG_COMMAND
+			recover_state->_predecessor_info->init(_predecessor_info);
+  #endif
 			log_recover_table->add_log_recover(recover_state, _predecessor_info);
+  #if LOG_GARBAGE_COLLECT
 			log_recover_table->garbage_collection();
+  #endif
 			log_manager->readFromLog(entry, _predecessor_info);
 		}
 		ATOM_ADD_FETCH(ParallelLogManager::num_threads_done, 1);
@@ -367,6 +394,9 @@ txn_man::parallel_recover() {
 	while (true) {
 		if (txns_ready_for_recovery[logger_id]->pop(recover_state)) {
 			//printf("[thd=%ld] recover a txn\n", get_thd_id());
+  #if LOG_TYPE == LOG_COMMAND
+			_predecessor_info = recover_state->_predecessor_info;
+  #endif
 			recover_txn(recover_state);
 			log_recover_table->txn_recover_done(recover_state->txn_node);
 			free_queue_recover_state[logger_id].return_element((void *) recover_state);
@@ -509,11 +539,11 @@ txn_man::create_log_entry(uint32_t size, char * entry)
 	assert(false);
 #endif
 }
-#if LOG_SERIAL
+#if LOG_ALGORITHM == LOG_SERIAL
 void
 txn_man::serial_recover_from_log_entry(char * entry)
 {
-#if LOG_TYPE == LOG_DATA
+  #if LOG_TYPE == LOG_DATA
 	char * ptr = entry;
 	//uint32_t size = *(uint32_t *)entry;
 	ptr += sizeof(uint32_t);
@@ -523,7 +553,16 @@ txn_man::serial_recover_from_log_entry(char * entry)
 	uint32_t num_keys = *(uint32_t *)ptr;
 	//recover_state->num_keys = num_keys; 
 	ptr += sizeof(uint32_t);
+
+	uint64_t logger_id = get_thd_id() % g_num_logger; 
 	RecoverState ** recovery_tuples = new RecoverState * [num_keys];
+	for (uint32_t i = 0; i < num_keys; i++) {
+		recovery_tuples[i] = (RecoverState *) free_queue_recover_state[logger_id].get_element();
+		if (recovery_tuples[i] == NULL)
+			recovery_tuples[i] = new RecoverState;
+		else 
+			recovery_tuples[i]->clear();
+	}
 	for(uint32_t i = 0; i < num_keys; i++) {
 		memcpy(recovery_tuples[i]->table_ids, ptr, sizeof(uint32_t));
 		ptr += sizeof(uint32_t);
@@ -549,13 +588,14 @@ txn_man::serial_recover_from_log_entry(char * entry)
 		recovery_tuples[i]->num_keys = 1;
 		txns_ready_for_recovery[recovery_tuples[i]->keys[0]% g_num_logger]->push(recovery_tuples[i]);
 	}
-#elif LOG_TYPE == LOG_COMMAND
+  #elif LOG_TYPE == LOG_COMMAND
 
-#else 
+  #else 
 	assert(false);
-#endif
+  #endif
 }
 #endif
+
 void
 txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state)
 {
@@ -595,6 +635,9 @@ txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state)
 	char * cmd = entry + offset;
 	recover_state->txn_id = tid;
 	recover_state->cmd = cmd;
+  #if LOG_ALGORITHM == LOG_PARALLEL
+	recover_state->epoch_num = log_manager->get_curr_epoch_ts();
+  #endif
 #else 
 	assert(false);
 #endif

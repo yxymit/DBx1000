@@ -81,9 +81,9 @@ extern BatchLog * log_manager;
 extern ParallelLogManager * log_manager; 
 extern LogPendingTable * log_pending_table;
 extern LogRecoverTable * log_recover_table;
-extern FreeQueue * free_queue_recover_state; 
 //extern uint32_t num_threads_done;  
 #endif
+extern FreeQueue * free_queue_recover_state; 
 extern bool g_log_recover;
 extern uint32_t g_num_logger;
 
@@ -193,5 +193,8 @@ enum TsType {R_REQ, W_REQ, P_REQ, XP_REQ};
 /************************************************/
 #ifndef UINT64_MAX
 #define UINT64_MAX 		18446744073709551615UL
+#endif
+#ifndef UINT32_MAX
+#define UINT32_MAX 		(0xffffffff)
 #endif // UINT64_MAX
 

@@ -34,8 +34,8 @@ ParallelLogManager * log_manager;
 LogPendingTable * log_pending_table;
 LogRecoverTable * log_recover_table;
 //uint32_t num_threads_done; 
-FreeQueue * free_queue_recover_state; 
 #endif
+FreeQueue * free_queue_recover_state; 
 bool g_log_recover = LOG_RECOVER;
 uint32_t g_num_logger = NUM_LOGGER;
 

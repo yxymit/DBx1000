@@ -73,7 +73,7 @@ public:
 
 	int volatile 	ready_part;
 	RC 				finish(RC rc);
-	void 			cleanup(RC rc);
+	RC 				cleanup(RC rc);
 #if CC_ALG == TICTOC
 	ts_t 			get_max_wts() 	{ return _max_wts; }
 	void 			update_max_wts(ts_t max_wts);
@@ -101,6 +101,8 @@ public:
 
 	// For LOGGING
 	void 			recover();
+	// for parallel command logging, should recover by epoch. 
+	uint64_t 		_last_epoch_time;
 
 	// Stats
 	void 			set_start_time(uint64_t time) { _txn_start_time = time; }
@@ -121,9 +123,11 @@ private:
 #endif
 #if CC_ALG == TICTOC
 	bool			_atomic_timestamp;
-	ts_t 			_max_wts;
+	uint64_t		_max_wts;
+	uint64_t		_commit_ts; 
 	// the following methods are defined in concurrency_control/tictoc.cpp
 	RC				validate_tictoc();
+	uint64_t		_min_cts;
 #elif CC_ALG == SILO
 	ts_t 			_cur_tid;
 	RC				validate_silo();
@@ -159,5 +163,6 @@ private:
 	PredecessorInfo * _predecessor_info; 
 public:
 	uint64_t		last_writer;
+	PredecessorInfo * getPredecessorInfo() { return _predecessor_info; }
 #endif
 };

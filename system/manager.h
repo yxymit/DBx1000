@@ -15,7 +15,9 @@ public:
 
 	// For MVCC. To calculate the min active ts in the system
 	void 			add_ts(uint64_t thd_id, ts_t ts);
-	ts_t 			get_min_ts(uint64_t tid = 0);
+	ts_t 			get_min_ts(uint64_t tid);
+	ts_t 			get_min_ts() { return _min_ts; }
+	uint64_t 		get_max_ts();
 
 	// HACK! the following mutexes are used to model a centralized
 	// lock/timestamp manager. 
@@ -51,11 +53,11 @@ private:
 	uint64_t *		timestamp;
 	pthread_mutex_t mutexes[BUCKET_CNT];
 	uint64_t 		hash(row_t * row);
-	ts_t volatile * volatile * volatile all_ts;
+	ts_t volatile ** all_ts;
 	txn_man ** 		_all_txns;
 	// for MVCC 
 	volatile ts_t	_last_min_ts_time;
-	ts_t			_min_ts;
+	volatile uint64_t _min_ts;
 
     // per-thread random number
     static __thread drand48_data _buffer;

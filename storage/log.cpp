@@ -1,4 +1,5 @@
 #include "log.h"
+#include "parallel_log.h"
 #include "batch_log.h"
 #include <iostream>
 #include <fstream>
@@ -72,15 +73,29 @@ LogManager::logTxn(char * log_entry, uint32_t size)
 {
   //ATOM_ADD_FETCH(_lsn, 1);
   // lsn here is the byte offset of the entry in the file 
-#if LOG_NO_FLUSH
-  ATOM_FETCH_ADD(_lsn, size);
-#else 
-  uint64_t lsn = ATOM_FETCH_ADD(_lsn, size);
-  _ram_disk->write(log_entry, lsn, size);
-#endif
-  return;
+  #if LOG_NO_FLUSH
+  	ATOM_FETCH_ADD(_lsn, size);
+  #else 
+	uint64_t lsn = ATOM_FETCH_ADD(_lsn, size);
+	_ram_disk->write(log_entry, lsn, size);
+  #endif
+  	return;
 }
+
+bool
+LogManager::logTxn(char * log_entry, uint32_t size, uint64_t lsn)
+{
+	bool success = ATOM_CAS(_lsn, lsn, lsn + size);
+	if (!success)	
+		return false;
+  #if !LOG_NO_FLUSH
+	_ram_disk->write(log_entry, lsn, size);
+  #endif
+  	return true;
+}
+
 #else 
+
 void 
 LogManager::logTxn(char * log_entry, uint32_t size)
 {
@@ -284,6 +299,8 @@ RecoverState::RecoverState()
 	keys = new uint64_t [MAX_ROW_PER_TXN];
 	lengths = new uint32_t [MAX_ROW_PER_TXN];
 	after_image = new char * [MAX_ROW_PER_TXN];
+#elif LOG_TYPE == LOG_COMMAND && LOG_ALGORITHM == LOG_PARALLEL
+	_predecessor_info = new PredecessorInfo; 
 #endif
 //#if LOG_ALGORITHM == LOG_PARALLEL
 //	predecessors = new uint32_t [MAX_ROW_PER_TXN];
@@ -298,8 +315,19 @@ RecoverState::~RecoverState()
 	delete keys;
 	delete lengths;
 	delete after_image;
+#elif LOG_TYPE == LOG_COMMAND && LOG_ALGORITHM == LOG_PARALLEL
+	delete _predecessor_info;
 #endif
 }
+
+void 
+RecoverState::clear()
+{
+#if LOG_TYPE == LOG_COMMAND && LOG_ALGORITHM == LOG_PARALLEL
+	_predecessor_info->clear();
+#endif
+}
+
 
 RamDisk::RamDisk(string file_name)
 {
@@ -324,7 +352,7 @@ RamDisk::~RamDisk()
 void
 RamDisk::write(char * entry, uint64_t offset, uint32_t size)
 {
-	assert( size == *(uint32_t *)entry );
+	assert( size == *(uint32_t *)entry || *(uint32_t *)entry == UINT32_MAX);
 	assert( size > 0 );
   	assert( offset + size < _block_size );
   	memcpy(_block + offset, entry, size);
@@ -340,7 +368,9 @@ RamDisk::read()
 	size = *(uint32_t *)(_block + _cur_offset);
 	//printf("[thd=%ld] _block=%#lx, cur_offset=%ld, size = %d\n", 
 	//	glob_manager->get_thd_id(), (uint64_t)_block, _cur_offset, size);
-	assert(size != 0);
+	M_ASSERT(size != 0, "size=%d\n", size);
+	if (size == UINT32_MAX) 
+		size = 12;
 	char * entry = _block + _cur_offset;
 	_cur_offset += size;
 	return entry;

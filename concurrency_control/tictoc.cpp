@@ -55,8 +55,8 @@ txn_man::validate_tictoc()
 	}
 #endif
 	int num_locks = 0;
-	ts_t commit_rts = 0;
-	ts_t commit_wts = 0;
+	ts_t commit_rts = _min_cts;
+	ts_t commit_wts = _min_cts;
 	for (int i = 0; i < row_cnt; i ++) {
 		Access * access = accesses[ i ];
 		if (access->type == RD && access->wts > commit_rts)
@@ -236,8 +236,11 @@ final:
 #endif
 		cleanup(rc);
 	} else {
-		if (commit_wts > _max_wts)
+		if (commit_wts > _max_wts) {
 			_max_wts = commit_wts;
+			glob_manager->add_ts(get_thd_id(), _max_wts);
+		}
+		_commit_ts = commit_wts;
 
 		if (_write_copy_ptr) {
 			assert(false);
@@ -260,7 +263,7 @@ final:
 		}
 		if (g_prt_lat_distr)
 			stats.add_debug(get_thd_id(), commit_wts, 2);
-		cleanup(rc);
+		rc = cleanup(rc);
 		if (_atomic_timestamp && rc == RCOK) {
 			ts_t ts = glob_manager->get_ts(get_thd_id());
 			if (g_prt_lat_distr)
