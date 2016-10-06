@@ -61,7 +61,7 @@ public:
   void garbage_collection();
 	
     TxnNode * add_empty_node(uint64_t txn_id);
-    void raw_pred_remover(TxnNode * node);
+    void raw_spred_remover(TxnNode * node);
     void waw_pred_remover(TxnNode * node);
 
     void txn_recover_done(void * node);
@@ -70,4 +70,5 @@ public:
 private:
     uint32_t _num_buckets;
     TxnNode * find_txn(uint64_t txn_id);
+    TxnNode * remove_txn(uint64_t txn_id);
 };
