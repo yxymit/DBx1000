@@ -81,8 +81,10 @@ public:
 	void init();
 	void init(string log_file_name);
 	uint64_t get_lsn() { return _lsn; };
+	uint64_t allocate_lsn(uint32_t size);
+	bool allocate_lsn(uint32_t size, uint64_t lsn);
 	void setLSN(uint64_t flushLSN);
-	
+
 	void logTxn(char * log_entry, uint32_t size);
 	// for parallel command logging (Epoch). 
 	bool logTxn(char * log_entry, uint32_t size, uint64_t lsn);

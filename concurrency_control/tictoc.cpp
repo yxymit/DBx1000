@@ -3,6 +3,9 @@
 #include "row_tictoc.h"
 #include "manager.h"
 #include "log_pending_table.h"
+#if LOG_ALGORITHM == LOG_PARALLEL
+#include "parallel_log.h"
+#endif
 
 #if CC_ALG==TICTOC
 
@@ -11,6 +14,7 @@ txn_man::validate_tictoc()
 {
 	RC rc = RCOK;
 	int write_set[wr_cnt];
+	//uint64_t tt;
 #if ISOLATION_LEVEL != REPEATABLE_READ
 	int read_set[row_cnt - wr_cnt];
 	int cur_rd_idx = 0;
@@ -101,6 +105,13 @@ txn_man::validate_tictoc()
 		}
 #endif
 	}
+
+#if LOG_ALGORITHM == LOG_PARALLEL
+	// computet the log entry size.
+	//tt = get_sys_clock();
+	_log_entry_size = get_log_entry_size();
+	//INC_STATS(get_thd_id(), debug1, get_sys_clock() - tt);
+#endif
 
 #if WR_VALIDATION_SEPARATE 
 	if (_validation_no_wait) {
@@ -236,6 +247,23 @@ final:
 #endif
 		cleanup(rc);
 	} else {
+#if LOG_ALGORITHM == LOG_PARALLEL
+		// the txn is able to commit. Should allocate a log entry. 
+		// Then use the LSN as the txn_id.
+		if (wr_cnt > 0) {
+			uint64_t lsn = 0;
+			assert(_log_entry_size > 0);
+			bool success = log_manager->allocateLogEntry(lsn, _log_entry_size, _predecessor_info, commit_wts);
+			if (!success) {
+				assert(LOG_TYPE == LOG_COMMAND);
+				_min_cts = log_manager->get_max_epoch_ts();
+				rc = Abort;
+				goto final;
+			}
+			txn_id = lsn * g_num_logger + GET_THD_ID % g_num_logger;
+		}
+#endif
+		// update 
 		if (commit_wts > _max_wts) {
 			_max_wts = commit_wts;
 			glob_manager->add_ts(get_thd_id(), _max_wts);
@@ -263,7 +291,10 @@ final:
 		}
 		if (g_prt_lat_distr)
 			stats.add_debug(get_thd_id(), commit_wts, 2);
+
+		uint64_t tt = get_sys_clock();
 		rc = cleanup(rc);
+		INC_STATS(get_thd_id(), debug1, get_sys_clock() - tt);
 		if (_atomic_timestamp && rc == RCOK) {
 			ts_t ts = glob_manager->get_ts(get_thd_id());
 			if (g_prt_lat_distr)

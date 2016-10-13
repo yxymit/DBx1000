@@ -104,7 +104,7 @@ void Manager::add_ts(uint64_t thd_id, ts_t ts) {
 	// For Epoch-based parallel command logging
 	// during forward processing, add_ts is frequently called, but get_max_ts() is not.
 	// during recovery, add_ts is rarely called, but get_min_ts() is frequently called. 
-	assert(ts > *all_ts[thd_id]);
+	assert(ts >= *all_ts[thd_id]);
 	*all_ts[thd_id] = ts;
 	if (g_log_recover) {
 		pthread_mutex_lock( &ts_mutex );

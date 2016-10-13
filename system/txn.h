@@ -156,11 +156,13 @@ private:
 	uint32_t 		get_log_entry_size();
 	void 			create_log_entry(uint32_t size, char * entry);
 	void 			recover_from_log_entry(char * entry, RecoverState * recover_state);
+	
+	uint32_t 		_log_entry_size;
 #if LOG_ALGORITHM == LOG_SERIAL
 	void 			serial_recover_from_log_entry(char * entry);
 #endif
 #if LOG_ALGORITHM == LOG_PARALLEL
-	PredecessorInfo * _predecessor_info; 
+	PredecessorInfo * _predecessor_info;
 public:
 	uint64_t		last_writer;
 	PredecessorInfo * getPredecessorInfo() { return _predecessor_info; }

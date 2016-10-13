@@ -85,6 +85,11 @@ LogManager::logTxn(char * log_entry, uint32_t size)
 bool
 LogManager::logTxn(char * log_entry, uint32_t size, uint64_t lsn)
 {
+  #if !LOG_NO_FLUSH
+	_ram_disk->write(log_entry, lsn, size);
+  #endif
+    return true;
+	/*
 	bool success = ATOM_CAS(_lsn, lsn, lsn + size);
 	if (!success)	
 		return false;
@@ -92,6 +97,19 @@ LogManager::logTxn(char * log_entry, uint32_t size, uint64_t lsn)
 	_ram_disk->write(log_entry, lsn, size);
   #endif
   	return true;
+    */
+}
+
+uint64_t 
+LogManager::allocate_lsn(uint32_t size)
+{
+  	return ATOM_FETCH_ADD(_lsn, size);
+}
+
+bool 
+LogManager::allocate_lsn(uint32_t size, uint64_t lsn)
+{
+	return ATOM_CAS(_lsn, lsn, lsn + size);
 }
 
 #else 
@@ -131,7 +149,7 @@ LogManager::logTxn(char * log_entry, uint32_t size)
   #else 
     addToBuffer(my_buff_index, log_entry, size);
     pthread_mutex_unlock(&lock);
-#endif
+  #endif
   }
   return;
 }
@@ -371,6 +389,10 @@ RamDisk::read()
 	M_ASSERT(size != 0, "size=%d\n", size);
 	if (size == UINT32_MAX) 
 		size = 12;
+
+//	static __thread int n = 0;
+//	if (n ++ % 100 == 0) 
+//		cout << n << endl;
 	char * entry = _block + _cur_offset;
 	_cur_offset += size;
 	return entry;

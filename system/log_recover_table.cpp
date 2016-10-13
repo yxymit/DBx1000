@@ -105,6 +105,11 @@ LogRecoverTable::LogRecoverTable()
 		_buckets[i] = (Bucket *) _mm_malloc(sizeof(Bucket), 64); //new Bucket;
     _free_nodes = new queue<TxnNode *> [g_thread_cnt]; //* _free_nodes;
     _gc_queue = new queue<TxnNode *> [g_num_logger];
+	_gc_bound = new int64_t volatile  * [g_num_logger];
+	for (uint32_t i = 0; i < g_num_logger; i++) {
+		_gc_bound[i] = new int64_t volatile;
+		*_gc_bound[i] = -1;
+	}
 }
 
 LogRecoverTable::TxnNode * 
@@ -117,13 +122,14 @@ LogRecoverTable::find_txn(uint64_t txn_id)
     return node;
 }
 
+void 
 LogRecoverTable::delete_txn(uint64_t txn_id)
 { 
   uint32_t bid = get_bucket_id(txn_id); 
   _buckets[bid]->lock(true);
-
+  COMPILER_BARRIER
   TxnNode * pred = NULL;
-  TxnNode * node = _buckets[get_bucket_id(txn_id)]->first;
+  TxnNode * node = _buckets[bid]->first;
   while (node != NULL && node->txn_id != txn_id) {
     pred = node;
     node = node->next;
@@ -134,10 +140,11 @@ LogRecoverTable::delete_txn(uint64_t txn_id)
   else {
     pred->next = node->next;
   }
+  assert(node);
+  COMPILER_BARRIER
   _buckets[bid]->unlock(true);
-  return node;
+  //return node;
 }
-
 
 void 
 LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo * pred_info)
@@ -161,7 +168,11 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
     } 
     _buckets[bid]->unlock(true);
 #if LOG_GARBAGE_COLLECT
-    _gc_queue->push(new_node);
+	assert(GET_THD_ID <= g_num_logger);
+	if (!_gc_queue[GET_THD_ID].empty())
+		assert(txn_id > _gc_queue[GET_THD_ID].front()->txn_id);
+    _gc_queue[GET_THD_ID].push(new_node);
+	//min_txn_id = _gc_queue[GET_THD_ID].front()->txn_id;
 #endif
 #if LOG_TYPE == LOG_DATA
 	// For data logging, recoverability is determined using the RAW network
@@ -175,40 +186,57 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
 	uint64_t raw_preds[ num_preds ];
 	pred_info->get_raw_preds(raw_preds);	
 	for (uint32_t i = 0; i < num_preds; i ++) {
+		// if the predecessor has already been garbage collected, no need to process it. 
+		bool gc = (int64_t)raw_preds[i] <= *_gc_bound[raw_preds[i] % g_num_logger]; //min_txn_id;
+		if (gc)
+			continue;
 		_buckets[get_bucket_id( raw_preds[i] )]->lock(true);
-	    pred_node = find_txn( raw_preds[i]);
-     	if (pred_node == NULL) 
-			pred_node = add_empty_node( raw_preds[i]);
-	    else {
-			// semaphore is incremented, indicating that someone is operating on the node, 
-			// so it cannot be deleted.
-			ATOM_ADD_FETCH(pred_node->semaphore, 1);
-		}
-	    _buckets[get_bucket_id( raw_preds[i] )]->unlock(true);
-    	if(!pred_node->is_recoverable()) { 
-			// if the RAW predecessor is not recoverable, put to success list.
-        	ATOM_ADD_FETCH(new_node->pred_size, 1UL << 32);
-        	pred_node->raw_succ.push(new_node);
-	    }
-		COMPILER_BARRIER
-		ATOM_SUB_FETCH(pred_node->semaphore, 1);
+		if ((int64_t)raw_preds[i] > *_gc_bound[raw_preds[i] % g_num_logger]) {
+		    pred_node = find_txn( raw_preds[i]);
+    	 	if (pred_node == NULL) { 
+				pred_node = add_empty_node( raw_preds[i]);
+			}
+    		else {
+				// semaphore is incremented, indicating that someone is operating on the node, 
+				// so it cannot be deleted.
+				ATOM_ADD_FETCH(pred_node->semaphore, 1);
+			}
+	    	_buckets[get_bucket_id( raw_preds[i] )]->unlock(true);
+    		if(!pred_node->is_recoverable()) { 
+				// if the RAW predecessor is not recoverable, put to success list.
+       			ATOM_ADD_FETCH(new_node->pred_size, 1UL << 32);
+	       		pred_node->raw_succ.push(new_node);
+		    }
+			COMPILER_BARRIER
+			ATOM_SUB_FETCH(pred_node->semaphore, 1);
+		} else 
+	    	_buckets[get_bucket_id( raw_preds[i] )]->unlock(true);
 	}
 	// Handle WAW
 	for (uint32_t i = 0; i < pred_info->_waw_size; i ++) {
+		//bool gc = pred_info->_preds_waw[i] < min_txn_id;
+		//if (gc)
+		uint64_t pred_id = pred_info->_preds_waw[i];
+		bool gc = (int64_t)pred_id <= *_gc_bound[pred_id % g_num_logger]; //min_txn_id;
+		if (gc)
+			continue;
 		_buckets[get_bucket_id( pred_info->_preds_waw[i] )]->lock(true);
-	    pred_node = find_txn( pred_info->_preds_waw[i] );
-		// so far, since there is no pure WAW, the node has been inserted in the previous RAW step. 
-		assert( pred_node ); 
-		ATOM_ADD_FETCH(pred_node->semaphore, 1);
-	    _buckets[get_bucket_id( pred_info->_preds_waw[i] )]->unlock(true);
-
-    	if( !pred_node->is_recover_done() ) { 
-			// if the WAW predecessor is not recovered, put to success list.
-        	ATOM_ADD_FETCH(new_node->pred_size, 1);
-        	pred_node->waw_succ.push(new_node);
-	    }
-		COMPILER_BARRIER
-		ATOM_SUB_FETCH(pred_node->semaphore, 1);
+		if ((int64_t)pred_id > *_gc_bound[pred_id % g_num_logger]) {
+		    pred_node = find_txn( pred_info->_preds_waw[i] );
+			// so far, since there is no pure WAW, the node has been inserted in the previous RAW step. 
+			assert( pred_node ); 
+			ATOM_ADD_FETCH(pred_node->semaphore, 1);
+		    _buckets[get_bucket_id( pred_info->_preds_waw[i] )]->unlock(true);
+	
+    		if( !pred_node->is_recover_done() ) { 
+				// if the WAW predecessor is not recovered, put to success list.
+        		ATOM_ADD_FETCH(new_node->pred_size, 1);
+	        	pred_node->waw_succ.push(new_node);
+		    }
+			COMPILER_BARRIER
+			ATOM_SUB_FETCH(pred_node->semaphore, 1);
+		} else 
+		    _buckets[get_bucket_id( pred_info->_preds_waw[i] )]->unlock(true);
 	}
 	new_node->recover_state = recover_state;
     raw_pred_remover(new_node);
@@ -223,12 +251,16 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
 
 	// Given that we have already implemented the RAW and WAW networks for data logging, we 
 	// use the WAW network for all dependency in command logging.  
+	// TODO add garbage collection support.
 	TxnNode * pred_node;
 	// we assume all WAW also has RAW, so this returns all predecessors 
 	uint32_t num_preds = pred_info->num_raw_preds(); 
 	uint64_t preds[ num_preds ];
 	pred_info->get_raw_preds(preds);	
 	for (uint32_t i = 0; i < num_preds; i ++) {
+		bool gc = preds[i] < min_txn_id;
+		if (gc)
+			continue;
 		_buckets[get_bucket_id( preds[i] )]->lock(true);
 	    pred_node = find_txn( preds[i]);
      	if (pred_node == NULL) 
@@ -295,11 +327,12 @@ LogRecoverTable::raw_pred_remover(TxnNode * node)
 void
 LogRecoverTable::garbage_collection()
 {
-  if(_gc_queue->front()->is_recover_done())
+  while (!_gc_queue[GET_THD_ID].empty() && _gc_queue[GET_THD_ID].front()->can_gc())
     {
-      TxnNode * n = _gc_queue->front();
+      TxnNode * n = _gc_queue[GET_THD_ID].front();
       //  cout << "+\n";
-      _gc_queue->pop();
+      _gc_queue[GET_THD_ID].pop();
+	  *_gc_bound[GET_THD_ID] = n->txn_id;
       delete_txn(n->txn_id);
       delete n;
     }
@@ -323,11 +356,13 @@ LogRecoverTable::waw_pred_remover(TxnNode * node)
 void
 LogRecoverTable::txn_recover_done(void * node) {
 	TxnNode * n = (TxnNode *) node;
-    n->set_recover_done();
     TxnNode * succ = NULL;
+    n->set_recover_done();
     while (n->waw_succ.pop(succ)) {
         waw_pred_remover(succ); 
     }
+	n->set_can_gc();
+	COMPILER_BARRIER
 }
 
 uint32_t 
@@ -344,7 +379,12 @@ LogRecoverTable::get_size()
     {
         TxnNode * node = _buckets[i]->first;
         while (node) {
-            size ++;
+			if (!node->is_recover_done())
+				cout << node->txn_id << '\t' << node->is_recoverable() << endl;;
+	        size ++;
+			//M_ASSERT(node->is_recover_done() || node->is_recoverable(), 
+			//		 "sempahore=%#lx\n", node->semaphore);
+			//M_ASSERT(node->is_recoverable(), "semaphore=%#lx\n", node->semaphore);
             node = node->next;
         }
     }
@@ -356,29 +396,42 @@ LogRecoverTable::TxnNode::set_recover_done() {
 #if LOG_TYPE == LOG_DATA
     uint64_t src_phore = (1UL << 62);
 #else
-	uint64_t src_phore = 0;
+	uint64_t src_phore = 0UL;
 #endif
-    uint64_t target_phore = (1UL << 63);
+    uint64_t target_phore = (3UL << 62);
     while(!ATOM_CAS(semaphore, src_phore, target_phore))
         PAUSE 
 }
 
 void 
 LogRecoverTable::TxnNode::set_recoverable() {
-    uint64_t src_phore = 0; 
+    uint64_t src_phore = 0UL; 
     uint64_t target_phore = (1UL << 62);
+    while(!ATOM_CAS(semaphore, src_phore, target_phore))
+        PAUSE 
+}
+
+void
+LogRecoverTable::TxnNode::set_can_gc() {
+    uint64_t src_phore = 3UL << 62; 
+    uint64_t target_phore = (7UL << 61);
     while(!ATOM_CAS(semaphore, src_phore, target_phore))
         PAUSE 
 }
 
 bool
 LogRecoverTable::TxnNode::is_recover_done() {
-    return (((1UL << 63) & semaphore) != 0);
+    return (((1UL << 63) & semaphore) != 0UL);
 }
 
 bool
 LogRecoverTable::TxnNode::is_recoverable() {
-    return (((1UL << 62) & semaphore) != 0);
+    return ((1UL << 62) & semaphore) != 0UL;
+}
+
+bool
+LogRecoverTable::TxnNode::can_gc() {
+    return ((1UL << 61) & semaphore) != 0UL;
 }
 
 
