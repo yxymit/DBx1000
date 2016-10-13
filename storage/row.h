@@ -133,6 +133,7 @@ private:
 		char * data;
 		Version * next;
 	};
+    Version *       _version;
 #endif
 
 };
