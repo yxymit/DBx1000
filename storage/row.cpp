@@ -25,7 +25,7 @@ row_t::init(table_t * host_table, uint64_t part_id, uint64_t row_id) {
 	data = (char *) _mm_malloc(sizeof(char) * tuple_size, 64);
 #if LOG_ALGORITHM == LOG_PARALLEL
 	_last_writer = 0; //glob_manager->rand_uint64() % LOG_PARALLEL_NUM_BUCKETS;
-	_version = NULL;
+	//_version = NULL;
 #endif
 	return RCOK;
 }
@@ -148,7 +148,7 @@ row_t::get_data(txn_man * txn, access_t type)
 	// Predecessor information can be accessed using txn->getPredecessorInfo();
 	if(type == RD) {
 		Version * cur_version = _version;
-		while(cur_version->txn_id != txn->get_txn_id() && cur_version->next) {
+		while(!txn->getPredecessorInfo()->is_pred(cur_version->txn_id, RD) && cur_version->next) {
 			cur_version = cur_version -> next;
 		}
 		if(cur_version) {

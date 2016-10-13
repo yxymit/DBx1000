@@ -14,6 +14,7 @@ public:
 	void init(PredecessorInfo * info);
 	void clear();
 	void insert_pred(uint64_t pred, access_t type);
+    bool is_pred(uint64_t pred, access_t type);
 	uint32_t num_raw_preds() { return _raw_size + _waw_size; }
 	void get_raw_preds(uint64_t * preds);
 	// return size
