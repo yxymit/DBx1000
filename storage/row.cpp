@@ -25,6 +25,7 @@ row_t::init(table_t * host_table, uint64_t part_id, uint64_t row_id) {
 	data = (char *) _mm_malloc(sizeof(char) * tuple_size, 64);
 #if LOG_ALGORITHM == LOG_PARALLEL
 	_last_writer = 0; //glob_manager->rand_uint64() % LOG_PARALLEL_NUM_BUCKETS;
+	_version = NULL;
 #endif
 	return RCOK;
 }
@@ -145,7 +146,29 @@ row_t::get_data(txn_man * txn, access_t type)
 	// if type == RD, return the correct version. 
 	// else if type == WR, create a new version (value copied from the previous version) 
 	// Predecessor information can be accessed using txn->getPredecessorInfo();
-	return NULL;
+	if(type == RD) {
+		Version * cur_version = _version;
+		while(cur_version->txn_id != txn->get_txn_id() && cur_version->next) {
+			cur_version = cur_version -> next;
+		}
+		if(cur_version) {
+			return cur_version->data;
+		} else {
+			return NULL;
+		}
+	} else if(type == WR) {
+		Version * new_version;
+		new_version->next = _version;
+		if(_version) {
+			memcpy(new_version->data, _version->data, sizeof(_version->data));
+		} else {
+			memcpy(new_version->data, this->data, sizeof(this->data));
+		}
+		_version = new_version;
+		return _version -> data;
+	} else {
+		return NULL;
+	}
 #else
 	return data; 
 #endif
