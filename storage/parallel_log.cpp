@@ -183,8 +183,33 @@ void ParallelLogManager::checkWait(int logger_id) {
 
 bool
 ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size, 
-								   PredecessorInfo * pred_info, uint64_t commit_ts)
+								   PredecessorInfo * pred_info, uint64_t lsn, uint64_t commit_ts)
 {
+	// Format
+	// total_size | log_entry (format seen in txn_man::create_log_entry) | predecessors 
+	uint32_t total_size = sizeof(uint32_t) + entry_size 
+						  + sizeof(uint32_t) * 2
+						  + sizeof(uint64_t) * (pred_info->_raw_size + pred_info->_waw_size);
+
+	char new_log_entry[total_size];
+	assert(total_size > 0);	
+	assert(entry_size == *(uint32_t *)log_entry);
+	uint32_t offset = 0;
+	// Total Size
+	memcpy(new_log_entry, &total_size, sizeof(uint32_t));
+	offset += sizeof(uint32_t);
+	// Log Entry
+	memcpy(new_log_entry + offset, log_entry, entry_size);
+	offset += entry_size;
+	// Predecessors
+	offset += pred_info->serialize(new_log_entry + offset);
+	assert(offset == total_size);
+	uint32_t logger_id = get_logger_id( glob_manager->get_thd_id() );
+	//cout << total_size << '\t' << lsn << endl;	
+	_logger[ logger_id ]->logTxn(new_log_entry, total_size, lsn);
+	
+	return true;
+/*
 	// Format
 	// total_size | log_entry (format seen in txn_man::create_log_entry) | predecessors 
 	uint32_t total_size = sizeof(uint32_t) + entry_size 
@@ -219,6 +244,35 @@ ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size,
 	_logger[ logger_id ]->logTxn(new_log_entry, total_size);
 #endif
 	return true;
+*/
+}
+	
+bool 
+ParallelLogManager::allocateLogEntry(uint64_t &lsn, uint32_t entry_size, 
+									 PredecessorInfo * pred_info, uint64_t commit_ts)
+{
+	// total_size | log_entry (format seen in txn_man::create_log_entry) | predecessors 
+	uint32_t total_size = sizeof(uint32_t) + entry_size 
+						  + sizeof(uint32_t) * 2
+						  + sizeof(uint64_t) * (pred_info->_raw_size + pred_info->_waw_size);
+	uint32_t logger_id = get_logger_id( GET_THD_ID );
+#if LOG_TYPE == LOG_COMMAND
+	bool success = false;
+	uint64_t lsn = 0;
+	while (!success) {
+		lsn = _logger[logger_id]->get_lsn();
+		COMPILER_BARRIER
+		if (commit_ts < _max_epoch_ts)
+			return false;
+		else
+			success = _logger[logger_id]->allocate_lsn(total_size, lsn);
+	}
+	return lsn;
+#else
+	lsn = _logger[ logger_id ]->allocate_lsn(total_size);
+	return true;
+#endif
+
 }
 
 void 
@@ -269,7 +323,7 @@ ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info)
 	uint32_t offset = sizeof(uint32_t) + entry_size;
 	// Predecessors
 	offset += pred_info->deserialize(raw_entry + offset);	
-	assert(offset == total_size);
+	M_ASSERT(offset == total_size, "offset=%d, total_size=%d\n", offset, total_size);
 }
 
 uint64_t 

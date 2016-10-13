@@ -45,8 +45,8 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 #elif CC_ALG == SILO
 	_cur_tid = 0;
 #endif
-
 	_last_epoch_time = 0;	
+	_log_entry_size = 0;
 
 #if LOG_ALGORITHM == LOG_PARALLEL
 	_predecessor_info = new PredecessorInfo;; 	
@@ -130,7 +130,12 @@ RC txn_man::cleanup(RC in_rc)
 	{
         if (wr_cnt > 0) {
 			uint64_t before_log_time = get_sys_clock();
-			uint32_t size = get_log_entry_size();
+			uint32_t size = _log_entry_size; 
+			if (size == 0) {
+				assert(LOG_ALGORITHM != LOG_PARALLEL);
+				size = get_log_entry_size();
+			}
+			assert(size > 0);
 			char entry[size];// = NULL;
 			create_log_entry(size, entry);
 			uint32_t s;
@@ -146,7 +151,12 @@ RC txn_man::cleanup(RC in_rc)
 			uint64_t raw_preds[ num_preds ];
 			
 			_predecessor_info->get_raw_preds(raw_preds);
+			
+			INC_STATS(get_thd_id(), debug4, get_sys_clock() - before_log_time);
+
+			uint64_t tt = get_sys_clock();
 			void * txn_node = log_pending_table->add_log_pending( get_txn_id(), raw_preds, num_preds);
+			INC_STATS(get_thd_id(), debug2, get_sys_clock() - tt);
 		#if LOG_TYPE == LOG_COMMAND
 			// should periodically write epoch log.
 			// Only a single thread does this. 
@@ -155,13 +165,16 @@ RC txn_man::cleanup(RC in_rc)
 				log_manager->logEpoch(glob_manager->get_max_ts());
 				printf("logEpoch\n");
 			}
-		#endif 
-			bool success = log_manager->parallelLogTxn(entry, size, _predecessor_info, _commit_ts);
-			if (!success) {
-				assert(LOG_TYPE == LOG_COMMAND);
-				_min_cts = log_manager->get_max_epoch_ts();
-				rc = Abort;
-			}
+		#endif
+			//uint64_t t2 = get_sys_clock();
+			log_manager->parallelLogTxn(entry, size, _predecessor_info, 
+									   txn_id / g_num_logger, _commit_ts);
+			//INC_STATS(get_thd_id(), debug3, get_sys_clock() - t2);
+			//if (!success) {
+			//	assert(LOG_TYPE == LOG_COMMAND);
+			//	_min_cts = log_manager->get_max_epoch_ts();
+			//	rc = Abort;
+			//}
 			// FLUSH DONE
 			log_pending_table->remove_log_pending(txn_node);
   #endif
@@ -173,6 +186,7 @@ RC txn_man::cleanup(RC in_rc)
 	_predecessor_info->clear();
   #endif
 #endif
+	_log_entry_size = 0;
 	row_cnt = 0;
 	wr_cnt = 0;
 	insert_cnt = 0;
@@ -284,9 +298,11 @@ RC txn_man::finish(RC rc) {
 	else 
 		cleanup(rc);
 #elif CC_ALG == TICTOC
-	if (rc == RCOK)
+	if (rc == RCOK) {
+		uint64_t tt = get_sys_clock();
 		rc = validate_tictoc();
-	else 
+		INC_STATS(get_thd_id(), debug3, get_sys_clock() - tt);
+	} else 
 		rc = cleanup(rc);
 #elif CC_ALG == SILO
 	if (rc == RCOK)
@@ -402,13 +418,20 @@ txn_man::parallel_recover() {
 			free_queue_recover_state[logger_id].return_element((void *) recover_state);
 			num_records ++;
 		} else if (ParallelLogManager::num_threads_done < g_num_logger)
+			// TODO. should check if all nodes in the graph have been processed. 
+			// with GC, can just check the queue size.
+			// w/o GC, can wait for a short period of time after all threads stop.
 			PAUSE
 		else 
 			break;
 	}
+	assert(!txns_ready_for_recovery[logger_id]->pop(recover_state));
    	INC_STATS(get_thd_id(), txn_cnt, num_records);
-	if (get_thd_id() == 0)
+	if (get_thd_id() == 0) {
+		uint32_t size = log_recover_table->get_size();
+		cout << size << endl;
 		INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
+	}
 #endif
 }
 

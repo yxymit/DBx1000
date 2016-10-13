@@ -37,7 +37,10 @@ public:
 
 	// For logging
 	// return value:  if logging is successful or not. Logging may fail for command logging with epoch.  
-    bool parallelLogTxn(char * log_entry, uint32_t entry_size, PredecessorInfo * pred_info, uint64_t commit_ts); 
+    bool parallelLogTxn(char * log_entry, uint32_t entry_size, 
+						PredecessorInfo * pred_info, uint64_t lsn, uint64_t commit_ts); 
+	bool allocateLogEntry(uint64_t &lsn, uint32_t entry_size, 
+		 				 PredecessorInfo * pred_info, uint64_t commit_ts);
 
 	// for epoch log record (command logging)
 	void logEpoch(uint64_t timestamp);

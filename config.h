@@ -16,7 +16,7 @@
 // # of transactions to run for warmup
 #define WARMUP						0
 // YCSB or TPCC
-#define WORKLOAD 					YCSB
+#define WORKLOAD YCSB
 // print the transaction latency distribution
 #define PRT_LAT_DISTR				false
 #define STATS_ENABLE				true
@@ -100,17 +100,17 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM 				LOG_PARALLEL
-#define LOG_TYPE					LOG_COMMAND	
+#define LOG_ALGORITHM LOG_PARALLEL
+#define LOG_TYPE LOG_DATA
 #define LOG_RAM_DISK				true
-#define LOG_NO_FLUSH			 	false
+#define LOG_NO_FLUSH			 	true //false
 #define LOG_RECOVER					false
 #define LOG_BATCH_TIME				10 // in ms
 #define LOG_GARBAGE_COLLECT			false
 // For LOG_PARALLEL
 #define LOG_PARALLEL_BUFFER_FILL	false 
 #define NUM_LOGGER					4 
-#define LOG_PARALLEL_NUM_BUCKETS    2000000
+#define LOG_PARALLEL_NUM_BUCKETS    20000
 
 
 /***********************************************/

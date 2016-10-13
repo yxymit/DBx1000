@@ -36,6 +36,8 @@ public:
         bool is_recover_done();
         void set_recoverable();
 		bool is_recoverable();
+		void set_can_gc();
+		bool can_gc();
     };
 
     class Bucket {
@@ -55,20 +57,22 @@ public:
     Bucket ** _buckets;
     queue<TxnNode *> * _free_nodes;
     queue<TxnNode *> * _gc_queue;
+	int64_t volatile ** _gc_bound; 
     boost::lockfree::queue<TxnNode *> recover_ready_txns{10};
 
 	void add_log_recover(RecoverState * recover_state, PredecessorInfo * pred_info); 
-  void garbage_collection();
+	void garbage_collection();
 	
     TxnNode * add_empty_node(uint64_t txn_id);
-    void raw_spred_remover(TxnNode * node);
+    void raw_pred_remover(TxnNode * node);
     void waw_pred_remover(TxnNode * node);
 
     void txn_recover_done(void * node);
-    uint32_t get_size(); 
+    uint32_t get_size();
     uint32_t get_bucket_id(uint64_t txn_id);
 private:
     uint32_t _num_buckets;
     TxnNode * find_txn(uint64_t txn_id);
     TxnNode * remove_txn(uint64_t txn_id);
+	void delete_txn(uint64_t txn_id);
 };
