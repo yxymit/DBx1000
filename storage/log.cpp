@@ -410,10 +410,12 @@ RamDisk::flush(uint64_t total_size)
 		success = _file.write( _block, total_size );
 	assert(success);
 	printf("first size = %d\n", *(uint32_t *)(_block));
+	assert(*(uint32_t *)(_block) > 0);
 	_file.flush();
 	_file.close();
 
 	// debug
+	/*
 	_file.open(_file_name, ios::in | ios::binary);
 	_file.seekg (0, _file.beg);
   	success = _file.read((char *)&_total_size, sizeof(_total_size));
@@ -422,6 +424,7 @@ RamDisk::flush(uint64_t total_size)
 	assert(success);
 	assert(*(uint32_t *)(_block) > 0);
 	_file.close();
+	*/
 }
 
 

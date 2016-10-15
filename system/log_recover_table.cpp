@@ -258,9 +258,9 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
 	uint64_t preds[ num_preds ];
 	pred_info->get_raw_preds(preds);	
 	for (uint32_t i = 0; i < num_preds; i ++) {
-		bool gc = preds[i] < min_txn_id;
-		if (gc)
-			continue;
+		//bool gc = preds[i] < min_txn_id;
+		//if (gc)
+		//	continue;
 		_buckets[get_bucket_id( preds[i] )]->lock(true);
 	    pred_node = find_txn( preds[i]);
      	if (pred_node == NULL) 

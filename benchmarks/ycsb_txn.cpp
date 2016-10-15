@@ -102,13 +102,13 @@ ycsb_txn_man::recover_txn(RecoverState * recover_state)
 		row_t * row = ((row_t *)m_item->location);
 			
 		assert(row);
+		char * data = row->get_data(this, rtype);
+		assert(data);
 		// Computation //
 		if (rtype == RD || rtype == SCAN) {
-			char * data = row->get_data();
 			__attribute__((unused)) uint64_t fval = *(uint64_t *)(&data[0]);
 		} else {
 			assert(rtype == WR);
-			char * data = row->get_data();
 			uint64_t fval = *(uint64_t *)(&data[0]);
 			*(uint64_t *)(&data[0]) = fval + 1;
 		} 

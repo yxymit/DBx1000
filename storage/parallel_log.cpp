@@ -85,7 +85,7 @@ bool
 PredecessorInfo::is_pred(uint64_t pred, access_t type)
 {
 	uint64_t * preds = (type == WR)? _preds_waw : _preds_raw;
-	uint32_t &preds_size = (type == WR)? _waw_size : _raw_size;
+	uint32_t preds_size = (type == WR)? _waw_size : _raw_size;
 	bool found = false;
 	for (uint32_t i = 0; i < preds_size; i ++ ) 
 		if (preds[i] == pred)
@@ -205,7 +205,7 @@ ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size,
 	offset += pred_info->serialize(new_log_entry + offset);
 	assert(offset == total_size);
 	uint32_t logger_id = get_logger_id( glob_manager->get_thd_id() );
-	//cout << total_size << '\t' << lsn << endl;	
+	assert(total_size > 0);
 	_logger[ logger_id ]->logTxn(new_log_entry, total_size, lsn);
 	
 	return true;
@@ -258,7 +258,7 @@ ParallelLogManager::allocateLogEntry(uint64_t &lsn, uint32_t entry_size,
 	uint32_t logger_id = get_logger_id( GET_THD_ID );
 #if LOG_TYPE == LOG_COMMAND
 	bool success = false;
-	uint64_t lsn = 0;
+	//uint64_t lsn = 0;
 	while (!success) {
 		lsn = _logger[logger_id]->get_lsn();
 		COMPILER_BARRIER
@@ -267,7 +267,7 @@ ParallelLogManager::allocateLogEntry(uint64_t &lsn, uint32_t entry_size,
 		else
 			success = _logger[logger_id]->allocate_lsn(total_size, lsn);
 	}
-	return lsn;
+	return true;
 #else
 	lsn = _logger[ logger_id ]->allocate_lsn(total_size);
 	return true;

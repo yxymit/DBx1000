@@ -14,6 +14,7 @@
 #include "row_vll.h"
 #include "mem_alloc.h"
 #include "manager.h"
+#include "parallel_log.h"
 
 RC 
 row_t::init(table_t * host_table, uint64_t part_id, uint64_t row_id) {
@@ -25,7 +26,9 @@ row_t::init(table_t * host_table, uint64_t part_id, uint64_t row_id) {
 	data = (char *) _mm_malloc(sizeof(char) * tuple_size, 64);
 #if LOG_ALGORITHM == LOG_PARALLEL
 	_last_writer = 0; //glob_manager->rand_uint64() % LOG_PARALLEL_NUM_BUCKETS;
-	//_version = NULL;
+  #if LOG_TYPE == LOG_COMMAND && LOG_RECOVER
+	_version = NULL;
+  #endif
 #endif
 	return RCOK;
 }
@@ -154,19 +157,23 @@ row_t::get_data(txn_man * txn, access_t type)
 		if(cur_version) {
 			return cur_version->data;
 		} else {
+			assert(false);
 			return NULL;
 		}
 	} else if(type == WR) {
-		Version * new_version;
+		// TODO. reuse versions through the freequeue
+		Version * new_version = (Version *) _mm_malloc(sizeof(Version) + get_tuple_size(), 64);
+		new_version->data = (char *)((uint64_t)new_version + sizeof(Version));
 		new_version->next = _version;
 		if(_version) {
-			memcpy(new_version->data, _version->data, sizeof(_version->data));
+			memcpy(new_version->data, _version->data, get_tuple_size());
 		} else {
-			memcpy(new_version->data, this->data, sizeof(this->data));
+			memcpy(new_version->data, this->data, get_tuple_size());
 		}
 		_version = new_version;
-		return _version -> data;
+		return _version->data;
 	} else {
+		assert(false);
 		return NULL;
 	}
 #else
