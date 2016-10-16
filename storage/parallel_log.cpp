@@ -198,9 +198,11 @@ ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size,
 	// Total Size
 	memcpy(new_log_entry, &total_size, sizeof(uint32_t));
 	offset += sizeof(uint32_t);
+#if LOG_COMMAND
 	// Commit Timestamp
 	memcpy(new_log_entry + offset, &commit_ts, sizeof(uint64_t));
 	offset += sizeof(uint64_t);
+#endif
 	// Log Entry
 	memcpy(new_log_entry + offset, log_entry, entry_size);
 	offset += entry_size;
@@ -320,14 +322,15 @@ ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info, uint
 		_curr_fence_ts[logger_id] = ts;
 		return readFromLog(entry, pred_info, commit_ts);
 	}
+	//Commit Timestamp
 #if LOG_TYPE == LOG_COMMAND 
 	commit_ts = *(uint64_t *) (raw_entry + sizeof(uint32_t));
+	entry = raw_entry + sizeof(uint32_t) + sizeof(uint64_t); 
 #else
 	commit_ts = 0;
+	entry = raw_entry + sizeof(uint32_t); 
 #endif
-	// Commit Time Stamp
 	// Log Entry
-	entry = raw_entry + sizeof(uint32_t) + sizeof(uint64_t); 
 	uint32_t entry_size = *(uint32_t *)entry;
 	uint32_t offset = sizeof(uint32_t) + entry_size;
 	// Predecessors
