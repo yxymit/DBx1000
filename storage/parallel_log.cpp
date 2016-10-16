@@ -297,7 +297,7 @@ ParallelLogManager::logFence(uint64_t timestamp)
 }
 
 void 
-ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info, uint64_t commit_ts)
+ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info, uint64_t &commit_ts)
 {
 	uint64_t thd_id = glob_manager->get_thd_id();
 	uint32_t logger_id = get_logger_id(thd_id);
@@ -318,7 +318,7 @@ ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info, uint
 		uint64_t ts = *(uint64_t *)(raw_entry + 4);
 		glob_manager->add_ts(GET_THD_ID, ts);
 		_curr_fence_ts[logger_id] = ts;
-		return readFromLog(entry, pred_info);
+		return readFromLog(entry, pred_info, commit_ts);
 	}
 #if LOG_TYPE == LOG_COMMAND 
 	commit_ts = *(uint64_t *) (raw_entry + sizeof(uint32_t));

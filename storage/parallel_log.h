@@ -50,7 +50,7 @@ public:
 	// the number of recover threads that have finished reading from log files
 	uint64_t get_curr_fence_ts();
 	static volatile uint32_t num_threads_done;  
-	void readFromLog(char * &entry, PredecessorInfo * pred_info, uint64_t commit_ts);
+	void readFromLog(char * &entry, PredecessorInfo * pred_info, uint64_t &commit_ts);
 private:
     //void checkWait(int logger_id);
     uint32_t get_logger_id(uint64_t thd_id) { return thd_id % g_num_logger; } 
