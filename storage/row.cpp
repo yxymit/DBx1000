@@ -191,8 +191,9 @@ row_t::get_data(txn_man * txn, access_t type)
 		if(min_ts < log_manager->get_curr_fence_ts()) {
 			txn_t fence_ts = log_manager->get_curr_fence_ts();
 			Version * cur_version = _version;
-			Version * justbefore = (Version *) _mm_malloc(sizeof(Version),64); 	// The node just before current node
-			justbefore->next = _version;
+			//Version * justbefore = (Version *) _mm_malloc(sizeof(Version),64); 	// The node just before current node
+			//justbefore->next = _version;
+			Version * justbefore = NULL;
 			Version * max_version = NULL; 	// The youngest version older than fence
 			Version * max_justbefore = NULL;	// The node just before max_version
 			bool flag = true;		// Whether need to keep oldest version before fence
@@ -206,6 +207,7 @@ row_t::get_data(txn_man * txn, access_t type)
 					} else{
 						min_ts = (min_ts < cur_version->ts)? min_ts : cur_version->ts;
 					}
+					justbefore = cur_version;
 				} else { 
 					if(flag) {
 						// IF the node is not the youngest node so far before the fence, 
@@ -216,21 +218,31 @@ row_t::get_data(txn_man * txn, access_t type)
 						} else {
 							// IF the node is the youngest node so far before the fence, 
 							// copy node to max_version
-							// IF The node is not the first max_version, 
+							// IF The node is not the first max_version 
+							// and the first max_version is not _version
 							// delete original max_version node
-							if(max_version) {
+							if(max_version && max_justbefore) {
 								max_justbefore->next = max_version->next;
 								delete max_version->data;
 							}
+							// IF the first max_version is _version
+							if(max_version && !max_justbefore) {
+								delete _version->data;
+								_version = _version->next;
+							}
 							max_version = cur_version;
 							max_justbefore = justbefore;
+							justbefore = cur_version;
 						}
 					} else {
-						justbefore->next = cur_version->next;
+						if(justbefore) {
+							justbefore->next = cur_version->next;
+						} else {
+							_version = _version->next;
+						}
 						delete cur_version->data;
-					}				
+					}
 				}
-				justbefore = cur_version;
 				cur_version = cur_version->next;
 			}
 		}
