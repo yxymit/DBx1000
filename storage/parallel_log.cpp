@@ -129,7 +129,7 @@ PredecessorInfo::deserialize(char * buffer)
 ParallelLogManager::ParallelLogManager()
 {
 	pthread_mutex_init(&lock, NULL);
-	_curr_epoch_ts = new uint64_t [g_num_logger];
+	_curr_fence_ts = new uint64_t [g_num_logger];
 } 
 
 ParallelLogManager::~ParallelLogManager()
@@ -186,8 +186,8 @@ ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size,
 								   PredecessorInfo * pred_info, uint64_t lsn, uint64_t commit_ts)
 {
 	// Format
-	// total_size | log_entry (format seen in txn_man::create_log_entry) | predecessors 
-	uint32_t total_size = sizeof(uint32_t) + entry_size 
+	// total_size | commit_ts | log_entry (format seen in txn_man::create_log_entry) | predecessors 
+	uint32_t total_size = sizeof(uint32_t) + entry_size + sizeof(uint64_t)
 						  + sizeof(uint32_t) * 2
 						  + sizeof(uint64_t) * (pred_info->_raw_size + pred_info->_waw_size);
 
@@ -198,6 +198,9 @@ ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size,
 	// Total Size
 	memcpy(new_log_entry, &total_size, sizeof(uint32_t));
 	offset += sizeof(uint32_t);
+	// Commit Timestamp
+	memcpy(new_log_entry + offset, &commit_ts, sizeof(uint64_t));
+	offset += sizeof(uint64_t);
 	// Log Entry
 	memcpy(new_log_entry + offset, log_entry, entry_size);
 	offset += entry_size;
@@ -276,7 +279,7 @@ ParallelLogManager::allocateLogEntry(uint64_t &lsn, uint32_t entry_size,
 }
 
 void 
-ParallelLogManager::logEpoch(uint64_t timestamp)
+ParallelLogManager::logFence(uint64_t timestamp)
 {
 	// Format
 	// MAX_UINT32 | timestamp (64 bits) 
@@ -294,7 +297,7 @@ ParallelLogManager::logEpoch(uint64_t timestamp)
 }
 
 void 
-ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info)
+ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info, uint64_t commit_ts)
 {
 	uint64_t thd_id = glob_manager->get_thd_id();
 	uint32_t logger_id = get_logger_id(thd_id);
@@ -314,11 +317,17 @@ ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info)
 	if (total_size == UINT32_MAX) {
 		uint64_t ts = *(uint64_t *)(raw_entry + 4);
 		glob_manager->add_ts(GET_THD_ID, ts);
-		_curr_epoch_ts[logger_id] = ts;
+		_curr_fence_ts[logger_id] = ts;
 		return readFromLog(entry, pred_info);
 	}
+#if LOG_TYPE == LOG_COMMAND 
+	commit_ts = *(uint64_t *) (raw_entry + sizeof(uint32_t));
+#else
+	commit_ts = 0;
+#endif
+	// Commit Time Stamp
 	// Log Entry
-	entry = raw_entry + sizeof(uint32_t); 
+	entry = raw_entry + sizeof(uint32_t) + sizeof(uint64_t); 
 	uint32_t entry_size = *(uint32_t *)entry;
 	uint32_t offset = sizeof(uint32_t) + entry_size;
 	// Predecessors
@@ -327,10 +336,10 @@ ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info)
 }
 
 uint64_t 
-ParallelLogManager::get_curr_epoch_ts()
+ParallelLogManager::get_curr_fence_ts()
 {
 	uint32_t logger_id = get_logger_id(GET_THD_ID);
-	return _curr_epoch_ts[logger_id];
+	return _curr_fence_ts[logger_id];
 }
 
 

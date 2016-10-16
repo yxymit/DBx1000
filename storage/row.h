@@ -129,11 +129,12 @@ private:
 	// for paralle command recovery, should use multi-versioning.
 	struct Version {
 		uint64_t txn_id; // the writer's txn_id
-		uint64_t epoch_num; // epoch number of the writer
+		uint64_t ts; // time stamp of the writer
 		char * data;
 		Version * next;
 	};
     Version *       _version;
+    uint64_t min_ts; // the oldest version timestamp of the tuple
 #endif
 
 };

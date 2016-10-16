@@ -28,6 +28,7 @@ row_t::init(table_t * host_table, uint64_t part_id, uint64_t row_id) {
 	_last_writer = 0; //glob_manager->rand_uint64() % LOG_PARALLEL_NUM_BUCKETS;
   #if LOG_TYPE == LOG_COMMAND && LOG_RECOVER
 	_version = NULL;
+	min_ts = 0; 
   #endif
 #endif
 	return RCOK;
@@ -151,11 +152,21 @@ row_t::get_data(txn_man * txn, access_t type)
 	// Predecessor information can be accessed using txn->getPredecessorInfo();
 	if(type == RD) {
 		Version * cur_version = _version;
-		while(!txn->getPredecessorInfo()->is_pred(cur_version->txn_id, RD) && cur_version->next) {
-			cur_version = cur_version -> next;
+		ts_t txn_ts = txn->get_ts();
+		ts_t max_ts = 0;
+		Version * max_version = NULL;
+		while(cur_version->next) {
+			if(cur_version->ts > max_ts && cur_version->ts < txn->txn_ts) {
+				max_ts = cur_version->ts;
+				max_version = cur_version;
+			}
+			cur_version = cur_version->next;
 		}
-		if(cur_version) {
-			return cur_version->data;
+		/*while(!txn->getPredecessorInfo()->is_pred(cur_version->txn_id, RD) && cur_version->next) {
+			cur_version = cur_version -> next;
+		}*/
+		if(max_version) {
+			return max_version->data;
 		} else {
 			assert(false);
 			return NULL;
@@ -165,12 +176,64 @@ row_t::get_data(txn_man * txn, access_t type)
 		Version * new_version = (Version *) _mm_malloc(sizeof(Version) + get_tuple_size(), 64);
 		new_version->data = (char *)((uint64_t)new_version + sizeof(Version));
 		new_version->next = _version;
+		new_version->txn_id = txn->get_txn_id();
+		new_version->ts = txn->get_ts();
 		if(_version) {
 			memcpy(new_version->data, _version->data, get_tuple_size());
 		} else {
 			memcpy(new_version->data, this->data, get_tuple_size());
 		}
 		_version = new_version;
+		if(min_ts < 0 || _version->ts < min_ts) {
+			min_ts = _version->ts;
+		}
+		// If the oldest version of tuple is older than fence, garbage collect
+		if(min_ts < get_curr_fence_ts()) {
+			txn_t fence_ts = get_curr_fence_ts();
+			Version * cur_version = _version;
+			Version * justbefore = (Version *) _mm_malloc(sizeof(Version)); 	// The node just before current node
+			justbefore->next = _version;
+			Version * max_version = NULL; 	// The youngest version older than fence
+			Version * max_justbefore = NULL;	// The node just before max_version
+			bool flag = true;		// Whether need to keep oldest version before fence
+			while(!cur_version) {
+				// IF the node is before the fence, consider deleting the node
+				if(cur_version->ts >= fence_ts) {
+					flag = false;
+					// Update value of oldest transaction
+					if(min_ts < fence_ts) {
+						min_ts = cur_version->ts;
+					} else{
+						min_ts = (min_ts < cur_version->ts)? min_ts : cur_version->ts;
+					}
+				} else { 
+					if(flag) {
+						// IF the node is not the youngest node so far before the fence, 
+						// delete the node
+						if(max_version && cur_version->ts < max_version) {
+							justbefore->next = cur_version->next;
+							delete cur_version->data;
+						} else {
+							// IF the node is the youngest node so far before the fence, 
+							// copy node to max_version
+							// IF The node is not the first max_version, 
+							// delete original max_version node
+							if(max_version) {
+								max_justbefore->next = max_version->next;
+								delete max_version->data;
+							}
+							max_version = cur_version;
+							max_justbefore = justbefore;
+						}
+					} else {
+						justbefore->next = cur_version->next;
+						delete cur_version->data;
+					}				
+				}
+				justbefore = cur_version;
+				cur_version = cur_version->next;
+			}
+		}
 		return _version->data;
 	} else {
 		assert(false);

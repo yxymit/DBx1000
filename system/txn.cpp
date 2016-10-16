@@ -162,8 +162,8 @@ RC txn_man::cleanup(RC in_rc)
 			// Only a single thread does this. 
 			if (get_thd_id() == 0 && get_sys_clock() / TIMESTAMP_SYNC_EPOCH / 1000000 > _last_epoch_time) {
 				_last_epoch_time = get_sys_clock() / TIMESTAMP_SYNC_EPOCH / 1000000;
-				log_manager->logEpoch(glob_manager->get_max_ts());
-				printf("logEpoch\n");
+				log_manager->logFence(glob_manager->get_max_ts());
+				printf("logFence\n");
 			}
 		#endif
 			//uint64_t t2 = get_sys_clock();
@@ -383,7 +383,8 @@ txn_man::parallel_recover() {
 		// Logging thread. 
 		// Reads from log file and insert to the recovery graph. 
 		char * entry = NULL;
-		log_manager->readFromLog(entry, _predecessor_info);
+		uint64_t commit_ts = 0;
+		log_manager->readFromLog(entry, _predecessor_info, commit_ts);
 		while (entry != NULL) {
 			RecoverState * recover_state = (RecoverState *) free_queue_recover_state[ get_thd_id() % g_num_logger].get_element();
 			if (recover_state == NULL)
@@ -398,7 +399,7 @@ txn_man::parallel_recover() {
   #if LOG_GARBAGE_COLLECT
 			log_recover_table->garbage_collection();
   #endif
-			log_manager->readFromLog(entry, _predecessor_info);
+			log_manager->readFromLog(entry, _predecessor_info, commit_ts);
 		}
 		ATOM_ADD_FETCH(ParallelLogManager::num_threads_done, 1);
 	}
@@ -659,7 +660,7 @@ txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state)
 	recover_state->txn_id = tid;
 	recover_state->cmd = cmd;
   #if LOG_ALGORITHM == LOG_PARALLEL
-	recover_state->epoch_num = log_manager->get_curr_epoch_ts();
+	recover_state->epoch_num = log_manager->get_curr_fence_ts();
   #endif
 #else 
 	assert(false);
