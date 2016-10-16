@@ -81,7 +81,7 @@ PredecessorInfo::get_raw_preds(uint64_t * preds)
 	memcpy(preds + _raw_size, _preds_waw, _waw_size * sizeof(uint64_t));
 }
 
-bool 
+/*bool 
 PredecessorInfo::is_pred(uint64_t pred, access_t type)
 {
 	uint64_t * preds = (type == WR)? _preds_waw : _preds_raw;
@@ -91,7 +91,7 @@ PredecessorInfo::is_pred(uint64_t pred, access_t type)
 		if (preds[i] == pred)
 			found = true;
 	return found;
-}
+}*/
 
 uint32_t
 PredecessorInfo::serialize(char * buffer)

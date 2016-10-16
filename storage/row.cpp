@@ -156,7 +156,7 @@ row_t::get_data(txn_man * txn, access_t type)
 		ts_t max_ts = 0;
 		Version * max_version = NULL;
 		while(cur_version->next) {
-			if(cur_version->ts > max_ts && cur_version->ts < txn->txn_ts) {
+			if(cur_version->ts > max_ts && cur_version->ts < txn_ts) {
 				max_ts = cur_version->ts;
 				max_version = cur_version;
 			}
@@ -188,10 +188,10 @@ row_t::get_data(txn_man * txn, access_t type)
 			min_ts = _version->ts;
 		}
 		// If the oldest version of tuple is older than fence, garbage collect
-		if(min_ts < get_curr_fence_ts()) {
-			txn_t fence_ts = get_curr_fence_ts();
+		if(min_ts < log_manager->get_curr_fence_ts()) {
+			txn_t fence_ts = log_manager->get_curr_fence_ts();
 			Version * cur_version = _version;
-			Version * justbefore = (Version *) _mm_malloc(sizeof(Version)); 	// The node just before current node
+			Version * justbefore = (Version *) _mm_malloc(sizeof(Version),64); 	// The node just before current node
 			justbefore->next = _version;
 			Version * max_version = NULL; 	// The youngest version older than fence
 			Version * max_justbefore = NULL;	// The node just before max_version
@@ -210,7 +210,7 @@ row_t::get_data(txn_man * txn, access_t type)
 					if(flag) {
 						// IF the node is not the youngest node so far before the fence, 
 						// delete the node
-						if(max_version && cur_version->ts < max_version) {
+						if(max_version && cur_version->ts < max_version->ts) {
 							justbefore->next = cur_version->next;
 							delete cur_version->data;
 						} else {
