@@ -113,6 +113,7 @@ public:
 	{ return _last_writer; };
 	void 			set_last_writer(uint64_t last_writer)	
 	{ _last_writer = last_writer; }
+	pthread_mutex_t lock;
 #endif
 
 private:

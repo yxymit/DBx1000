@@ -391,7 +391,7 @@ txn_man::parallel_recover() {
 				recover_state = new RecoverState;
 			else 
 				recover_state->clear();
-			recover_from_log_entry(entry, recover_state);
+			recover_from_log_entry(entry, recover_state, commit_ts);
   #if LOG_TYPE == LOG_COMMAND
 			recover_state->_predecessor_info->init(_predecessor_info);
   #endif
@@ -621,7 +621,7 @@ txn_man::serial_recover_from_log_entry(char * entry)
 #endif
 
 void
-txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state)
+txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state, ts_t commit_ts)
 {
 #if LOG_TYPE == LOG_DATA
 	char * ptr = entry;
@@ -660,7 +660,8 @@ txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state)
 	recover_state->txn_id = tid;
 	recover_state->cmd = cmd;
   #if LOG_ALGORITHM == LOG_PARALLEL
-	recover_state->epoch_num = log_manager->get_curr_fence_ts();
+	recover_state->commit_ts = commit_ts;
+    //log_manager->get_curr_fence_ts();
   #endif
 #else 
 	assert(false);

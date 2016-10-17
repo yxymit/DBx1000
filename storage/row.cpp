@@ -30,6 +30,7 @@ row_t::init(table_t * host_table, uint64_t part_id, uint64_t row_id) {
 	_version = NULL;
 	min_ts = 0; 
   #endif
+	pthread_mutex_init(&lock, NULL);
 #endif
 	return RCOK;
 }
@@ -37,6 +38,7 @@ void
 row_t::init(int size) 
 {
 	data = (char *) _mm_malloc(size, 64);
+	pthread_mutex_init(&lock, NULL);
 }
 
 RC 
@@ -150,23 +152,15 @@ row_t::get_data(txn_man * txn, access_t type)
 	// if type == RD, return the correct version. 
 	// else if type == WR, create a new version (value copied from the previous version) 
 	// Predecessor information can be accessed using txn->getPredecessorInfo();
+	pthread_mutex_lock(&lock);
 	if(type == RD) {
 		Version * cur_version = _version;
 		ts_t txn_ts = txn->get_ts();
-		ts_t max_ts = 0;
-		Version * max_version = NULL;
-		while(cur_version->next) {
-			if(cur_version->ts > max_ts && cur_version->ts < txn_ts) {
-				max_ts = cur_version->ts;
-				max_version = cur_version;
-			}
+		while(cur_version->next && cur_version->ts > txn_ts) {
 			cur_version = cur_version->next;
 		}
-		/*while(!txn->getPredecessorInfo()->is_pred(cur_version->txn_id, RD) && cur_version->next) {
-			cur_version = cur_version -> next;
-		}*/
-		if(max_version) {
-			return max_version->data;
+		if(cur_version) {
+			return cur_version->data;
 		} else {
 			assert(false);
 			return NULL;
@@ -194,54 +188,20 @@ row_t::get_data(txn_man * txn, access_t type)
 			//Version * justbefore = (Version *) _mm_malloc(sizeof(Version),64); 	// The node just before current node
 			//justbefore->next = _version;
 			Version * justbefore = NULL;
-			Version * max_version = NULL; 	// The youngest version older than fence
-			Version * max_justbefore = NULL;	// The node just before max_version
-			bool flag = true;		// Whether need to keep oldest version before fence
-			while(!cur_version) {
+			//Version * max_version = NULL; 	// The youngest version older than fence
+			//Version * max_justbefore = NULL;	// The node just before max_version
+			bool flag = false;		// Whether we are at first node
+			while(cur_version) {
 				// IF the node is before the fence, consider deleting the node
-				if(cur_version->ts >= fence_ts) {
-					flag = false;
-					// Update value of oldest transaction
-					if(min_ts < fence_ts) {
-						min_ts = cur_version->ts;
-					} else{
-						min_ts = (min_ts < cur_version->ts)? min_ts : cur_version->ts;
-					}
+				if(cur_version->next) {
+					assert(cur_version->ts > cur_version->next->ts);
+				}
+				if(cur_version->ts < fence_ts && cur_version != _version) {
+					justbefore->next = cur_version->next;
+					delete cur_version->data;
+				} else {
 					justbefore = cur_version;
-				} else { 
-					if(flag) {
-						// IF the node is not the youngest node so far before the fence, 
-						// delete the node
-						if(max_version && cur_version->ts < max_version->ts) {
-							justbefore->next = cur_version->next;
-							delete cur_version->data;
-						} else {
-							// IF the node is the youngest node so far before the fence, 
-							// copy node to max_version
-							// IF The node is not the first max_version 
-							// and the first max_version is not _version
-							// delete original max_version node
-							if(max_version && max_justbefore) {
-								max_justbefore->next = max_version->next;
-								delete max_version->data;
-							}
-							// IF the first max_version is _version
-							if(max_version && !max_justbefore) {
-								delete _version->data;
-								_version = _version->next;
-							}
-							max_version = cur_version;
-							max_justbefore = justbefore;
-							justbefore = cur_version;
-						}
-					} else {
-						if(justbefore) {
-							justbefore->next = cur_version->next;
-						} else {
-							_version = _version->next;
-						}
-						delete cur_version->data;
-					}
+					min_ts = cur_version;
 				}
 				cur_version = cur_version->next;
 			}
@@ -251,6 +211,7 @@ row_t::get_data(txn_man * txn, access_t type)
 		assert(false);
 		return NULL;
 	}
+	pthread_mutex_unlock(&lock);
 #else
 	return data; 
 #endif

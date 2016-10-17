@@ -27,7 +27,7 @@ public:
 #elif LOG_TYPE == LOG_COMMAND
 	char * cmd;	 
   #if LOG_ALGORITHM == LOG_PARALLEL
-	uint64_t epoch_num; 
+	uint64_t commit_ts; 
 	PredecessorInfo * _predecessor_info; 
   #endif 
 #endif

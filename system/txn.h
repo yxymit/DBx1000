@@ -155,7 +155,8 @@ protected:
 private:
 	uint32_t 		get_log_entry_size();
 	void 			create_log_entry(uint32_t size, char * entry);
-	void 			recover_from_log_entry(char * entry, RecoverState * recover_state);
+	void 			recover_from_log_entry(char * entry, 
+		RecoverState * recover_state, ts_t commit_ts);
 	
 	uint32_t 		_log_entry_size;
 #if LOG_ALGORITHM == LOG_SERIAL
