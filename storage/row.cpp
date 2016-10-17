@@ -185,14 +185,8 @@ row_t::get_data(txn_man * txn, access_t type)
 		if(min_ts < log_manager->get_curr_fence_ts()) {
 			txn_t fence_ts = log_manager->get_curr_fence_ts();
 			Version * cur_version = _version;
-			//Version * justbefore = (Version *) _mm_malloc(sizeof(Version),64); 	// The node just before current node
-			//justbefore->next = _version;
 			Version * justbefore = NULL;
-			//Version * max_version = NULL; 	// The youngest version older than fence
-			//Version * max_justbefore = NULL;	// The node just before max_version
-			bool flag = false;		// Whether we are at first node
 			while(cur_version) {
-				// IF the node is before the fence, consider deleting the node
 				if(cur_version->next) {
 					assert(cur_version->ts > cur_version->next->ts);
 				}
@@ -201,7 +195,7 @@ row_t::get_data(txn_man * txn, access_t type)
 					delete cur_version->data;
 				} else {
 					justbefore = cur_version;
-					min_ts = cur_version;
+					min_ts = cur_version->ts;
 				}
 				cur_version = cur_version->next;
 			}
