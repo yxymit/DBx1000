@@ -159,12 +159,9 @@ row_t::get_data(txn_man * txn, access_t type)
 		while(cur_version->next && cur_version->ts > txn_ts) {
 			cur_version = cur_version->next;
 		}
-		if(cur_version) {
-			return cur_version->data;
-		} else {
-			assert(false);
-			return NULL;
-		}
+		assert(cur_version);
+		pthread_mutex_unlock(&lock);
+		return cur_version->data;
 	} else if(type == WR) {
 		// TODO. reuse versions through the freequeue
 		Version * new_version = (Version *) _mm_malloc(sizeof(Version) + get_tuple_size(), 64);
@@ -200,12 +197,11 @@ row_t::get_data(txn_man * txn, access_t type)
 				cur_version = cur_version->next;
 			}
 		}
+		pthread_mutex_unlock(&lock);
 		return _version->data;
-	} else {
-		assert(false);
-		return NULL;
-	}
-	pthread_mutex_unlock(&lock);
+	} 
+	assert(false);
+	return NULL;
 #else
 	return data; 
 #endif

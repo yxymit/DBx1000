@@ -186,10 +186,15 @@ ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size,
 								   PredecessorInfo * pred_info, uint64_t lsn, uint64_t commit_ts)
 {
 	// Format
-	// total_size | commit_ts | log_entry (format seen in txn_man::create_log_entry) | predecessors 
-	uint32_t total_size = sizeof(uint32_t) + entry_size + sizeof(uint64_t)
+	// total_size | log_entry (format seen in txn_man::create_log_entry) | predecessors 
+	uint32_t total_size = sizeof(uint32_t) + entry_size
 						  + sizeof(uint32_t) * 2
 						  + sizeof(uint64_t) * (pred_info->_raw_size + pred_info->_waw_size);
+#if LOG_TYPE == LOG_COMMAND
+	// Format					  
+	// total_size | commit_ts | log_entry | predecessors
+	total_size += sizeof(uint64_t);
+#endif
 
 	char new_log_entry[total_size];
 	assert(total_size > 0);	
@@ -198,7 +203,7 @@ ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size,
 	// Total Size
 	memcpy(new_log_entry, &total_size, sizeof(uint32_t));
 	offset += sizeof(uint32_t);
-#if LOG_COMMAND
+#if LOG_TYPE == LOG_COMMAND
 	// Commit Timestamp
 	memcpy(new_log_entry + offset, &commit_ts, sizeof(uint64_t));
 	offset += sizeof(uint64_t);
@@ -262,6 +267,8 @@ ParallelLogManager::allocateLogEntry(uint64_t &lsn, uint32_t entry_size,
 						  + sizeof(uint64_t) * (pred_info->_raw_size + pred_info->_waw_size);
 	uint32_t logger_id = get_logger_id( GET_THD_ID );
 #if LOG_TYPE == LOG_COMMAND
+	total_size += sizeof(uint64_t);
+
 	bool success = false;
 	//uint64_t lsn = 0;
 	while (!success) {
@@ -323,16 +330,19 @@ ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info, uint
 		return readFromLog(entry, pred_info, commit_ts);
 	}
 	//Commit Timestamp
+	uint32_t offset = 0;
 #if LOG_TYPE == LOG_COMMAND 
 	commit_ts = *(uint64_t *) (raw_entry + sizeof(uint32_t));
-	entry = raw_entry + sizeof(uint32_t) + sizeof(uint64_t); 
+	offset = sizeof(uint32_t) + sizeof(uint64_t);
 #else
 	commit_ts = 0;
-	entry = raw_entry + sizeof(uint32_t); 
+	offset = sizeof(uint32_t);
 #endif
+	entry = raw_entry + offset; 
 	// Log Entry
 	uint32_t entry_size = *(uint32_t *)entry;
-	uint32_t offset = sizeof(uint32_t) + entry_size;
+	M_ASSERT(entry_size < 1024, "entry_size=%d\n", entry_size);
+	offset += entry_size;
 	// Predecessors
 	offset += pred_info->deserialize(raw_entry + offset);	
 	M_ASSERT(offset == total_size, "offset=%d, total_size=%d\n", offset, total_size);
