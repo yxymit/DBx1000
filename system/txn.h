@@ -170,7 +170,7 @@ public:
 	#if LOG_TYPE == LOG_COMMAND
 public:
 	RecoverState * _recover_state;
-	RecoverState * getRecoverState() { return _recover_state; }
+	RecoverState * get_recover_state() { return _recover_state; }
 	#endif
 #endif
 };
