@@ -108,13 +108,16 @@ public:
 	char * data;
 	table_t * table;
 
+	pthread_mutex_t lock;
 #if LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t 		get_last_writer()	
 	{ return _last_writer; };
 	void 			set_last_writer(uint64_t last_writer)	
 	{ _last_writer = last_writer; }
-	pthread_mutex_t lock;
+
 #endif
+
+
 
 private:
 	// primary key should be calculated from the data stored in the row.
