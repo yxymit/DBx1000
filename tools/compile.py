@@ -1,5 +1,6 @@
 import os, sys, re, os.path
 import platform
+import subprocess
 
 def replace(filename, pattern, replacement):
 	f = open(filename)
@@ -36,6 +37,17 @@ for (jobname, v) in jobs.iteritems():
 		pattern = r"\#define\s*" + re.escape(param) + r'.*'
 		replacement = "#define " + param + ' ' + str(value)
 		replace(dbms_cfg[1], pattern, replacement)
-		print pattern
-	#print jobname
-	os.system("make clean; make -j8; cp rundb rundb_%s" % (jobname))
+		#print pattern
+	command = "make clean; make -j8; cp rundb rundb_%s" % (jobname)
+	print "start to compile " + jobname
+	proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+	while proc.poll() is None:
+		#print proc.stdout.readline() 
+		commandResult = proc.wait() #catch return code
+		#print commandResult
+		if commandResult != 0:
+			print "Error in job. " + jobname 
+			print "Please run 'make' to debug."
+			exit(0)
+		else:
+			print jobname + " compile done!"
