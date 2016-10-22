@@ -173,14 +173,16 @@ row_t::get_data(txn_man * txn, access_t type)
 			memcpy(new_version->data, _version->data, get_tuple_size());
 		} else {
 			memcpy(new_version->data, this->data, get_tuple_size());
+			min_ts = new_version->ts;
 		}
+		assert(new_version->ts > _version->ts);
 		_version = new_version;
-		if(min_ts < 0 || _version->ts < min_ts) {
-			min_ts = _version->ts;
-		}
+		//if(min_ts == 0) // || _version->ts < min_ts) {
+		//	min_ts = _version->ts;
+		//}
 		// If the oldest version of tuple is older than fence, garbage collect
 		if(min_ts < log_manager->get_curr_fence_ts()) {
-			txn_t fence_ts = log_manager->get_curr_fence_ts();
+			uint64_t fence_ts = log_manager->get_curr_fence_ts();
 			Version * cur_version = _version;
 			Version * justbefore = NULL;
 			while(cur_version) {
