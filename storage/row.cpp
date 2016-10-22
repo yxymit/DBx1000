@@ -168,7 +168,8 @@ row_t::get_data(txn_man * txn, access_t type)
 		new_version->data = (char *)((uint64_t)new_version + sizeof(Version));
 		new_version->next = _version;
 		new_version->txn_id = txn->get_txn_id();
-		new_version->ts = txn->get_ts();
+		new_version->ts = txn->getRecoverState()->commit_ts;
+		get_ts();
 		if(_version) {
 			memcpy(new_version->data, _version->data, get_tuple_size());
 		} else {

@@ -167,5 +167,11 @@ private:
 public:
 	uint64_t		last_writer;
 	PredecessorInfo * getPredecessorInfo() { return _predecessor_info; }
+	#if LOG_TYPE == LOG_COMMAND
+private:
+	RecoverState * _recover_state;
+public:
+	RecoverState * getRecoverState() { return _recover_state; }
+	#endif
 #endif
 };
