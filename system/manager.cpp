@@ -77,7 +77,9 @@ Manager::get_ts(uint64_t thread_id) {
 }
 
 ts_t Manager::get_min_ts(uint64_t tid) {
-	uint64_t now = get_sys_clock();
+	assert (g_log_recover);
+	return _min_ts;
+/*	uint64_t now = get_sys_clock();
 	uint64_t last_time = _last_min_ts_time; 
 	if (tid == 0 && now - last_time > MIN_TS_INTVL)
 	{ 
@@ -89,6 +91,7 @@ ts_t Manager::get_min_ts(uint64_t tid) {
 			_min_ts = min;
 	}
 	return _min_ts;
+*/
 }
 
 uint64_t 
