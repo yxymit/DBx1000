@@ -30,6 +30,7 @@ public:
 	uint64_t commit_ts; 
 	PredecessorInfo * _predecessor_info; 
 	bool is_fence;
+	uint64_t thd_id;
   #endif 
 #endif
 

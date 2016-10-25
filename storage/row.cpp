@@ -171,11 +171,11 @@ row_t::get_data(txn_man * txn, access_t type)
 		new_version->ts = txn->get_recover_state()->commit_ts;
 		if(_version) {
 			memcpy(new_version->data, _version->data, get_tuple_size());
+			assert(new_version->ts > _version->ts);
 		} else {
 			memcpy(new_version->data, this->data, get_tuple_size());
 			min_ts = new_version->ts;
 		}
-		assert(new_version->ts > _version->ts);
 		_version = new_version;
 		//if(min_ts == 0) // || _version->ts < min_ts) {
 		//	min_ts = _version->ts;
