@@ -416,7 +416,8 @@ txn_man::parallel_recover() {
   #if LOG_TYPE == LOG_COMMAND
 			if(recover_state->is_fence) {
 				free_queue_recover_state[logger_id].return_element((void *) recover_state);
-				return;
+				num_records ++;
+				continue;
 			}
 			_predecessor_info = recover_state->_predecessor_info;
   #endif
