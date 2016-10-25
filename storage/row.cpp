@@ -184,7 +184,7 @@ row_t::get_data(txn_man * txn, access_t type)
 		if(min_ts < glob_manager->get_min_ts()) {
 			uint64_t fence_ts = glob_manager->get_min_ts();
 			Version * cur_version = _version;
-			Version * justbefore = NULL;
+			//Version * justbefore = NULL;
             // first while loop find the youngest before ts
             while(cur_version && cur_version->ts > fence_ts) {
                 cur_version = cur_version->next;

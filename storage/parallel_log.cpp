@@ -309,7 +309,7 @@ void
 ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info, uint64_t &commit_ts)
 {
 	uint64_t thd_id = glob_manager->get_thd_id();
-	uint32_t logger_id = get_logger_id(thd_id);
+	//uint32_t logger_id = get_logger_id(thd_id);
 	assert(thd_id < g_num_logger);
 
 	// Decode the log entry.

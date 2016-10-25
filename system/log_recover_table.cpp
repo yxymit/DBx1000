@@ -345,12 +345,17 @@ LogRecoverTable::garbage_collection()
       TxnNode * n = _gc_queue[GET_THD_ID].front();
       //  cout << "+\n";
       _gc_queue[GET_THD_ID].pop();
+      #if LOG_TYPE == LOG_COMMAND
       if(n->recover_state->is_fence) {
-        glob_manager->add_ts(n->recover_state->txn_id, ts);
+        glob_manager->add_ts(n->recover_state->txn_id, n->recover_state->commit_ts);
       } else {
         *_gc_bound[GET_THD_ID] = n->txn_id;
         delete_txn(n->txn_id);
       }
+      #else 
+      *_gc_bound[GET_THD_ID] = n->txn_id;
+    delete_txn(n->txn_id);
+      #endif
       delete n;
     }
 }
