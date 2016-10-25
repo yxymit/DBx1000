@@ -149,7 +149,20 @@ LogRecoverTable::delete_txn(uint64_t txn_id)
 void 
 LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo * pred_info)
 {
-	uint64_t txn_id = recover_state->txn_id;
+#if LOG_TYPE == LOG_COMMAND
+    if(recover_state->is_fence) {
+        TxnNode * new_node = (TxnNode *) _mm_malloc(sizeof(TxnNode), 64);
+        new_node -> recover_state = recover_state;
+        new_node -> set_can_gc();
+        #if LOG_GARBAGE_COLLECT
+            assert(GET_THD_ID <= g_num_logger);
+            _gc_queue[GET_THD_ID].push(new_node);
+            //min_txn_id = _gc_queue[GET_THD_ID].front()->txn_id;
+        #endif
+        return;
+    }
+#endif
+    uint64_t txn_id = recover_state->txn_id;
     uint32_t bid = get_bucket_id(txn_id);
 
     _buckets[bid]->lock(true);
@@ -252,7 +265,7 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
 	// Given that we have already implemented the RAW and WAW networks for data logging, we 
 	// use the WAW network for all dependency in command logging.  
 	// TODO add garbage collection support.
-	TxnNode * pred_node;
+    TxnNode * pred_node;
 	// we assume all WAW also has RAW, so this returns all predecessors 
 	uint32_t num_preds = pred_info->num_raw_preds(); 
 	uint64_t preds[ num_preds ];
@@ -332,8 +345,12 @@ LogRecoverTable::garbage_collection()
       TxnNode * n = _gc_queue[GET_THD_ID].front();
       //  cout << "+\n";
       _gc_queue[GET_THD_ID].pop();
-	  *_gc_bound[GET_THD_ID] = n->txn_id;
-      delete_txn(n->txn_id);
+      if(n->recover_state->is_fence) {
+        glob_manager->add_ts(n->recover_state->txn_id, ts);
+      } else {
+        *_gc_bound[GET_THD_ID] = n->txn_id;
+        delete_txn(n->txn_id);
+      }
       delete n;
     }
 }

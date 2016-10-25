@@ -181,23 +181,26 @@ row_t::get_data(txn_man * txn, access_t type)
 		//	min_ts = _version->ts;
 		//}
 		// If the oldest version of tuple is older than fence, garbage collect
-		if(min_ts < log_manager->get_curr_fence_ts()) {
-			uint64_t fence_ts = log_manager->get_curr_fence_ts();
+		if(min_ts < glob_manager->get_min_ts()) {
+			uint64_t fence_ts = glob_manager->get_min_ts();
 			Version * cur_version = _version;
 			Version * justbefore = NULL;
-			while(cur_version) {
-				if(cur_version->next) {
-					assert(cur_version->ts > cur_version->next->ts);
-				}
-				if(cur_version->ts < fence_ts && cur_version != _version) {
-					justbefore->next = cur_version->next;
-					//delete cur_version->data;
-				} else {
-					justbefore = cur_version;
-					min_ts = cur_version->ts;
-				}
-				cur_version = cur_version->next;
-			}
+            // first while loop find the youngest before ts
+            while(cur_version && cur_version->ts > fence_ts) {
+                cur_version = cur_version->next;
+            }
+            assert(cur_version);
+            min_ts = cur_version->ts;
+            if(cur_version->next) {
+                cur_version = cur_version->next;
+                Version * del_version = cur_version;
+                // second while loop delete every node after that
+                while(cur_version) {
+                    cur_version = cur_version -> next;
+                    _mm_free(del_version);
+                    del_version = cur_version;
+                }
+            }  
 		}
 		pthread_mutex_unlock(&lock);
 		return _version->data;

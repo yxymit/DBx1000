@@ -29,6 +29,7 @@ public:
   #if LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t commit_ts; 
 	PredecessorInfo * _predecessor_info; 
+	bool is_fence;
   #endif 
 #endif
 

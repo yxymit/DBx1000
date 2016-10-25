@@ -324,10 +324,11 @@ ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info, uint
 	uint32_t total_size = *(uint32_t *)raw_entry;
 	assert(total_size > 0);
 	if (total_size == UINT32_MAX) {
-		uint64_t ts = *(uint64_t *)(raw_entry + 4);
-		glob_manager->add_ts(GET_THD_ID, ts);
-		_curr_fence_ts[logger_id] = ts;
-		return readFromLog(entry, pred_info, commit_ts);
+		commit_ts = *(uint64_t *)(raw_entry + 4);
+		entry = NULL;
+		//glob_manager->add_ts(GET_THD_ID, ts);
+		//_curr_fence_ts[logger_id] = ts;
+		return;
 	}
 	//Commit Timestamp
 	uint32_t offset = 0;
