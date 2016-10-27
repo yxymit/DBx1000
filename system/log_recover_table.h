@@ -61,6 +61,9 @@ public:
     boost::lockfree::queue<TxnNode *> recover_ready_txns{10};
 
 	void add_log_recover(RecoverState * recover_state, PredecessorInfo * pred_info); 
+#if LOG_ALGORITHM == LOG_PARALLEL && LOG_TYPE == LOG_COMMAND
+    void add_fence(RecoverState * recover_state);
+#endif
 	void garbage_collection();
 	
     TxnNode * add_empty_node(uint64_t txn_id);

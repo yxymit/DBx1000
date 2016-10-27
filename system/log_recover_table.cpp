@@ -146,23 +146,25 @@ LogRecoverTable::delete_txn(uint64_t txn_id)
   //return node;
 }
 
+#if LOG_TYPE == LOG_COMMAND
+void
+LogRecoverTable::add_fence(RecoverState * recover_state)
+{
+    TxnNode * new_node = (TxnNode *) _mm_malloc(sizeof(TxnNode), 64);
+    new_node -> recover_state = recover_state;
+    new_node -> set_can_gc();
+    #if LOG_GARBAGE_COLLECT
+        assert(GET_THD_ID <= g_num_logger);
+        _gc_queue[GET_THD_ID].push(new_node);
+        //min_txn_id = _gc_queue[GET_THD_ID].front()->txn_id;
+    #endif
+    return;
+}
+#endif
+
 void 
 LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo * pred_info)
 {
-#if LOG_TYPE == LOG_COMMAND
-    if(recover_state->is_fence) {
-        TxnNode * new_node = (TxnNode *) _mm_malloc(sizeof(TxnNode), 64);
-        new_node -> recover_state = recover_state;
-        new_node -> set_recover_done();
-        new_node -> set_can_gc();
-        #if LOG_GARBAGE_COLLECT
-            assert(GET_THD_ID <= g_num_logger);
-            _gc_queue[GET_THD_ID].push(new_node);
-            //min_txn_id = _gc_queue[GET_THD_ID].front()->txn_id;
-        #endif
-        return;
-    }
-#endif
     uint64_t txn_id = recover_state->txn_id;
     uint32_t bid = get_bucket_id(txn_id);
 
@@ -346,19 +348,16 @@ LogRecoverTable::garbage_collection()
       TxnNode * n = _gc_queue[GET_THD_ID].front();
       //  cout << "+\n";
       _gc_queue[GET_THD_ID].pop();
-      #if LOG_TYPE == LOG_COMMAND
+#if LOG_TYPE == LOG_COMMAND
       if(n->recover_state->is_fence) {
         glob_manager->add_ts(n->recover_state->thd_id, n->recover_state->commit_ts);
-      } else {
-        *_gc_bound[GET_THD_ID] = n->txn_id;
-        delete_txn(n->txn_id);
-        delete n;
-      }
-      #else 
-        *_gc_bound[GET_THD_ID] = n->txn_id;
-        delete_txn(n->txn_id);
-        delete n;
-      #endif
+        return;
+      } 
+#endif
+      *_gc_bound[GET_THD_ID] = n->txn_id;
+      delete_txn(n->txn_id);
+      delete n;
+      
     }
 }
 

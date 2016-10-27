@@ -397,7 +397,11 @@ txn_man::parallel_recover() {
 				recover_state->_predecessor_info->init(_predecessor_info);
 			}
   #endif
-			log_recover_table->add_log_recover(recover_state, _predecessor_info);
+			if(entry != NULL) {
+				log_recover_table->add_log_recover(recover_state, _predecessor_info);
+			} else {
+				log_recover_table->add_fence(recover_state);
+			}
   #if LOG_GARBAGE_COLLECT
 			log_recover_table->garbage_collection();
   #endif
@@ -414,11 +418,6 @@ txn_man::parallel_recover() {
 		if (txns_ready_for_recovery[logger_id]->pop(recover_state)) {
 			//printf("[thd=%ld] recover a txn\n", get_thd_id());
   #if LOG_TYPE == LOG_COMMAND
-			if(recover_state->is_fence) {
-				free_queue_recover_state[logger_id].return_element((void *) recover_state);
-				num_records ++;
-				continue;
-			}
 			_predecessor_info = recover_state->_predecessor_info;
   #endif
 			recover_txn(recover_state);
@@ -662,7 +661,7 @@ txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state, ts_t
 		recover_state->commit_ts = commit_ts;
 		recover_state->thd_id = get_thd_id();
 		return; 
-		// use txn_id to store which file the fence belongs to
+		// use thd_id to store which file the fence belongs to
 	} else {
 		recover_state->is_fence = false;
 	}
