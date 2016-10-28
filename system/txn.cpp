@@ -405,6 +405,7 @@ txn_man::parallel_recover() {
   #if LOG_GARBAGE_COLLECT
 			log_recover_table->garbage_collection();
   #endif
+			commit_ts = 0;
 			log_manager->readFromLog(entry, _predecessor_info, commit_ts);
 		}
 		ATOM_ADD_FETCH(ParallelLogManager::num_threads_done, 1);
