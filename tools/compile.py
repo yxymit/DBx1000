@@ -14,18 +14,23 @@ def replace(filename, pattern, replacement):
 dbms_cfg = ["config-std.h", "config.h"]
 algs = ['no', 'serial', 'parallel'] 
 
-def insert_his(alg, workload='YCSB', log_type='LOG_DATA'):
+def insert_his(alg, workload='YCSB', log_type='LOG_DATA', recovery='false', gc='false'):
 	name = '%s_%s_%s' % (alg, workload, log_type[4:])
 	jobs[name] = {}
 	jobs[name]["LOG_ALGORITHM"] = "LOG_%s" % alg.upper()
 	jobs[name]["WORKLOAD"] = workload
 	jobs[name]["LOG_TYPE"] = log_type
+        jobs[name]["LOG_RECOVER"] = recovery
+        jobs[name]["LOG_GARBAGE_COLLECT"] = gc
 
 jobs = {}
 insert_his('no', 'YCSB')
 insert_his('serial', 'YCSB', 'LOG_DATA')
+insert_his('serial', 'YCSB', 'LOG_COMMAND')
 insert_his('parallel', 'YCSB', 'LOG_DATA')
-#insert_his('parallel', 'YCSB', 'LOG_COMMAND')
+insert_his('parallel', 'YCSB', 'LOG_COMMAND')
+
+
 """
 insert_his('no', 'TPCC')
 insert_his('serial', 'TPCC', 'LOG_DATA')

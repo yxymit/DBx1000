@@ -103,6 +103,10 @@ ycsb_txn_man::recover_txn(RecoverState * recover_state)
 		row_t * row = ((row_t *)m_item->location);
 			
 		assert(row);
+<<<<<<< HEAD
+=======
+		// sthis->_recover_state = recover_state;
+>>>>>>> 40c8d80cd092b3f70bb9d87b42c259acfa9b35e4
 		char * data = row->get_data(this, rtype);
 		assert(data);
 		// Computation //
