@@ -33,8 +33,11 @@ def get_stats(tag, thd):
 thds = [1, 4, 10, 20, 40]
 
 # YCSB
-configs = ['serial_YCSB_DATA', 'no_YCSB_DATA', 'parallel_YCSB_DATA', 'serial_YCSB_COMMAND', 'parallel_YCSB_COMMAND']
-names = ['ARIES', 'No Log', 'Parallel DATA', 'Serial CMD', 'Parallel CMD']
+## configs = ['serial_YCSB_DATA', 'no_YCSB_DATA', 'parallel_YCSB_DATA', 'serial_YCSB_COMMAND', 'parallel_YCSB_COMMAND']
+##names = ['ARIES', 'No Log', 'Parallel DATA', 'Serial CMD', 'Parallel CMD']
+configs = ['serial_YCSB_DATA', 'serial_YCSB_COMMAND']
+names = ['Serial DATA Recovery', 'Serial CMD Recovery']
+
 data = {}
 for i in range(0, len(configs)):
 	config = configs[i]

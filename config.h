@@ -101,12 +101,12 @@
 // Logging
 /***********************************************/
 #define LOG_ALGORITHM LOG_PARALLEL
-#define LOG_TYPE LOG_DATA
+#define LOG_TYPE LOG_COMMAND
 #define LOG_RAM_DISK				true
 #define LOG_NO_FLUSH			 	true //false
-#define LOG_RECOVER false
+#define LOG_RECOVER true
 #define LOG_BATCH_TIME				10 // in ms
-#define LOG_GARBAGE_COLLECT false
+#define LOG_GARBAGE_COLLECT true
 // For LOG_PARALLEL
 #define LOG_PARALLEL_BUFFER_FILL	false 
 #define NUM_LOGGER					4 

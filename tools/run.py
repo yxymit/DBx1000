@@ -19,7 +19,7 @@ def add_dbms_job(app_flags = {}, executable = "./rundb", output_dir = "results/"
 
 thds = [1, 4, 10, 20, 40, 80]
 app_flags = {}
-configs = ['serial_YCSB_DATA', 'no_YCSB_DATA', 'parallel_YCSB_DATA', 'serial_YCSB_COMMAND', 'parallel_YCSB_COMMAND']
+configs = ['serial_YCSB_DATA', 'parallel_YCSB_DATA', 'serial_YCSB_COMMAND', 'parallel_YCSB_COMMAND']
 ## configs = ['serial_YCSB_DATA', 'serial_YCSB_COMMAND']
 for config in configs:
 	executable = "./rundb_%s" % config
