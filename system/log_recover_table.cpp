@@ -408,8 +408,8 @@ LogRecoverTable::get_size()
     {
         TxnNode * node = _buckets[i]->first;
         while (node) {
-            if (!node->is_recover_done())
-                cout << node->txn_id << '\t' << node->is_recoverable() << endl;;
+            //if (!node->is_recover_done())
+              //  cout << node->txn_id << '\t' << node->is_recoverable() << endl;;
             size ++;
             //M_ASSERT(node->is_recover_done() || node->is_recoverable(), 
             //       "sempahore=%#lx\n", node->semaphore);
