@@ -159,7 +159,7 @@ LogRecoverTable::add_fence(RecoverState * recover_state)
     _gc_queue[GET_THD_ID].push(new_node);
     //min_txn_id = _gc_queue[GET_THD_ID].front()->txn_id;
   #endif
-    printf("Fence added!\n");
+    //printf("Fence added!\n");
     return;
 }
 #endif

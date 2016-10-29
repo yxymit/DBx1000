@@ -400,7 +400,9 @@ txn_man::parallel_recover() {
 			if(entry != NULL) {
 				log_recover_table->add_log_recover(recover_state, _predecessor_info);
 			} else {
+	#if LOG_TYPE == LOG_COMMAND			
 				log_recover_table->add_fence(recover_state);
+	#endif
 			}
   #if LOG_GARBAGE_COLLECT
 			log_recover_table->garbage_collection();
