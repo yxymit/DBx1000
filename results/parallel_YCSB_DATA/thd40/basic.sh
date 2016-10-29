@@ -1,0 +1,1 @@
+numactl --localalloc -- ./rundb_parallel_YCSB_DATA -n40 -t40 -Ln8 -o results/parallel_YCSB_DATA/thd40/output 
