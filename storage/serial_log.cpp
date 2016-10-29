@@ -35,7 +35,11 @@ void SerialLogManager::init()
 	_logger = new LogManager * [g_num_logger];
 	for(uint32_t i = 0; i < g_num_logger; i++) { 
 		MALLOC_CONSTRUCTOR(LogManager, _logger[i]);
-		_logger[i]->init("Log_" + to_string(i) + ".data");
+#if LOG_TYPE == LOG_DATA
+		_logger[i]->init("Data_serial_log_" + to_string(i) + ".data");
+#else
+		_logger[i]->init("Command_serial_log_" + to_string(i) + ".data");
+#endif
 	}
 }
 
