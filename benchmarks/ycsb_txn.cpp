@@ -92,7 +92,9 @@ ycsb_txn_man::recover_txn(RecoverState * recover_state)
 	char * cmd = recover_state->cmd;
 	uint32_t num_keys = *(uint32_t *) cmd;
 	uint32_t offset = sizeof(uint32_t);
-	this->_recover_state = recover_state;
+	#if LOG_ALGORITHM == LOG_PARALLEL
+		this->_recover_state = recover_state;
+	#endif
 	for (uint32_t i = 0; i < num_keys; i ++) {
 		uint64_t key = *(uint64_t *)(cmd + offset);
 		offset += sizeof(uint64_t);
