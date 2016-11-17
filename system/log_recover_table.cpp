@@ -157,9 +157,8 @@ LogRecoverTable::add_fence(RecoverState * recover_state)
   #if LOG_GARBAGE_COLLECT
     assert(GET_THD_ID <= g_num_logger);
     _gc_queue[GET_THD_ID].push(new_node);
-    //min_txn_id = _gc_queue[GET_THD_ID].front()->txn_id;
   #endif
-    //printf("Fence added!\n");
+    //printf("Fence added! cts= %ld\n", recover_state->commit_ts);
     return;
 }
 #endif
@@ -169,6 +168,7 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
 {
     uint64_t txn_id = recover_state->txn_id;
     uint32_t bid = get_bucket_id(txn_id);
+    assert(GET_THD_ID <= g_num_logger);
 
     _buckets[bid]->lock(true);
     TxnNode * new_node = find_txn(txn_id); 
@@ -186,7 +186,6 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
     } 
     _buckets[bid]->unlock(true);
 #if LOG_GARBAGE_COLLECT
-    assert(GET_THD_ID <= g_num_logger);
     if (!_gc_queue[GET_THD_ID].empty())
         assert(txn_id > _gc_queue[GET_THD_ID].front()->txn_id);
     _gc_queue[GET_THD_ID].push(new_node);
@@ -211,16 +210,15 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
         _buckets[get_bucket_id( raw_preds[i] )]->lock(true);
         if ((int64_t)raw_preds[i] > *_gc_bound[raw_preds[i] % g_num_logger]) {
             pred_node = find_txn( raw_preds[i]);
-            if (pred_node == NULL) { 
+            if (pred_node == NULL) 
                 pred_node = add_empty_node( raw_preds[i]);
-            }
-            else {
+            else 
                 // semaphore is incremented, indicating that someone is operating on the node, 
                 // so it cannot be deleted.
                 ATOM_ADD_FETCH(pred_node->semaphore, 1);
-            }
             _buckets[get_bucket_id( raw_preds[i] )]->unlock(true);
-            if(!pred_node->is_recoverable()) { 
+            
+			if(!pred_node->is_recoverable()) { 
                 // if the RAW predecessor is not recoverable, put to success list.
                 ATOM_ADD_FETCH(new_node->pred_size, 1UL << 32);
                 pred_node->raw_succ.push(new_node);
@@ -269,34 +267,35 @@ LogRecoverTable::add_log_recover(RecoverState * recover_state, PredecessorInfo *
 
     // Given that we have already implemented the RAW and WAW networks for data logging, we 
     // use the WAW network for all dependency in command logging.  
-    // TODO add garbage collection support.
     TxnNode * pred_node;
     // we assume all WAW also has RAW, so this returns all predecessors 
     uint32_t num_preds = pred_info->num_raw_preds(); 
     uint64_t preds[ num_preds ];
     pred_info->get_raw_preds(preds);    
     for (uint32_t i = 0; i < num_preds; i ++) {
-        //bool gc = preds[i] < min_txn_id;
-        //if (gc)
-        //  continue;
-        _buckets[get_bucket_id( preds[i] )]->lock(true);
-        pred_node = find_txn( preds[i]);
-        if (pred_node == NULL) 
-            pred_node = add_empty_node( preds[i]);
-        else 
-            ATOM_ADD_FETCH(pred_node->semaphore, 1);
+        if ((int64_t)preds[i] <= *_gc_bound[preds[i] % g_num_logger])
+			continue;
         
-        _buckets[get_bucket_id( preds[i] )]->unlock(true);
-        if( !pred_node->is_recover_done() ) { 
-            // if the WAW predecessor is not recovered, put to success list.
-            ATOM_ADD_FETCH(new_node->pred_size, 1);
-            pred_node->waw_succ.push(new_node);
-        }
-        COMPILER_BARRIER
-        ATOM_SUB_FETCH(pred_node->semaphore, 1);
+		_buckets[get_bucket_id( preds[i] )]->lock(true);
+        if ((int64_t)preds[i] > *_gc_bound[preds[i] % g_num_logger]) {
+	        pred_node = find_txn( preds[i]);
+    	    if (pred_node == NULL) 
+        	    pred_node = add_empty_node( preds[i]);
+	        else 
+    	        ATOM_ADD_FETCH(pred_node->semaphore, 1);
+        
+	        _buckets[get_bucket_id( preds[i] )]->unlock(true);
+    	    if( !pred_node->is_recover_done() ) { 
+        	    // if the WAW predecessor is not recovered, put to success list.
+		        ATOM_ADD_FETCH(new_node->pred_size, 1);
+            	pred_node->waw_succ.push(new_node);
+        	}
+        	COMPILER_BARRIER
+	        ATOM_SUB_FETCH(pred_node->semaphore, 1);
+		} else 
+	        _buckets[get_bucket_id( preds[i] )]->unlock(true);
     }
     new_node->recover_state = recover_state;
-//    raw_pred_remover(new_node);
     waw_pred_remover(new_node);
 #endif
 }
@@ -345,26 +344,23 @@ LogRecoverTable::raw_pred_remover(TxnNode * node)
 void
 LogRecoverTable::garbage_collection()
 {
-  //printf("Garbage collect in [thd=%ld]\n", GET_THD_ID); 
-while (!_gc_queue[GET_THD_ID].empty() && _gc_queue[GET_THD_ID].front()->can_gc())
+	while (!_gc_queue[GET_THD_ID].empty() && _gc_queue[GET_THD_ID].front()->can_gc())
     {
-//printf("Deleted a node in [thd=%ld]!\n", GET_THD_ID);
-      TxnNode * n = _gc_queue[GET_THD_ID].front();
-      //  cout << "+\n";
-      _gc_queue[GET_THD_ID].pop();
+		TxnNode * n = _gc_queue[GET_THD_ID].front();
+		_gc_queue[GET_THD_ID].pop();
 #if LOG_TYPE == LOG_COMMAND
-      if(n->recover_state->is_fence) {
-        glob_manager->add_ts(n->recover_state->thd_id, n->recover_state->commit_ts);
-        delete n;
-    //printf("fence in use in [thd=%ld]!\n", GET_THD_ID);
-        continue; //return;
-      } 
+		if(n->recover_state->is_fence) {
+			glob_manager->add_ts(n->recover_state->thd_id, n->recover_state->commit_ts);
+			delete n;
+			continue; 
+		} 
 #endif
-      *_gc_bound[GET_THD_ID] = n->txn_id;
-      delete_txn(n->txn_id);
-      delete n;
-      
-    }
+		//printf("gc!\n");
+		*_gc_bound[GET_THD_ID] = n->txn_id;
+		COMPILER_BARRIER
+		delete_txn(n->txn_id);
+		delete n;
+	}
 }
 
 void
@@ -387,11 +383,10 @@ LogRecoverTable::txn_recover_done(void * node) {
     TxnNode * n = (TxnNode *) node;
     TxnNode * succ = NULL;
     n->set_recover_done();
-    while (n->waw_succ.pop(succ)) {
+    while (n->waw_succ.pop(succ)) 
         waw_pred_remover(succ); 
-    }
     n->set_can_gc();
-    COMPILER_BARRIER
+    //COMPILER_BARRIER
 }
 
 uint32_t 
@@ -408,8 +403,8 @@ LogRecoverTable::get_size()
     {
         TxnNode * node = _buckets[i]->first;
         while (node) {
-            //if (!node->is_recover_done())
-              //  cout << node->txn_id << '\t' << node->is_recoverable() << endl;;
+            if (!node->is_recover_done())
+                cout << node->txn_id << '\t' << node->is_recoverable() << endl;;
             size ++;
             //M_ASSERT(node->is_recover_done() || node->is_recoverable(), 
             //       "sempahore=%#lx\n", node->semaphore);

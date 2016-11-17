@@ -135,12 +135,6 @@ private:
 	RC 				validate_hekaton(RC rc);
 #endif
 
-	// Logging
-	//void * 			_txn_node; // can be converted to LogPendingTable::TxnNode.
-	void 			serial_recover();
-	void 			parallel_recover();
-	//	void 			naive_parallel_recover();
-
 	// Stats
 	uint64_t 		_txn_start_time;
 
@@ -155,22 +149,23 @@ protected:
 private:
 	uint32_t 		get_log_entry_size();
 	void 			create_log_entry(uint32_t size, char * entry);
-	void 			recover_from_log_entry(char * entry, 
-		RecoverState * recover_state, ts_t commit_ts);
 	
 	uint32_t 		_log_entry_size;
 #if LOG_ALGORITHM == LOG_SERIAL
+	void 			serial_recover();
 	void 			serial_recover_from_log_entry(char * entry);
-#endif
-#if LOG_ALGORITHM == LOG_PARALLEL
+
+#elif LOG_ALGORITHM == LOG_PARALLEL
+	void 			parallel_recover();
+	void 			parallel_recover_from_log_entry(char * entry, 
+										   RecoverState * recover_state, ts_t commit_ts);
 	PredecessorInfo * _predecessor_info;
 public:
 	uint64_t		last_writer;
 	PredecessorInfo * getPredecessorInfo() { return _predecessor_info; }
-	#if LOG_TYPE == LOG_COMMAND
-public:
+  #if LOG_TYPE == LOG_COMMAND
 	RecoverState * _recover_state;
 	RecoverState * get_recover_state() { return _recover_state; }
-	#endif
+  #endif
 #endif
 };

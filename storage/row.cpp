@@ -28,6 +28,7 @@ row_t::init(table_t * host_table, uint64_t part_id, uint64_t row_id) {
 	_last_writer = 0; //glob_manager->rand_uint64() % LOG_PARALLEL_NUM_BUCKETS;
   #if LOG_TYPE == LOG_COMMAND && LOG_RECOVER
 	_version = NULL;
+	_num_versions = 0;
 	min_ts = 0; 
   #endif
 	pthread_mutex_init(&lock, NULL);
@@ -154,14 +155,16 @@ row_t::get_data(txn_man * txn, access_t type)
 	// Predecessor information can be accessed using txn->getPredecessorInfo();
 	pthread_mutex_lock(&lock);
 	if(type == RD) {
+		char * ret_data = data;
 		Version * cur_version = _version;
 		ts_t txn_ts = txn->get_ts();
-		while(cur_version->next && cur_version->ts > txn_ts) {
+		
+		while(cur_version && cur_version->ts > txn_ts) 
 			cur_version = cur_version->next;
-		}
-		assert(cur_version);
+		if (cur_version)
+			ret_data = cur_version->data;
 		pthread_mutex_unlock(&lock);
-		return cur_version->data;
+		return ret_data;
 	} else if(type == WR) {
 		// TODO. reuse versions through the freequeue
 		Version * new_version = (Version *) _mm_malloc(sizeof(Version) + get_tuple_size(), 64);
@@ -169,38 +172,37 @@ row_t::get_data(txn_man * txn, access_t type)
 		new_version->next = _version;
 		new_version->txn_id = txn->get_txn_id();
 		new_version->ts = txn->get_recover_state()->commit_ts;
-		if(_version) {
+		if(_version) { 
 			memcpy(new_version->data, _version->data, get_tuple_size());
-			assert(new_version->ts > _version->ts);
+			M_ASSERT(new_version->ts > _version->ts, 
+					"new_version->ts=%ld, _version->ts=%ld\n", 
+					new_version->ts, _version->ts);
 		} else {
 			memcpy(new_version->data, this->data, get_tuple_size());
 			min_ts = new_version->ts;
 		}
 		_version = new_version;
-		//if(min_ts == 0) // || _version->ts < min_ts) {
-		//	min_ts = _version->ts;
-		//}
+		
 		// If the oldest version of tuple is older than fence, garbage collect
 		if(min_ts < glob_manager->get_min_ts()) {
 			uint64_t fence_ts = glob_manager->get_min_ts();
 			Version * cur_version = _version;
 			//Version * justbefore = NULL;
             // first while loop find the youngest before ts
-            while(cur_version && cur_version->ts > fence_ts) {
+            while(cur_version && cur_version->ts > fence_ts) 
                 cur_version = cur_version->next;
-            }
-            assert(cur_version);
-            min_ts = cur_version->ts;
-            if(cur_version->next) {
-                cur_version = cur_version->next;
-                Version * del_version = cur_version;
-                // second while loop delete every node after that
-                while(cur_version) {
-                    cur_version = cur_version -> next;
+			
+			if (cur_version)
+				cur_version = cur_version->next;
+			
+			if (cur_version) {
+				// delete everyting after cur_version
+				while(cur_version->next) {
+                	Version * del_version = cur_version->next;
+					cur_version->next = cur_version->next->next;
                     _mm_free(del_version);
-                    del_version = cur_version;
                 }
-            }  
+			}
 		}
 		pthread_mutex_unlock(&lock);
 		return _version->data;

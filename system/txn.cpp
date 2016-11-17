@@ -162,19 +162,13 @@ RC txn_man::cleanup(RC in_rc)
 			// Only a single thread does this. 
 			if (get_thd_id() == 0 && get_sys_clock() / TIMESTAMP_SYNC_EPOCH / 1000000 > _last_epoch_time) {
 				_last_epoch_time = get_sys_clock() / TIMESTAMP_SYNC_EPOCH / 1000000;
-				log_manager->logFence(glob_manager->get_max_ts());
-				printf("logFence\n");
+				uint64_t max_ts = glob_manager->get_max_ts();
+				log_manager->logFence(max_ts);
+				printf("logFence max_ts = %ld\n", max_ts);
 			}
 		#endif
-			//uint64_t t2 = get_sys_clock();
 			log_manager->parallelLogTxn(entry, size, _predecessor_info, 
 									   txn_id / g_num_logger, _commit_ts);
-			//INC_STATS(get_thd_id(), debug3, get_sys_clock() - t2);
-			//if (!success) {
-			//	assert(LOG_TYPE == LOG_COMMAND);
-			//	_min_cts = log_manager->get_max_epoch_ts();
-			//	rc = Abort;
-			//}
 			// FLUSH DONE
 			log_pending_table->remove_log_pending(txn_node);
   #endif
@@ -338,10 +332,16 @@ txn_man::recover() {
 #endif
 }
 
+#if LOG_ALGORITHM == LOG_SERIAL 
 void 
 txn_man::serial_recover() {
-#if LOG_ALGORITHM == LOG_SERIAL 
+    uint32_t logger_id = get_thd_id() % g_num_logger; 
+    RecoverState * recover_state; 
 	uint64_t starttime = get_sys_clock();
+	// For serial command recovery, we use 2 threads. 
+	// One reading from the log file, the other re-execute the transaction
+  	if (LOG_TYPE == LOG_COMMAND)
+		assert(g_thread_cnt == 2);
     if (get_thd_id() == 0) {
         // Master thread. 
         // Reads from log file and insert to the recover work queues. 
@@ -354,13 +354,9 @@ txn_man::serial_recover() {
     }
     // Execution thread.
     // recover transactions that are ready 
-    uint32_t logger_id = get_thd_id() % g_num_logger; 
-    RecoverState * recover_state; 
     uint64_t num_records = 0;
     while (true) {
         if (txns_ready_for_recovery[logger_id]->pop(recover_state)) {
-            //recover_state = txns_ready_for_recovery[logger_id]->front();
-            //txns_ready_for_recovery[logger_id]->pop();
             recover_txn(recover_state);
 			free_queue_recover_state[logger_id].return_element((void *) recover_state);
             num_records ++;
@@ -370,14 +366,13 @@ txn_man::serial_recover() {
             break;
     }
     INC_STATS(get_thd_id(), txn_cnt, num_records);
-    //if (get_thd_id() == 0)
     INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
-#endif
 }
+
+#elif LOG_ALGORITHM == LOG_PARALLEL
 
 void 
 txn_man::parallel_recover() {
-#if LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t starttime = get_sys_clock();
 	if (get_thd_id() < g_num_logger) {
 		// Logging thread. 
@@ -385,25 +380,32 @@ txn_man::parallel_recover() {
 		char * entry = NULL;
 		uint64_t commit_ts = 0;
 		log_manager->readFromLog(entry, _predecessor_info, commit_ts);
-		while (entry != NULL || (entry == NULL && commit_ts > 0)){
+		while (entry != NULL || commit_ts > 0) {
+			// get RecoverState entry
 			RecoverState * recover_state = (RecoverState *) free_queue_recover_state[ get_thd_id() % g_num_logger].get_element();
 			if (recover_state == NULL)
 				recover_state = new RecoverState;
 			else 
 				recover_state->clear();
-			recover_from_log_entry(entry, recover_state, commit_ts);
+
+			parallel_recover_from_log_entry(entry, recover_state, commit_ts);
+			// XXX. with commit_ts, we probably don't need predecessor info for recovery anymore.
+			// since the commit_ts tells a transaction which data version to read.
+//  #if LOG_TYPE == LOG_COMMAND
+//			if(entry != NULL) {
+//				recover_state->_predecessor_info->init(_predecessor_info);
+//			}
+//  #endif
   #if LOG_TYPE == LOG_COMMAND
-			if(entry != NULL) {
-				recover_state->_predecessor_info->init(_predecessor_info);
+		  	assert(commit_ts >= glob_manager->get_min_ts());
+			if (!entry) {
+				log_recover_table->add_fence(recover_state);
+				log_manager->readFromLog(entry, _predecessor_info, commit_ts);
+				continue;	
 			}
   #endif
-			if(entry != NULL) {
-				log_recover_table->add_log_recover(recover_state, _predecessor_info);
-			} else {
-	#if LOG_TYPE == LOG_COMMAND			
-				log_recover_table->add_fence(recover_state);
-	#endif
-			}
+			
+			log_recover_table->add_log_recover(recover_state, _predecessor_info);
   #if LOG_GARBAGE_COLLECT
 			log_recover_table->garbage_collection();
   #endif
@@ -442,53 +444,8 @@ txn_man::parallel_recover() {
 		cout << size << endl;
 		INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
 	}
-#endif
 }
-
-
-/*void 
-txn_man::naive_parallel_recover() {
-#if LOG_ALGORITHM == LOG_PARALLEL
-	uint64_t starttime = get_sys_clock();
-	if (get_thd_id() < g_num_logger) {
-		// Logging thread. 
-		// Reads from log file and insert to the recovery graph. 
-		
-		char * entry = NULL;
-		uint64_t * predecessors = NULL;
-		uint32_t num_preds = 0;
-		log_manager->readFromLog(entry, predecessors, num_preds);
-		while (entry != NULL) {
-			// TODO avoid calling new too often. recycle through a queue.
-			RecoverState * recover_state = new RecoverState;
-			recover_from_log_entry(entry, recover_state);
-			log_recover_table->add_log_recover(recover_state, predecessors, num_preds); 
-			log_manager->readFromLog(entry, predecessors, num_preds);
-		}
-		ATOM_ADD_FETCH(ParallelLogManager::num_threads_done, 1);
-	} else {
-		// Execution thread.
-		// recover transactions that are ready 
-		uint32_t logger_id = get_thd_id() % g_num_logger; 
-		RecoverState * recover_state; 
-		uint64_t num_records = 0;
-		while (true) {
-			if (txns_ready_for_recovery[logger_id]->pop(recover_state)) {
-				recover_txn(recover_state);
-				log_recover_table->txn_recover_done(recover_state->txn_node);
-				// TODO. recycle recover_state.
-				delete recover_state;
-				num_records ++;
-			} else if (ParallelLogManager::num_threads_done < g_num_logger)
-				PAUSE
-			else 
-				break;
-		}
-    	INC_STATS(get_thd_id(), txn_cnt, num_records);
-	}
-	INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
 #endif
-}*/
 
 uint32_t
 txn_man::get_log_entry_size()
@@ -509,7 +466,8 @@ txn_man::get_log_entry_size()
     	buffsize += accesses[i]->orig_row->get_tuple_size();
   	return buffsize; 
 #elif LOG_TYPE == LOG_COMMAND
-	// total entry size + cmd_log_size
+	// Format:
+	//   size | txn_id | cmd_log_size
 	return sizeof(uint32_t) + sizeof(txn_id) + get_cmd_log_size();
 #else
 	assert(false);
@@ -622,17 +580,29 @@ txn_man::serial_recover_from_log_entry(char * entry)
 		txns_ready_for_recovery[recovery_tuples[i]->keys[0]% g_num_logger]->push(recovery_tuples[i]);
 	}
   #elif LOG_TYPE == LOG_COMMAND
-
+	uint32_t offset = 0;
+	uint32_t size;
+	memcpy(&size, entry, sizeof(size));
+	offset += sizeof(size);
+	uint64_t tid;
+	memcpy(&tid, entry + offset, sizeof(tid));
+	offset += sizeof(tid);
+	char * cmd = entry + offset;
+	// TODO avoid malloc 
+	RecoverState * recover_state = new RecoverState(); 
+	txns_ready_for_recovery[1]->push(recover_state);
+	recover_state->txn_id = tid;
+	recover_state->cmd = cmd;
   #else 
 	assert(false);
   #endif
 }
-#endif
-
+#elif LOG_ALGORITHM == LOG_PARALLEL
 void
-txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state, ts_t commit_ts)
+txn_man::parallel_recover_from_log_entry(char * entry, RecoverState * recover_state, ts_t commit_ts)
 {
-#if LOG_TYPE == LOG_DATA
+	assert(LOG_ALGORITHM == LOG_PARALLEL);
+  #if LOG_TYPE == LOG_DATA
 	char * ptr = entry;
 	uint32_t size = *(uint32_t *)entry;
 	ptr += sizeof(uint32_t);
@@ -655,20 +625,20 @@ txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state, ts_t
 		ptr += recover_state->lengths[i];
 	}
 	assert(size == (uint64_t)(ptr - entry));
-#elif LOG_TYPE == LOG_COMMAND
-	// Format
-	// size | txn_id | cmd_log_entry
-  #if LOG_ALGORITHM == LOG_PARALLEL
+  #elif LOG_TYPE == LOG_COMMAND
 	if(!entry) {
+		// A fence entry
 		recover_state->is_fence = true;
 		recover_state->commit_ts = commit_ts;
 		recover_state->thd_id = get_thd_id();
 		return; 
 		// use thd_id to store which file the fence belongs to
-	} else {
-		recover_state->is_fence = false;
 	}
-  #endif
+
+	// A regular entry
+	// Format
+	// size | txn_id | cmd_log_entry
+	recover_state->is_fence = false;
 	uint32_t offset = 0;
 	uint32_t size;
 	memcpy(&size, entry, sizeof(size));
@@ -679,11 +649,9 @@ txn_man::recover_from_log_entry(char * entry, RecoverState * recover_state, ts_t
 	char * cmd = entry + offset;
 	recover_state->txn_id = tid;
 	recover_state->cmd = cmd;
-  #if LOG_ALGORITHM == LOG_PARALLEL
 	recover_state->commit_ts = commit_ts;
-    //log_manager->get_curr_fence_ts();
-  #endif
-#else 
+  #else 
 	assert(false);
-#endif
+  #endif
 }
+#endif

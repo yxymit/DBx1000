@@ -173,7 +173,7 @@ void
 LogPendingTable::remove_log_pending(TxnNode * node)
 {
 	uint32_t pred_size = ATOM_SUB_FETCH(node->pred_size, 1);
-	if (pred_size > 0) // || !ATOM_CAS(node->pred_insert_done, true, false))
+	if (pred_size > 0) 
 		return;
 
 	uint32_t bid = get_bucket_id(node->txn_id);

@@ -96,6 +96,7 @@ PredecessorInfo::is_pred(uint64_t pred, access_t type)
 uint32_t
 PredecessorInfo::serialize(char * buffer)
 {
+	// Format: raw_size | raw_preds | waw_size | waw_preds
 	uint32_t offset = 0;
 	// RAW only predecessors
 	memcpy(buffer, &_raw_size, sizeof(uint32_t));
@@ -191,6 +192,7 @@ ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size,
 {
 	// Format
 	// total_size | log_entry (format seen in txn_man::create_log_entry) | predecessors 
+	// predecessors = raw_size | waw_size | pred_txns
 	uint32_t total_size = sizeof(uint32_t) + entry_size
 						  + sizeof(uint32_t) * 2
 						  + sizeof(uint64_t) * (pred_info->_raw_size + pred_info->_waw_size);
@@ -223,42 +225,6 @@ ParallelLogManager::parallelLogTxn(char * log_entry, uint32_t entry_size,
 	_logger[ logger_id ]->logTxn(new_log_entry, total_size, lsn);
 	
 	return true;
-/*
-	// Format
-	// total_size | log_entry (format seen in txn_man::create_log_entry) | predecessors 
-	uint32_t total_size = sizeof(uint32_t) + entry_size 
-						  + sizeof(uint32_t) * 2
-						  + sizeof(uint64_t) * (pred_info->_raw_size + pred_info->_waw_size);
-
-	char new_log_entry[total_size];
-	assert(total_size > 0);	
-	assert(entry_size == *(uint32_t *)log_entry);
-	uint32_t offset = 0;
-	// Total Size
-	memcpy(new_log_entry, &total_size, sizeof(uint32_t));
-	offset += sizeof(uint32_t);
-	// Log Entry
-	memcpy(new_log_entry + offset, log_entry, entry_size);
-	offset += entry_size;
-	// Predecessors
-	offset += pred_info->serialize(new_log_entry + offset);
-	assert(offset == total_size);
-	uint32_t logger_id = get_logger_id( glob_manager->get_thd_id() );
-#if LOG_TYPE == LOG_COMMAND
-	bool success = false;
-	while (!success) {
-		uint64_t lsn = _logger[logger_id]->get_lsn();
-		COMPILER_BARRIER
-		if (commit_ts < _max_epoch_ts)
-			return false;
-		else 
-			success = _logger[logger_id]->logTxn(new_log_entry, total_size, lsn);
-	}
-#else
-	_logger[ logger_id ]->logTxn(new_log_entry, total_size);
-#endif
-	return true;
-*/
 }
 	
 bool 
@@ -313,7 +279,6 @@ void
 ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info, uint64_t &commit_ts)
 {
 	uint64_t thd_id = glob_manager->get_thd_id();
-	//uint32_t logger_id = get_logger_id(thd_id);
 	assert(thd_id < g_num_logger);
 
 	// Decode the log entry.
@@ -328,10 +293,10 @@ ParallelLogManager::readFromLog(char * &entry, PredecessorInfo * pred_info, uint
 	uint32_t total_size = *(uint32_t *)raw_entry;
 	assert(total_size > 0);
 	if (total_size == UINT32_MAX) {
+		assert(LOG_TYPE == LOG_COMMAND);
 		commit_ts = *(uint64_t *)(raw_entry + 4);
+		assert(commit_ts > 0);
 		entry = NULL;
-		//glob_manager->add_ts(GET_THD_ID, ts);
-		//_curr_fence_ts[logger_id] = ts;
 		return;
 	}
 	//Commit Timestamp

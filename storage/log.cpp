@@ -320,10 +320,6 @@ RecoverState::RecoverState()
 #elif LOG_TYPE == LOG_COMMAND && LOG_ALGORITHM == LOG_PARALLEL
 	_predecessor_info = new PredecessorInfo; 
 #endif
-//#if LOG_ALGORITHM == LOG_PARALLEL
-//	predecessors = new uint32_t [MAX_ROW_PER_TXN];
-//	num_predecessors = 0;
-//#endif
 }
 
 RecoverState::~RecoverState()

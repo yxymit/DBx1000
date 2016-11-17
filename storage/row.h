@@ -138,6 +138,7 @@ private:
 		Version * next;
 	};
     Version *       _version;
+	uint32_t 		_num_versions; // for debug 
     uint64_t min_ts; // the oldest version timestamp of the tuple
 #endif
 
