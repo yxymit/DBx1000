@@ -26,22 +26,22 @@ Plock part_lock_man;
 OptCC occ_man;
 
 // Logging
-#if LOG_ALGORITHM == LOG_SERIAL
-boost::lockfree::spsc_queue<RecoverState *, boost::lockfree::capacity<1000>> ** txns_ready_for_recovery;
-RSQueue ** rs_queue; 
-#else
-boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
-#endif
+//#if LOG_ALGORITHM == LOG_SERIAL
+//boost::lockfree::spsc_queue<RecoverState *, boost::lockfree::capacity<1000>> ** txns_ready_for_recovery;
+//RSQueue ** rs_queue; 
+//#else
+//boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
+//#endif
 #if LOG_ALGORITHM == LOG_SERIAL
 LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
 BatchLog * log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL
 LogManager ** log_manager; 
-LogPendingTable * log_pending_table;
+//LogPendingTable * log_pending_table;
 LogRecoverTable * log_recover_table;
-DispatchQueue ** dispatch_queue;
-GCQueue ** gc_queue;
+//DispatchQueue ** dispatch_queue;
+//GCQueue ** gc_queue;
 #endif
 FreeQueue ** free_queue_recover_state; 
 bool g_log_recover = LOG_RECOVER;

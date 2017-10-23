@@ -34,7 +34,7 @@ def insert_his(alg, workload='YCSB', log_type='LOG_DATA', recovery='false',
 
 jobs = {}
 #for bench in ['TPCC']:
-for bench in ['TPCC', 'YCSB']:
+for bench in ['YCSB']:
 	for recovery in ['false', 'true']:
 		#for recovery in ['false', 'true']:
 		insert_his('serial', bench, 'LOG_DATA', recovery, 'true')

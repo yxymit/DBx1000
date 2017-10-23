@@ -781,7 +781,7 @@ txn_man::create_log_entry()
 #endif
 }
 #if LOG_ALGORITHM == LOG_SERIAL
-void
+/*void
 txn_man::serial_recover_from_log_entry(char * entry)
 {
   #if LOG_TYPE == LOG_DATA
@@ -905,9 +905,9 @@ txn_man::serial_recover_from_log_entry(char * entry)
   #else 
 	assert(false);
   #endif
-}
+}*/
 #elif LOG_ALGORITHM == LOG_PARALLEL
-void
+/*void
 txn_man::parallel_recover_from_log_entry(char * entry, RecoverState * recover_state)
 {
 	assert(LOG_ALGORITHM == LOG_PARALLEL);
@@ -954,7 +954,6 @@ txn_man::parallel_recover_from_log_entry(char * entry, RecoverState * recover_st
 	assert(false);
   #endif
 }
-
 uint64_t
 txn_man::get_txn_id_from_entry(char * entry)
 {
@@ -962,5 +961,6 @@ txn_man::get_txn_id_from_entry(char * entry)
 	//   size | txn_id | log_entry
 	return *(uint64_t *)(entry + sizeof(uint32_t));
 }
+*/
 
 #endif

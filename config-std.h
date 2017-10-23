@@ -11,7 +11,7 @@
 #define PAGE_SIZE					4096 
 #define CL_SIZE						64
 // CPU_FREQ is used to get accurate timing info 
-#define CPU_FREQ 					2 	// in GHz/s
+#define CPU_FREQ 					2.13 	// in GHz/s
 
 // # of transactions to run for warmup
 #define WARMUP						0
@@ -20,6 +20,7 @@
 // print the transaction latency distribution
 #define PRT_LAT_DISTR				false
 #define STATS_ENABLE				true
+#define COLLECT_LATENCY				false
 #define TIME_ENABLE					true 
 
 #define MEM_ALLIGN					8 
@@ -39,7 +40,7 @@
 /***********************************************/
 // WAIT_DIE, NO_WAIT, DL_DETECT, TIMESTAMP, MVCC, HEKATON, HSTORE, OCC, VLL, TICTOC, SILO
 // TODO TIMESTAMP does not work at this moment
-#define CC_ALG 						TICTOC
+#define CC_ALG 						SILO //WAIT_DIE
 #define ISOLATION_LEVEL 			SERIALIZABLE
 
 // all transactions acquire tuples according to the primary key order.
@@ -100,26 +101,27 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM 				LOG_PARALLEL
-#define LOG_TYPE 					LOG_DATA
-#define LOG_RAM_DISK				true
-#define LOG_NO_FLUSH			 	true //false
-#define LOG_RECOVER					false
+#define LOG_ALGORITHM 				LOG_SERIAL //PARALLEL
+#define LOG_TYPE 					LOG_DATA //COMMAND
+#define LOG_RAM_DISK				false
+#define LOG_NO_FLUSH			 	false
+#define LOG_RECOVER 				true //false
 #define LOG_BATCH_TIME				10 // in ms
-#define LOG_GARBAGE_COLLECT			false
+#define LOG_GARBAGE_COLLECT 		false
+#define LOG_BUFFER_SIZE				(1048576 * 50)	// in bytes
 // For LOG_PARALLEL
 #define LOG_PARALLEL_BUFFER_FILL	false 
 #define NUM_LOGGER					4 
-#define LOG_PARALLEL_NUM_BUCKETS    20000
-
-
+#define LOG_PARALLEL_NUM_BUCKETS    20000	// should equal the number of recovered txns
+#define MAX_LOG_ENTRY_SIZE			4096 // in Bytes
+#define LOG_FLUSH_INTERVAL   		5000 // in us. 
 /***********************************************/
 // Benchmark
 /***********************************************/
 // max number of rows touched per transaction
 #define MAX_ROW_PER_TXN				64
 #define QUERY_INTVL 				1UL
-#define MAX_TXN_PER_PART 			100000
+#define MAX_TXNS_PER_THREAD 		1000000
 #define FIRST_PART_LOCAL 			true
 #define MAX_TUPLE_SIZE				1024 // in bytes
 // ==== [YCSB] ====

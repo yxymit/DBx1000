@@ -21,7 +21,9 @@ Row_silo::init(row_t * row)
 RC
 Row_silo::access(txn_man * txn, TsType type, char * data) {
 #if ATOMIC_WORD
+  #if LOG_ALGORITHM != LOG_NO
 	uint64_t pred; 
+  #endif
 	uint64_t v = 0;
 	uint64_t v2 = 1;
 	while (v2 != v) {

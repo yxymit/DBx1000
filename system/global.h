@@ -22,8 +22,6 @@
 #include <math.h>
 #include <queue>
 #include <boost/lockfree/queue.hpp>
-#include <boost/lockfree/spsc_queue.hpp>
-#include <boost/lockfree/stack.hpp>
 
 #include "pthread.h"
 #include "config.h"
@@ -75,18 +73,16 @@ extern Query_queue * query_queue;
 extern Plock part_lock_man;
 extern OptCC occ_man;
 
-#define QueueType(type, size) \
-	boost::lockfree::spsc_queue<type, boost::lockfree::capacity<size>>
-#define DispatchQueue QueueType(DispatchJob, 100)
-#define GCQueue QueueType(GCJob, 100)
+//#define DispatchQueue QueueType(DispatchJob, 100)
+//#define GCQueue QueueType(GCJob, 100)
 
 // Logging
-extern boost::lockfree::spsc_queue<RecoverState *> ** txns_from_log;
-extern boost::lockfree::spsc_queue<void *> ** txns_for_gc;
+//extern boost::lockfree::spsc_queue<RecoverState *> ** txns_from_log;
+//extern boost::lockfree::spsc_queue<void *> ** txns_for_gc;
 #if LOG_ALGORITHM == LOG_SERIAL
-extern boost::lockfree::spsc_queue<RecoverState *, boost::lockfree::capacity<1000>> ** txns_ready_for_recovery;
-#define RSQueue boost::lockfree::spsc_queue<RecoverState *, boost::lockfree::capacity<1000>>
-extern RSQueue ** rs_queue; 
+//extern boost::lockfree::spsc_queue<RecoverState *, boost::lockfree::capacity<1000>> ** txns_ready_for_recovery;
+//#define RSQueue boost::lockfree::spsc_queue<RecoverState *, boost::lockfree::capacity<1000>>
+//extern RSQueue ** rs_queue; 
 //extern SerialLogManager * log_manager;
 extern LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH

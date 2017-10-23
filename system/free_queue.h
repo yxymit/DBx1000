@@ -1,5 +1,6 @@
 #pragma once
 
+/*
 #include "helper.h"
 #include "global.h"
 //#include <boost/lockfree/queue.hpp>
@@ -22,3 +23,5 @@ private:
 	//boost::lockfree::queue<void *> _free_elements{32};
 	boost::lockfree::spsc_queue<void *> _free_elements{32};
 };
+
+*/

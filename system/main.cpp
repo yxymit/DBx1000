@@ -29,8 +29,15 @@ int main(int argc, char* argv[])
 {
 	parser(argc, argv);
 
-	string dir = "/data/scratch/yxy/DBx1000-taurus";
-#if LOG_ALGORITHM == LOG_SERIAL
+	string dir;
+	char hostname[256];
+	gethostname(hostname, 256);
+	if (strncmp(hostname, "draco", 5) == 0)
+		dir = "/data/scratch/yxy/DBx1000-taurus/";
+	else
+		dir = ".";
+  	
+	#if LOG_ALGORITHM == LOG_SERIAL
 	string bench = (WORKLOAD == YCSB)? "YCSB" : "TPCC";
 	log_manager = (LogManager *) _mm_malloc(sizeof(LogManager), 64);
 	new(log_manager) LogManager(0);
@@ -45,6 +52,16 @@ int main(int argc, char* argv[])
 	string bench = (WORKLOAD == YCSB)? "YCSB" : "TPCC";
 	log_manager = new LogManager * [g_num_logger];
 	for (uint32_t i = 0; i < g_num_logger; i ++) {
+		if (strncmp(hostname, "istc", 4) == 0) {
+			if (i == 0)
+				dir = "/f0/yxy/";
+			else if (i == 1)
+				dir = "/f1/yxy/";
+			else if (i == 2)
+				dir = "/f2/yxy/";
+			else if (i == 3)
+				dir = "/data/yxy/";
+		}
 		log_manager[i] = (LogManager *) _mm_malloc(sizeof(LogManager), 64);
 		new(log_manager[i]) LogManager(i);
 		#if LOG_TYPE == LOG_DATA
