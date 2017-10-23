@@ -38,6 +38,8 @@ int main(int argc, char* argv[])
 		dir = ".";
   	
 #if LOG_ALGORITHM == LOG_SERIAL
+	if (strncmp(hostname, "istc", 4) == 0) 
+		dir = "/f0/yxy/";
 	assert(g_num_logger == 1);
 	string bench = (WORKLOAD == YCSB)? "YCSB" : "TPCC";
 	log_manager = (LogManager *) _mm_malloc(sizeof(LogManager), 64);

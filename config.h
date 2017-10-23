@@ -4,7 +4,7 @@
 /***********************************************/
 // Simulation + Hardware
 /***********************************************/
-#define THREAD_CNT					4
+#define THREAD_CNT					16
 #define PART_CNT					1 
 // each transaction only accesses 1 virtual partition. But the lock/ts manager and index are not aware of such partitioning. VIRTUAL_PART_CNT describes the request distribution and is only used to generate queries. For HSTORE, VIRTUAL_PART_CNT should be the same as PART_CNT.
 #define VIRTUAL_PART_CNT			1
@@ -16,7 +16,7 @@
 // # of transactions to run for warmup
 #define WARMUP						0
 // YCSB or TPCC
-#define WORKLOAD 					YCSB
+#define WORKLOAD YCSB
 // print the transaction latency distribution
 #define PRT_LAT_DISTR				false
 #define STATS_ENABLE				true
@@ -101,18 +101,18 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM 				LOG_SERIAL //PARALLEL
-#define LOG_TYPE 					LOG_DATA //COMMAND
+#define LOG_ALGORITHM LOG_PARALLEL
+#define LOG_TYPE LOG_DATA
 #define LOG_RAM_DISK				false
 #define LOG_NO_FLUSH			 	false
-#define LOG_RECOVER 				true //false
+#define LOG_RECOVER false
 #define LOG_BATCH_TIME				10 // in ms
-#define LOG_GARBAGE_COLLECT 		false
+#define LOG_GARBAGE_COLLECT true
 #define LOG_BUFFER_SIZE				(1048576 * 50)	// in bytes
 // For LOG_PARALLEL
 #define LOG_PARALLEL_BUFFER_FILL	false 
 #define NUM_LOGGER					4 
-#define LOG_PARALLEL_NUM_BUCKETS    20000	// should equal the number of recovered txns
+#define LOG_PARALLEL_NUM_BUCKETS    4000000	// should equal the number of recovered txns
 #define MAX_LOG_ENTRY_SIZE			4096 // in Bytes
 #define LOG_FLUSH_INTERVAL   		5000 // in us. 
 /***********************************************/
@@ -127,9 +127,9 @@
 // ==== [YCSB] ====
 #define INIT_PARALLELISM			32
 #define SYNTH_TABLE_SIZE 			(1024 * 1020 * 10)
-#define ZIPF_THETA 					0
-#define READ_PERC 					0
-#define WRITE_PERC 					1 //0.5
+#define ZIPF_THETA 					0.6
+#define READ_PERC 					0.5
+#define WRITE_PERC 					0.5
 #define SCAN_PERC 					0
 #define SCAN_LEN					20
 #define PART_PER_TXN 				1
@@ -145,7 +145,7 @@
 // are not modeled.
 #define TPCC_ACCESS_ALL 			false 
 #define WH_UPDATE					true
-#define NUM_WH 						1
+#define NUM_WH 						16
 //
 enum TPCCTxnType {TPCC_ALL, 
 				TPCC_PAYMENT, 

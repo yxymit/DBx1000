@@ -35,13 +35,13 @@ def insert_his(alg, workload='YCSB', log_type='LOG_DATA', recovery='false',
 jobs = {}
 #for bench in ['TPCC']:
 for bench in ['YCSB']:
-	for recovery in ['false', 'true']:
+	for recovery in ['false']: #, 'true']:
 		#for recovery in ['false', 'true']:
-		insert_his('serial', bench, 'LOG_DATA', recovery, 'true')
-		insert_his('serial', bench, 'LOG_COMMAND', recovery, 'true')
+		#insert_his('serial', bench, 'LOG_DATA', recovery, 'true')
+		#insert_his('serial', bench, 'LOG_COMMAND', recovery, 'true')
 		insert_his('parallel', bench, 'LOG_DATA', recovery, 'true')
-		insert_his('parallel', bench, 'LOG_COMMAND', recovery, 'true')
-	insert_his('no', bench)
+		#insert_his('parallel', bench, 'LOG_COMMAND', recovery, 'true')
+	#insert_his('no', bench)
 	
 for (jobname, v) in jobs.iteritems():
 	os.system("cp "+ dbms_cfg[0] +' ' + dbms_cfg[1])
