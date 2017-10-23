@@ -56,11 +56,18 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 			// Only do computation when there are more than 1 requests.
             if (_query->request_cnt > 1) {
                 if (req->rtype == RD || req->rtype == SCAN) {
-					__attribute__((unused)) uint64_t fval = *(uint64_t *)(&data[0]);
+					for (uint32_t i = 0; i < _wl->the_table->get_schema()->get_field_cnt(); i++) { 
+						__attribute__((unused)) char * value = 
+							row_t::get_value(_wl->the_table->get_schema(), i, data);
+					}
                 } else {
-                    assert(req->rtype == WR);
-					uint64_t fval = *(uint64_t *)(&data[0]);
-					*(uint64_t *)(&data[0]) = fval + 1;
+					for (uint32_t i = 0; i < _wl->the_table->get_schema()->get_field_cnt(); i++) { 
+						char * value = row_t::get_value(_wl->the_table->get_schema(), i, data);
+						//for (uint32_t j = 0; j < _wl->the_table->get_schema()->get_field_size(i); j ++) 
+						//	value[j] = value[j] + 1;
+						value[0] = value[0] + 1;
+						row_t::set_value(_wl->the_table->get_schema(), i, data, value);
+					}
                 } 
             }
 			iteration ++;
@@ -70,36 +77,61 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 	}
 	rc = RCOK;
 final:
-	rc = finish(rc);
-	return rc;
+	if (g_log_recover)
+		return RCOK;
+	else 
+		return finish(rc);
 }
 
 void 
-ycsb_txn_man::recover_txn(RecoverState * recover_state)
+ycsb_txn_man::recover_txn(char * log_entry)
 {
 #if LOG_TYPE == LOG_DATA
-	for (uint32_t i = 0; i < recover_state->num_keys; i ++) {
-		uint32_t table_id = recover_state->table_ids[i];
-		M_ASSERT(table_id == 0, "table_id=%d\n", table_id);
-		uint64_t key = recover_state->keys[i];
+	// Format 
+	// | N | (table_id | primary_key | data_length | data) * N
+	// predecessor_info has the following format
+	//   | num_raw_preds | raw_preds | num_waw_preds | waw_preds
+	uint32_t offset = 0;
+	uint32_t num_keys; 
+	UNPACK(log_entry, num_keys, offset);
+	for (uint32_t i = 0; i < num_keys; i ++) {
+		uint32_t table_id;
+		uint64_t key;
+		uint32_t data_length;
+		char * data;
+
+		UNPACK(log_entry, table_id, offset);
+		UNPACK(log_entry, key, offset);
+		UNPACK(log_entry, data_length, offset);
+		data = log_entry + offset;
 		
 		itemid_t * m_item = index_read(_wl->the_index, key, 0);
 		row_t * row = ((row_t *)m_item->location);
-		
-		row->set_value(0, recover_state->after_image[i], recover_state->lengths[i]);
+		row->set_value(0, data, data_length);
 	}
 #elif LOG_TYPE == LOG_COMMAND
-	char * cmd = recover_state->cmd;
-	uint32_t num_keys = *(uint32_t *) cmd;
+	// Format
+	//  | stored_procedure_id | num_keys | (key, type) * num_keys
+	if (!_query) {
+		// these are only executed once. 
+		_query = new ycsb_query;
+		_query->request_cnt = 0;
+		_query->requests = new ycsb_request [g_req_per_query];
+	}
 	uint32_t offset = sizeof(uint32_t);
-	#if LOG_ALGORITHM == LOG_PARALLEL
+	UNPACK(log_entry, _query->request_cnt, offset);
+	for (uint32_t i = 0; i < _query->request_cnt; i ++) {
+		UNPACK(log_entry, _query->requests[i].key, offset);
+		UNPACK(log_entry, _query->requests[i].rtype, offset);
+	}
+//	uint64_t tt = get_sys_clock();
+	run_txn(_query);
+//	INC_STATS(GET_THD_ID, debug8, get_sys_clock() - tt);
+
+/*	#if LOG_ALGORITHM == LOG_PARALLEL
 		this->_recover_state = recover_state;
 	#endif
 	for (uint32_t i = 0; i < num_keys; i ++) {
-		uint64_t key = *(uint64_t *)(cmd + offset);
-		offset += sizeof(uint64_t);
-		access_t rtype = *(access_t *)(cmd + offset);
-		offset += sizeof(uint32_t);
 
 		itemid_t * m_item = index_read(_wl->the_index, key, 0);
 		row_t * row = ((row_t *)m_item->location);
@@ -109,18 +141,49 @@ ycsb_txn_man::recover_txn(RecoverState * recover_state)
 		assert(data);
 		// Computation //
 		if (rtype == RD || rtype == SCAN) {
+			for (uint32_t i = 0; i < _wl->the_table->get_schema()->get_field_cnt(); i++) { 
+				__attribute__((unused)) char * value = row_t::get_value(
+					_wl->the_table->get_schema(), i, data);
+			}
+		} else {
+			//char value[100] = "value\n";
+			assert(rtype == WR);
+			for (uint32_t i = 0; i < _wl->the_table->get_schema()->get_field_cnt(); i++) { 
+				char * value = row_t::get_value(_wl->the_table->get_schema(), i, data);
+				for (uint32_t j = 0; j < _wl->the_table->get_schema()->get_field_size(i); j ++) 
+					value[j] = value[j] + 1;
+				row_t::set_value(_wl->the_table->get_schema(), i, data, value);
+			}
+		} 
+	}
+		if (rtype == RD || rtype == SCAN) {
 			__attribute__((unused)) uint64_t fval = *(uint64_t *)(&data[0]);
 		} else {
-			assert(rtype == WR);
 			uint64_t fval = *(uint64_t *)(&data[0]);
 			*(uint64_t *)(&data[0]) = fval + 1;
 		} 
-	}
+	}*/
 #else
 	assert(false);
 #endif
 }
 
+void 
+ycsb_txn_man::get_cmd_log_entry()
+{
+	// Format
+	//  | stored_procedure_id | num_keys | (key, type) * numk_eys
+	uint32_t sp_id = 0;
+	uint32_t num_keys = _query->request_cnt;
+
+	PACK(_log_entry, sp_id, _log_entry_size);
+	PACK(_log_entry, num_keys, _log_entry_size);
+	for (uint32_t i = 0; i < num_keys; i ++) {
+		PACK(_log_entry, _query->requests[i].key, _log_entry_size);
+		PACK(_log_entry, _query->requests[i].rtype, _log_entry_size);
+	}
+}
+/*
 uint32_t 
 ycsb_txn_man::get_cmd_log_size()
 {
@@ -148,4 +211,4 @@ ycsb_txn_man::get_cmd_log_entry(uint32_t size, char * entry)
 	}
 	assert(offset == size);
 }
-
+*/

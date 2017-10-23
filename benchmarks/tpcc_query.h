@@ -17,6 +17,7 @@ struct Item_no {
 class tpcc_query : public base_query {
 public:
 	void init(uint64_t thd_id, workload * h_wl);
+	void print();
 	TPCCTxnType type;
 	/**********************************************/	
 	// common txn input for both payment & new-order
@@ -30,23 +31,20 @@ public:
 	uint64_t d_w_id;
 	uint64_t c_w_id;
 	uint64_t c_d_id;
-	char c_last[LASTNAME_LEN];
 	double h_amount;
 	bool by_last_name;
+	char c_last[LASTNAME_LEN];
 	/**********************************************/	
 	// txn input for new-order
 	/**********************************************/
-	Item_no * items;
-	bool rbk;
 	bool remote;
 	uint64_t ol_cnt;
 	uint64_t o_entry_d;
 	// Input for delivery
 	uint64_t o_carrier_id;
 	uint64_t ol_delivery_d;
+	Item_no * items;
 	// for order-status
-
-
 private:
 	// warehouse id to partition id mapping
 //	uint64_t wh_to_part(uint64_t wid);

@@ -72,7 +72,7 @@ Manager::get_ts(uint64_t thread_id) {
 	default :
 		assert(false);
 	}
-	INC_STATS(thread_id, time_ts_alloc, get_sys_clock() - starttime);
+	INC_FLOAT_STATS(time_ts_alloc, get_sys_clock() - starttime);
 	return time;
 }
 

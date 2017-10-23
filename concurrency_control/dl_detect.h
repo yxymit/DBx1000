@@ -1,5 +1,4 @@
-#ifndef _DL_DETECT_
-#define _DL_DETECT_
+#pragma once 
 
 #include <limits.h>
 #include <list>
@@ -8,6 +7,8 @@
 #include "config.h"
 //#include "global.h"
 //#include "helper.h"
+
+#if CC_ALG == DL_DETECT
 
 // The denpendency information per thread
 struct DepThd {

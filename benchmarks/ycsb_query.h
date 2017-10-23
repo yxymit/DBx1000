@@ -25,7 +25,7 @@ public:
 	void init(uint64_t thd_id, workload * h_wl, Query_thd * query_thd);
 	static void calculateDenom();
 
-	uint64_t request_cnt;
+	uint32_t request_cnt;
 	ycsb_request * requests;
 
 private:

@@ -2,6 +2,7 @@
 #include "index_hash.h"
 #include "mem_alloc.h"
 #include "table.h"
+#include "manager.h"
 
 RC IndexHash::init(uint64_t bucket_cnt, int part_cnt) {
 	_bucket_cnt = bucket_cnt;

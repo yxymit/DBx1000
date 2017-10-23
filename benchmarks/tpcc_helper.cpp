@@ -1,7 +1,7 @@
 #include "tpcc_helper.h"
+#include "manager.h"
 
-//drand48_data ** tpcc_buffer;
-unsigned short ** tpcc_buffer;   
+uint64_t C_255, C_1023, C_8191;
 
 uint64_t distKey(uint64_t d_id, uint64_t d_w_id)  {
 	return d_w_id * DIST_PER_WARE + d_id; 
@@ -24,8 +24,10 @@ uint64_t custNPKey(char * c_last, uint64_t c_d_id, uint64_t c_w_id) {
 	char offset = 'A';
 	for (uint32_t i = 0; i < strlen(c_last); i++) 
 		key = (key << 2) + (c_last[i] - offset);
-	key = key << 3;
-	key += c_w_id * DIST_PER_WARE + c_d_id;
+	//key = key << 3;
+	key = key * g_num_wh * DIST_PER_WARE;
+	//key += c_w_id * DIST_PER_WARE + c_d_id;
+	key += (c_w_id-1) * DIST_PER_WARE + (c_d_id-1);
 	return key;
 }
 
@@ -43,43 +45,44 @@ uint64_t Lastname(uint64_t num, char* name) {
   	return strlen(name);
 }
 
-uint64_t RAND(uint64_t max, uint64_t thd_id) {
-	int64_t rint64 = 0;
-	//lrand48_r(tpcc_buffer[thd_id], &rint64);
-    rint64 = nrand48(tpcc_buffer[thd_id]);
+uint64_t RAND(uint64_t max) {
+    int64_t rint64 = glob_manager->rand_uint64();	
 	return rint64 % max;
 }
+uint64_t RAND(uint64_t max, uint64_t thd_id) { return RAND(max); };
 
-uint64_t URand(uint64_t x, uint64_t y, uint64_t thd_id) {
-    return x + RAND(y - x + 1, thd_id);
+
+uint64_t URand(uint64_t x, uint64_t y) {
+    return x + RAND(y - x + 1);
 }
+uint64_t URand(uint64_t x, uint64_t y, uint64_t thd_id) { return URand(x, y); };
 
 uint64_t NURand(uint64_t A, uint64_t x, uint64_t y, uint64_t thd_id) {
-  static bool C_255_init = false;
-  static bool C_1023_init = false;
-  static bool C_8191_init = false;
-  static uint64_t C_255, C_1023, C_8191;
+//  static bool C_255_init = false;
+//  static bool C_1023_init = false;
+//  static bool C_8191_init = false;
+//  static uint64_t C_255, C_1023, C_8191;
   int C = 0;
   switch(A) {
     case 255:
-      if(!C_255_init) {
-        C_255 = (uint64_t) URand(0,255, thd_id);
-        C_255_init = true;
-      }
+//      if(!C_255_init) {
+//        C_255 = (uint64_t) URand(0,255, thd_id);
+//        C_255_init = true;
+//      }
       C = C_255;
       break;
     case 1023:
-      if(!C_1023_init) {
-        C_1023 = (uint64_t) URand(0,1023, thd_id);
-        C_1023_init = true;
-      }
+//      if(!C_1023_init) {
+//        C_1023 = (uint64_t) URand(0,1023, thd_id);
+//        C_1023_init = true;
+//      }
       C = C_1023;
       break;
     case 8191:
-      if(!C_8191_init) {
-        C_8191 = (uint64_t) URand(0,8191, thd_id);
-        C_8191_init = true;
-      }
+//      if(!C_8191_init) {
+//        C_8191 = (uint64_t) URand(0,8191, thd_id);
+//        C_8191_init = true;
+//      }
       C = C_8191;
       break;
     default:
@@ -117,4 +120,56 @@ uint64_t MakeNumberString(int min, int max, char* str, uint64_t thd_id) {
 uint64_t wh_to_part(uint64_t wid) {
 	assert(g_part_cnt <= g_num_wh);
 	return wid % g_part_cnt;
+}
+
+TableName table_str2num(string name) 
+{
+	if (name == "WAREHOUSE")
+		return WAREHOUSE;
+	else if (name == "DISTRICT")
+		return DISTRICT;
+	else if (name == "CUSTOMER")
+		return CUSTOMER;
+	else if (name == "HISTORY")
+		return HISTORY;
+	else if (name == "NEWORDER")
+		return NEWORDER;
+	else if (name == "ORDER")
+		return ORDER;
+	else if (name == "ORDERLINE")
+		return ORDERLINE;
+	else if (name == "ITEM")
+		return ITEM;
+	else if (name == "STOCK")
+		return STOCK;
+	else {
+		assert(false);
+		return NUM_TABLES;
+	}
+}
+
+string table_num2str(TableName num)
+{
+	if (num == WAREHOUSE)
+		return "WAREHOUSE";
+	else if (num == DISTRICT)
+		return "DISTRICT";
+	else if (num == CUSTOMER)
+		return "CUSTOMER";
+	else if (num == HISTORY)
+		return "HISTORY";
+	else if (num == NEWORDER)
+		return "NEWORDER";
+	else if (num == ORDER)
+		return "ORDER";
+	else if (num == ORDERLINE)
+		return "ORDERLINE";
+	else if (num == ITEM)
+		return "ITEM";
+	else if (num == STOCK)
+		return "STOCK";
+	else {
+		assert(false);
+		return "";
+	}
 }

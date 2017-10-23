@@ -4,6 +4,8 @@
 #include "mem_alloc.h"
 #include "manager.h"
 
+#if CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || CC_ALG == DL_DETECT
+
 void Row_lock::init(row_t * row) {
 	_row = row;
 	owners = NULL;
@@ -36,7 +38,7 @@ RC Row_lock::lock_get(lock_t type, txn_man * txn, uint64_t* &txnids, int &txncnt
 		pthread_mutex_lock( latch );
 	assert(owner_cnt <= g_thread_cnt);
 	assert(waiter_cnt < g_thread_cnt);
-#if DEBUG_ASSERT
+/*#if DEBUG_ASSERT
 	if (owners != NULL)
 		assert(lock_type == owners->type); 
 	else 
@@ -56,23 +58,23 @@ RC Row_lock::lock_get(lock_t type, txn_man * txn, uint64_t* &txnids, int &txncnt
 		en = en->next;
 	}
 	assert(cnt == waiter_cnt);
-#endif
+#endif*/
 
 	bool conflict = conflict_lock(lock_type, type);
-	if (CC_ALG == WAIT_DIE && !conflict) {
-		if (waiters_head && txn->get_ts() < waiters_head->txn->get_ts())
-			conflict = true;
-	}
+//	if (CC_ALG == WAIT_DIE && !conflict) {
+//		if (waiters_head && txn->get_ts() < waiters_head->txn->get_ts())
+//			conflict = true;
+//	}
 	// Some txns coming earlier is waiting. Should also wait.
-	if (CC_ALG == DL_DETECT && waiters_head != NULL)
-		conflict = true;
+//	if (CC_ALG == DL_DETECT && waiters_head != NULL)
+//		conflict = true;
 	
 	if (conflict) { 
 		// Cannot be added to the owner list.
 		if (CC_ALG == NO_WAIT) {
 			rc = Abort;
-			goto final;
-		} else if (CC_ALG == DL_DETECT) {
+			//goto final;
+		} /*else if (CC_ALG == DL_DETECT) {
 			LockEntry * entry = get_entry();
 			entry->txn = txn;
 			entry->type = type;
@@ -83,28 +85,29 @@ RC Row_lock::lock_get(lock_t type, txn_man * txn, uint64_t* &txnids, int &txncnt
 		} else if (CC_ALG == WAIT_DIE) {
             ///////////////////////////////////////////////////////////
             //  - T is the txn currently running
-			//	IF T.ts > ts of all owners
+			//	IF T.ts < ts of all owners
 			//		T can wait
             //  ELSE
             //      T should abort
             //////////////////////////////////////////////////////////
-
 			bool canwait = true;
-			LockEntry * en = owners;
-			while (en != NULL) {
-                if (en->txn->get_ts() < txn->get_ts()) {
+			for (vector<LockEntry>::iterator it = owners.begin(); 
+			 	it != owners.end(); it ++)
+			{
+				LockEntry & en = *it;
+                if (en.txn->get_ts() < txn->get_ts()) {
 					canwait = false;
 					break;
 				}
-				en = en->next;
 			}
 			if (canwait) {
 				// insert txn to the right position
 				// the waiter list is always in timestamp order
-				LockEntry * entry = get_entry();
-				entry->txn = txn;
-				entry->type = type;
-				en = waiters_head;
+				LockEntry entry = LockEntry{type, txn};
+				waiters.push_back(entry);
+				//entry->txn = txn;
+				//entry->type = type;
+				//en = waiters_head;
 				while (en != NULL && txn->get_ts() < en->txn->get_ts()) 
 					en = en->next;
 				if (en) {
@@ -119,21 +122,23 @@ RC Row_lock::lock_get(lock_t type, txn_man * txn, uint64_t* &txnids, int &txncnt
             }
             else 
                 rc = Abort;
-        }
+        }*/
 	} else {
-		LockEntry * entry = get_entry();
-		entry->type = type;
-		entry->txn = txn;
-		STACK_PUSH(owners, entry);
-		owner_cnt ++;
-		lock_type = type;
-		if (CC_ALG == DL_DETECT) 
-			ASSERT(waiters_head == NULL);
+
+		LockEntry entry = LockEntry {type, txn}; 
+		_owners.push_back(entry);
+//		LockEntry * entry = get_entry();
+//		entry->type = type;
+//		entry->txn = txn;
+//		STACK_PUSH(owners, entry);
+//		owner_cnt ++;
+//		lock_type = type;
+//		if (CC_ALG == DL_DETECT) 
+//			ASSERT(waiters_head == NULL);
         rc = RCOK;
 	}
-final:
 	
-	if (rc == WAIT && CC_ALG == DL_DETECT) {
+/*	if (rc == WAIT && CC_ALG == DL_DETECT) {
 		// Update the waits-for graph
 		ASSERT(waiters_tail->txn == txn);
 		txnids = (uint64_t *) mem_allocator.alloc(sizeof(uint64_t) * (owner_cnt + waiter_cnt), part_id);
@@ -152,7 +157,7 @@ final:
 			}
 		ASSERT(txncnt > 0);
 	}
-
+*/
 	if (g_central_man)
 		glob_manager->release_row(_row);
 	else
@@ -170,10 +175,28 @@ RC Row_lock::lock_release(txn_man * txn) {
 		pthread_mutex_lock( latch );
 
 	// Try to find the entry in the owners
-	LockEntry * en = owners;
-	LockEntry * prev = NULL;
-
-	while (en != NULL && en->txn != txn) {
+//	LockEntry * en = owners;
+//	LockEntry * prev = NULL;
+	bool found = false;
+	// TODO. right now, just sequentially search the vector of _owners
+	for (vector<LockEntry>::iterator it = _owners.begin(); it != _owners.end(); it ++) {
+		if (it->txn == txn) {
+			//entry = &(*it);
+			found = true;
+			_owners.erase(it);
+			break;
+		}
+	}
+#if (CC_ALG == NO_WAIT)
+	assert(found);
+#endif
+	if (found) {
+		// TODO. continue from here.  
+		_row->set_last_writer( txn-> );
+	}
+	if (_owners.empty())
+		lock_type = LOCK_NONE;
+/*	while (en != NULL && en->txn != txn) {
 		prev = en;
 		en = en->next;
 	}
@@ -198,15 +221,15 @@ RC Row_lock::lock_release(txn_man * txn) {
 		return_entry(en);
 		waiter_cnt --;
 	}
+*/
+//	if (owner_cnt == 0)
+//		ASSERT(lock_type == LOCK_NONE);
+//#if DEBUG_ASSERT && CC_ALG == WAIT_DIE 
+//		for (en = waiters_head; en != NULL && en->next != NULL; en = en->next)
+//			assert(en->next->txn->get_ts() < en->txn->get_ts());
+//#endif
 
-	if (owner_cnt == 0)
-		ASSERT(lock_type == LOCK_NONE);
-#if DEBUG_ASSERT && CC_ALG == WAIT_DIE 
-		for (en = waiters_head; en != NULL && en->next != NULL; en = en->next)
-			assert(en->next->txn->get_ts() < en->txn->get_ts());
-#endif
-
-	LockEntry * entry;
+/*	LockEntry * entry;
 	// If any waiter can join the owners, just do it!
 	while (waiters_head && !conflict_lock(lock_type, waiters_head->type)) {
 		LIST_GET_HEAD(waiters_head, waiters_tail, entry);
@@ -218,7 +241,7 @@ RC Row_lock::lock_release(txn_man * txn) {
 		lock_type = entry->type;
 	} 
 	ASSERT((owners == NULL) == (owner_cnt == 0));
-
+*/
 	if (g_central_man)
 		glob_manager->release_row(_row);
 	else
@@ -245,3 +268,4 @@ void Row_lock::return_entry(LockEntry * entry) {
 	mem_allocator.free(entry, sizeof(LockEntry));
 }
 
+#endif

@@ -1,12 +1,14 @@
-#ifndef ROW_LOCK_H
-#define ROW_LOCK_H
+#pragma once
+
+#if CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || CC_ALG == DL_DETECT
 
 struct LockEntry {
     lock_t type;
     txn_man * txn;
-	LockEntry * next;
-	LockEntry * prev;
+	//LockEntry * next;
+	//LockEntry * prev;
 };
+
 
 class Row_lock {
 public:
@@ -25,16 +27,20 @@ private:
 	void 		return_entry(LockEntry * entry);
 	row_t * _row;
     lock_t lock_type;
-    UInt32 owner_cnt;
-    UInt32 waiter_cnt;
+    uint32_t owner_cnt;
+    uint32_t waiter_cnt;
 	
 	// owners is a single linked list
 	// waiters is a double linked list 
 	// [waiters] head is the oldest txn, tail is the youngest txn. 
-	//   So new txns are inserted into the tail.
-	LockEntry * owners;	
-	LockEntry * waiters_head;
-	LockEntry * waiters_tail;
+	//   So new txns are inserted into the tail.	
+
+	vector<LockEntry> _owners;
+	vector<LockEntry> _waiters; 
+	vector<LockEntry> _pending_txns; 
+//	LockEntry * owners;	
+//	LockEntry * waiters_head;
+//	LockEntry * waiters_tail;
 };
 
 #endif

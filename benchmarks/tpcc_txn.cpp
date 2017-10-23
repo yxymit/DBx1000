@@ -9,6 +9,7 @@
 #include "index_hash.h"
 #include "index_btree.h"
 #include "tpcc_const.h"
+#include "manager.h"
 
 void tpcc_txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	txn_man::init(h_thd, h_wl, thd_id);
@@ -16,21 +17,25 @@ void tpcc_txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 }
 
 RC tpcc_txn_man::run_txn(base_query * query) {
-	tpcc_query * m_query = (tpcc_query *) query;
-	switch (m_query->type) {
+	_query = (tpcc_query *) query;
+	RC rc = RCOK;
+	switch (_query->type) {
 		case TPCC_PAYMENT :
-			return run_payment(m_query); break;
+			rc = run_payment(_query); 
+			break;
 		case TPCC_NEW_ORDER :
-			return run_new_order(m_query); break;
+			rc = run_new_order(_query); 
+			break;
 /*		case TPCC_ORDER_STATUS :
-			return run_order_status(m_query); break;
+			return run_order_status(_query); break;
 		case TPCC_DELIVERY :
-			return run_delivery(m_query); break;
+			return run_delivery(_query); break;
 		case TPCC_STOCK_LEVEL :
-			return run_stock_level(m_query); break;*/
+			return run_stock_level(_query); break;*/
 		default:
-			assert(false);
+			M_ASSERT(false, "type=%d\n", _query->type);
 	}
+	return rc;
 }
 
 RC tpcc_txn_man::run_payment(tpcc_query * query) {
@@ -58,25 +63,22 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 	item = index_read(index, key, wh_to_part(w_id));
 	assert(item != NULL);
 	row_t * r_wh = ((row_t *)item->location);
-	//row_t * r_wh_local;
+
 	char * wh_data;
 	if (g_wh_update)
 		rc = get_row(r_wh, WR, wh_data);
 	else 
 		rc = get_row(r_wh, RD, wh_data);
-
+	
 	if (rc == Abort) {
 		return finish(Abort);
 	}
 	double w_ytd = *(double *)row_t::get_value(r_wh->get_schema(), W_YTD, wh_data);
-	//r_wh_local->get_value(W_YTD, w_ytd);
 	if (g_wh_update) {
 		double amount = w_ytd + query->h_amount;
 		row_t::set_value(r_wh->get_schema(), W_YTD, wh_data, (char *)&amount);
-		//r_wh_local->set_value(W_YTD, w_ytd + query->h_amount);
 	}
 	char w_name[11];
-	//char * tmp_str = r_wh_local->get_value(W_NAME);
 	char * tmp_str = row_t::get_value(r_wh->get_schema(), W_NAME, wh_data);
 	memcpy(w_name, tmp_str, 10);
 	w_name[10] = '\0';
@@ -89,7 +91,6 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 	item = index_read(_wl->i_district, key, wh_to_part(w_id));
 	assert(item != NULL);
 	row_t * r_dist = ((row_t *)item->location);
-	//row_t * r_dist_local = get_row(r_dist, WR);
 	char * r_dist_data = NULL;
     rc = get_row(r_dist, WR, r_dist_data);
 	if (rc != RCOK) {
@@ -103,7 +104,6 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 	//r_dist_local->get_value(D_YTD, d_ytd);
 	//r_dist_local->set_value(D_YTD, d_ytd + query->h_amount);
 	char d_name[11];
-	//tmp_str = r_dist_local->get_value(D_NAME);
 	tmp_str = row_t::get_value(r_dist->get_schema(), D_NAME, r_dist_data);
 	memcpy(d_name, tmp_str, 10);
 	d_name[10] = '\0';
@@ -183,7 +183,6 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 	   	EXEC SQL UPDATE customer SET c_balance = :c_balance, c_data = :c_new_data
    		WHERE c_w_id = :c_w_id AND c_d_id = :c_d_id AND c_id = :c_id;
    	+======================================================================*/
-	//row_t * r_cust_local = get_row(r_cust, WR);
 	char * r_cust_data = NULL;
     rc = get_row(r_cust, WR, r_cust_data);
 	if (rc != RCOK) {
@@ -203,7 +202,6 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 
 	char * c_credit = row_t::get_value(r_cust->get_schema(), C_CREDIT, r_cust_data);
 	if ( strstr(c_credit, "BC") ) {
-	
 		/*=====================================================+
 		    EXEC SQL SELECT c_data
 			INTO :c_data
@@ -248,7 +246,10 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 //	insert_row(r_hist, _wl->t_history);
 
 	assert( rc == RCOK );
-	return finish(rc);
+	if (g_log_recover)
+		return RCOK;
+	else 
+		return finish(rc);
 }
 
 RC tpcc_txn_man::run_new_order(tpcc_query * query) {
@@ -455,7 +456,10 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 //		insert_row(r_ol, _wl->t_orderline);
 	}
 	assert( rc == RCOK );
-	return finish(rc);
+	if (g_log_recover)
+		return RCOK;
+	else 
+		return finish(rc);
 }
 
 RC 
@@ -642,4 +646,124 @@ tpcc_txn_man::run_delivery(tpcc_query * query) {
 RC 
 tpcc_txn_man::run_stock_level(tpcc_query * query) {
 	return RCOK;
+}
+
+void 
+tpcc_txn_man::get_cmd_log_entry()
+{
+	// Format
+	//  | stored_procedure_id | input_params
+	PACK(_log_entry, _query->type, _log_entry_size);
+	// TODO. Continue from here!!!
+
+	if (_query->type == TPCC_PAYMENT) {
+		// format
+        //  w_id | d_id | c_id |
+        //  d_w_id | c_w_id | c_d_id |
+        //  h_amount | by_last_name | c_last[LASTNAME_LEN] 
+		PACK(_log_entry, _query->w_id, _log_entry_size);
+		PACK(_log_entry, _query->d_id, _log_entry_size);
+		PACK(_log_entry, _query->c_id, _log_entry_size);
+		
+		PACK(_log_entry, _query->d_w_id, _log_entry_size);
+		PACK(_log_entry, _query->c_w_id, _log_entry_size);
+		PACK(_log_entry, _query->c_d_id, _log_entry_size);
+		
+		PACK(_log_entry, _query->h_amount, _log_entry_size);
+		PACK(_log_entry, _query->by_last_name, _log_entry_size);
+		PACK_SIZE(_log_entry, _query->c_last, LASTNAME_LEN, _log_entry_size);
+	} else if (_query->type == TPCC_NEW_ORDER) {
+        // format
+        //  uint64_t w_id | uint64_t d_id | uint64_t c_id |
+        //  bool remote | uint64_t ol_cnt | uint64_t o_entry_d |
+        //  Item_no * ol_cnt
+		PACK(_log_entry, _query->w_id, _log_entry_size);
+		PACK(_log_entry, _query->d_id, _log_entry_size);
+		PACK(_log_entry, _query->c_id, _log_entry_size);
+
+		PACK(_log_entry, _query->remote, _log_entry_size);
+		PACK(_log_entry, _query->ol_cnt, _log_entry_size);
+		PACK(_log_entry, _query->o_entry_d, _log_entry_size);
+		
+		PACK_SIZE(_log_entry, _query->items, sizeof(Item_no) * _query->ol_cnt, _log_entry_size);
+	}
+}
+
+void
+tpcc_txn_man::recover_txn(RecoverState * recover_state)
+{
+#if LOG_TYPE == LOG_DATA
+	for (uint32_t i = 0; i < recover_state->num_keys; i ++) {
+		TableName table_id = (TableName) recover_state->table_ids[i];
+		uint64_t key = recover_state->keys[i];
+		
+		itemid_t * m_item = index_read(_wl->tpcc_tables[table_id]->get_primary_index(), key, 0);
+		row_t * row = ((row_t *)m_item->location);
+		
+		row->set_value(0, recover_state->after_image[i], recover_state->lengths[i]);
+	}
+#elif LOG_TYPE == LOG_COMMAND
+	char * cmd = recover_state->cmd; 
+	if (!_query) {
+		_query = new tpcc_query;
+		_query->items = new Item_no [15];
+	}
+  #if LOG_ALGORITHM == LOG_PARALLEL
+	_recover_state = recover_state;
+  #endif
+	uint64_t offset = 0; 
+	memcpy(&_query->type, cmd, sizeof(TPCCTxnType));
+	offset += sizeof(TPCCTxnType);
+	memcpy(&_query->w_id, cmd + offset, sizeof(uint64_t));
+	offset += sizeof(uint64_t);
+	memcpy(&_query->d_id, cmd + offset, sizeof(uint64_t));
+	offset += sizeof(uint64_t);
+	memcpy(&_query->c_id, cmd + offset, sizeof(uint64_t));
+	offset += sizeof(uint64_t);
+	if (_query->type == TPCC_PAYMENT) {
+		// format
+		// 	TPCCTxnType type | uint64_t w_id | uint64_t d_id | uint64_t c_id |
+		// 	uint64_t d_w_id | uint64_t c_w_id | uint64_t c_d_id | 
+		//  double h_amount | bool by_last_name | char c_last[LASTNAME_LEN] 
+		memcpy(&_query->d_w_id, cmd + offset, sizeof(uint64_t));
+		offset += sizeof(uint64_t);
+		memcpy(&_query->c_w_id, cmd + offset, sizeof(uint64_t));
+		offset += sizeof(uint64_t);
+		memcpy(&_query->c_d_id, cmd + offset, sizeof(uint64_t));
+		offset += sizeof(uint64_t);
+		memcpy(&_query->h_amount, cmd + offset, sizeof(double));
+		offset += sizeof(double);
+		memcpy(&_query->by_last_name, cmd + offset, sizeof(bool));
+		offset += sizeof(bool);
+		memcpy(_query->c_last, cmd + offset, LASTNAME_LEN);
+		offset += LASTNAME_LEN;
+	} else if (_query->type == TPCC_NEW_ORDER) {
+		// format
+		// 	TPCCTxnType type | uint64_t w_id | uint64_t d_id | uint64_t c_id |
+		//  bool remote | uint64_t ol_cnt | uint64_t o_entry_d | 
+		//  Item_no * ol_cnt
+		memcpy(&_query->remote, cmd + offset, sizeof(bool));
+		offset += sizeof(bool);
+		memcpy(&_query->ol_cnt, cmd + offset, sizeof(uint64_t));
+		offset += sizeof(uint64_t);
+		memcpy(&_query->o_entry_d, cmd + offset, sizeof(uint64_t));
+		offset += sizeof(uint64_t);
+		memcpy(_query->items, cmd + offset, sizeof(Item_no) * _query->ol_cnt);
+		offset += sizeof(Item_no) * _query->ol_cnt;
+	} else 
+		assert(false);
+//	if (recover_state->txn_id == 55645919 || recover_state->txn_id == 55869001)	
+//	{
+//		printf("txnID=%ld\n", recover_state->txn_id);
+//		_query->print();
+//	}
+	run_txn(_query);
+#endif
+}
+
+void 
+tpcc_query::print()
+{
+	printf("Type=%d, w_id=%ld, d_id=%ld, c_id=%ld, by_last_name=%d\n",
+		type, w_id, d_id, c_id, by_last_name);	
 }

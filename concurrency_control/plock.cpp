@@ -85,7 +85,8 @@ void Plock::init() {
 
 RC Plock::lock(txn_man * txn, uint64_t * parts, uint64_t part_cnt) {
 	RC rc = RCOK;
-	ts_t starttime = get_sys_clock();
+	// XXX XXX
+	//ts_t starttime = get_sys_clock();
 	UInt32 i;
 	for (i = 0; i < part_cnt; i ++) {
 		uint64_t part_id = parts[i];
@@ -99,24 +100,26 @@ RC Plock::lock(txn_man * txn, uint64_t * parts, uint64_t part_cnt) {
 			part_mans[part_id]->unlock(txn);
 		}
 		assert(txn->ready_part == 0);
-		INC_TMP_STATS(txn->get_thd_id(), time_man, get_sys_clock() - starttime);
+		//INC_TMP_STATS(txn->get_thd_id(), time_man, get_sys_clock() - starttime);
 		return Abort;
 	}
 	if (txn->ready_part > 0) {
-		ts_t t = get_sys_clock();
+		// XXX
+		//ts_t t = get_sys_clock();
 		while (txn->ready_part > 0) {}
-		INC_TMP_STATS(txn->get_thd_id(), time_wait, get_sys_clock() - t);
+		//INC_TMP_STATS(txn->get_thd_id(), time_wait, get_sys_clock() - t);
 	}
 	assert(txn->ready_part == 0);
-	INC_TMP_STATS(txn->get_thd_id(), time_man, get_sys_clock() - starttime);
+	// XXX
+	//INC_TMP_STATS(txn->get_thd_id(), time_man, get_sys_clock() - starttime);
 	return RCOK;
 }
 
 void Plock::unlock(txn_man * txn, uint64_t * parts, uint64_t part_cnt) {
-	ts_t starttime = get_sys_clock();
+	//ts_t starttime = get_sys_clock();
 	for (UInt32 i = 0; i < part_cnt; i ++) {
 		uint64_t part_id = parts[i];
 		part_mans[part_id]->unlock(txn);
 	}
-	INC_TMP_STATS(txn->get_thd_id(), time_man, get_sys_clock() - starttime);
+	//INC_TMP_STATS(txn->get_thd_id(), time_man, get_sys_clock() - starttime);
 }

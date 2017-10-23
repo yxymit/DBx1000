@@ -105,3 +105,12 @@ uint64_t myrand::next() {
 	return (seed / 65537) % RAND_MAX;
 }
 
+uint64_t hash64(uint64_t x) {
+	// https://stackoverflow.com/questions/664014/what-integer-hash-function-are-good-that-accepts-an-integer-hash-key
+	// http://xorshift.di.unimi.it/splitmix64.c
+   	x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
+   	x = x ^ (x >> 31);
+    return x;
+}
+

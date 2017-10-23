@@ -6,6 +6,7 @@
 class row_t;
 class txn_man;
 class LogPendingTable;
+class workload;
 
 class Manager {
 public:
@@ -44,6 +45,12 @@ public:
     // thread id
     void            set_thd_id(uint64_t thread_id) { _thread_id = thread_id; }
     uint64_t        get_thd_id() { return _thread_id; }
+
+	// workload 
+    void            set_workload(workload * wl) { _workload = wl; }
+    workload *      get_workload()  { return _workload; }
+
+
 private:
 	// for SILO
 	volatile uint64_t * _epoch;		
@@ -64,10 +71,7 @@ private:
 
     // thread id
 	static __thread uint64_t _thread_id;
-	// For logging
-	// set of txns in the middle of logging process 
-	// TODO. make this lock free.
-	//LogPendingTable * 	_log_pending_table;
-	//pthread_mutex_t 	_log_mutex;
-	//std::set<uint64_t>	_log_pending_set;
+
+	// workload 
+	workload * _workload;
 };

@@ -16,28 +16,37 @@
 #include "free_queue.h"
 
 mem_alloc mem_allocator;
-Stats stats;
+Stats * stats;
+#if CC_ALG == DL_DETECT
 DL_detect dl_detector;
+#endif
 Manager * glob_manager;
 Query_queue * query_queue;
 Plock part_lock_man;
 OptCC occ_man;
 
 // Logging
-boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
 #if LOG_ALGORITHM == LOG_SERIAL
-SerialLogManager * log_manager;
+boost::lockfree::spsc_queue<RecoverState *, boost::lockfree::capacity<1000>> ** txns_ready_for_recovery;
+RSQueue ** rs_queue; 
+#else
+boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
+#endif
+#if LOG_ALGORITHM == LOG_SERIAL
+LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
 BatchLog * log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL
-ParallelLogManager * log_manager; 
+LogManager ** log_manager; 
 LogPendingTable * log_pending_table;
 LogRecoverTable * log_recover_table;
-//uint32_t num_threads_done; 
+DispatchQueue ** dispatch_queue;
+GCQueue ** gc_queue;
 #endif
-FreeQueue * free_queue_recover_state; 
+FreeQueue ** free_queue_recover_state; 
 bool g_log_recover = LOG_RECOVER;
 uint32_t g_num_logger = NUM_LOGGER;
+bool g_no_flush = LOG_NO_FLUSH;
 
 
 #if CC_ALG == VLL
@@ -47,6 +56,8 @@ VLLMan vll_man;
 bool volatile warmup_finish = false;
 bool volatile enable_thread_mem_pool = false;
 pthread_barrier_t warmup_bar;
+pthread_barrier_t log_bar;
+pthread_barrier_t worker_bar;
 #ifndef NOGRAPHITE
 carbon_barrier_t enable_barrier;
 #endif
@@ -79,11 +90,13 @@ UInt64 g_synth_table_size = SYNTH_TABLE_SIZE;
 UInt32 g_req_per_query = REQ_PER_QUERY;
 UInt32 g_field_per_tuple = FIELD_PER_TUPLE;
 UInt32 g_init_parallelism = INIT_PARALLELISM;
+uint64_t g_max_txns_per_thread = MAX_TXNS_PER_THREAD;
 
 UInt32 g_num_wh = NUM_WH;
 double g_perc_payment = PERC_PAYMENT;
 bool g_wh_update = WH_UPDATE;
 char * output_file = NULL;
+char * logging_dir = NULL;
 
 UInt32 g_buffer_size = BUFFER_SIZE;
 

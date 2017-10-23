@@ -34,10 +34,9 @@ class ycsb_txn_man : public txn_man
 public:
 	void init(thread_t * h_thd, workload * h_wl, uint64_t part_id); 
 	RC run_txn(base_query * query);
-	void recover_txn(RecoverState * recover_state);
+	void recover_txn(char * log_record); 
 
-	uint32_t get_cmd_log_size();
-	void get_cmd_log_entry(uint32_t size, char * entry);
+	void get_cmd_log_entry();
 private:
 	ycsb_query * _query;
 	uint64_t row_cnt;

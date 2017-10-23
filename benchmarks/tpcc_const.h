@@ -1,3 +1,18 @@
+#pragma once 
+
+enum TableName {
+	WAREHOUSE,
+	DISTRICT,
+	CUSTOMER,
+	HISTORY,
+	NEWORDER,
+	ORDER,
+	ORDERLINE,
+	ITEM,
+	STOCK,
+	NUM_TABLES
+};
+
 #if TPCC_SMALL 
 enum {
 	W_ID,

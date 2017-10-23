@@ -46,7 +46,7 @@ public:
 	Catalog * get_schema();
 	const char * get_table_name();
 	uint64_t get_field_cnt();
-	uint64_t get_tuple_size();
+	uint32_t get_tuple_size();
 	uint64_t get_row_id() { return _row_id; };
 
 	void copy(row_t * src);
@@ -108,26 +108,21 @@ public:
 	char * data;
 	table_t * table;
 
-	pthread_mutex_t lock;
-#if LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t 		get_last_writer()	
 	{ return _last_writer; };
 	void 			set_last_writer(uint64_t last_writer)	
 	{ _last_writer = last_writer; }
 
-#endif
-
-
+	// txnID of the last writer txn
+	uint64_t 		_last_writer;
+	// TODO assume upto 4 loggers. 
+	//uint64_t		_pred_vector[4];
 
 private:
 	// primary key should be calculated from the data stored in the row.
 	uint64_t 		_primary_key;
 	uint64_t		_part_id;
 	uint64_t 		_row_id;
-#if LOG_ALGORITHM == LOG_PARALLEL
-	// txnID of the last writer txn
-	uint64_t 		_last_writer;
-#endif
 
 #if LOG_ALGORITHM == LOG_PARALLEL && LOG_TYPE == LOG_COMMAND && LOG_RECOVER
 	// for paralle command recovery, should use multi-versioning.
@@ -137,9 +132,10 @@ private:
 		char * data;
 		Version * next;
 	};
-    Version *       _version;
+	Version *       _version;
 	uint32_t 		_num_versions; // for debug 
-    uint64_t min_ts; // the oldest version timestamp of the tuple
+	uint64_t 		_min_ts; // the oldest version timestamp of the tuple
+	uint32_t		_gc_time;
 #endif
 
 };

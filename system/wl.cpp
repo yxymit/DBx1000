@@ -9,7 +9,7 @@
 #include "mem_alloc.h"
 
 RC workload::init() {
-	sim_done = false;
+	sim_done = 0;
 	return RCOK;
 }
 
@@ -19,6 +19,7 @@ RC workload::init_schema(string schema_file) {
 	string line;
 	ifstream fin(schema_file.c_str());
     Catalog * schema;
+	uint32_t table_id = 0;
     while (getline(fin, line)) {
 		if (line.compare(0, 6, "TABLE=") == 0) {
 			string tname;
@@ -61,6 +62,8 @@ RC workload::init_schema(string schema_file) {
 			}
 			table_t * cur_tab = (table_t *) _mm_malloc(sizeof(table_t), CL_SIZE);
 			cur_tab->init(schema);
+			//cur_tab->set_table_id( table_id );
+			table_id ++;
 			tables[tname] = cur_tab;
         } else if (!line.compare(0, 6, "INDEX=")) {
 			string iname;

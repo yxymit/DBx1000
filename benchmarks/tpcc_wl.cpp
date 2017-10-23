@@ -12,6 +12,7 @@
 #include "txn.h"
 #include "mem_alloc.h"
 #include "tpcc_const.h"
+#include "manager.h"
 
 RC tpcc_wl::init() {
 	workload::init();
@@ -41,12 +42,25 @@ RC tpcc_wl::init_schema(string schema_file) {
 	t_item = tables["ITEM"];
 	t_stock = tables["STOCK"];
 
+	for (uint32_t i = 0; i < NUM_TABLES; i ++) {
+		TableName num = (TableName) i;
+		tpcc_tables[num] = tables[ table_num2str(num) ]; 
+		if (tpcc_tables[num])
+			tpcc_tables[num]->set_table_id(num);
+	}
+
 	i_item = indexes["ITEM_IDX"];
 	i_warehouse = indexes["WAREHOUSE_IDX"];
 	i_district = indexes["DISTRICT_IDX"];
 	i_customer_id = indexes["CUSTOMER_ID_IDX"];
 	i_customer_last = indexes["CUSTOMER_LAST_IDX"];
 	i_stock = indexes["STOCK_IDX"];
+
+	t_item->set_primary_index(i_item);
+	t_warehouse->set_primary_index(i_warehouse);
+	t_district->set_primary_index(i_district);
+	t_customer->set_primary_index(i_customer_id);
+	t_stock->set_primary_index(i_stock);
 	return RCOK;
 }
 
@@ -65,8 +79,10 @@ RC tpcc_wl::init_table() {
 //		- new order
 //		- order line
 /**********************************/
-	//tpcc_buffer = new drand48_data * [g_num_wh];
-    tpcc_buffer = new unsigned short * [g_num_wh];
+	C_255 = (uint64_t) URand(0,255);
+	C_1023 = (uint64_t) URand(0,1023);
+	C_8191 = (uint64_t) URand(0,8191);
+
 	pthread_t * p_thds = new pthread_t[g_num_wh - 1];
 	for (uint32_t i = 0; i < g_num_wh - 1; i++) 
 		pthread_create(&p_thds[i], NULL, threadInitWarehouse, this);
@@ -85,7 +101,6 @@ RC tpcc_wl::get_txn_man(txn_man *& txn_manager, thread_t * h_thd) {
 	return RCOK;
 }
 
-// TODO ITEM table is assumed to be in partition 0
 void tpcc_wl::init_tab_item() {
 	for (UInt32 i = 1; i <= g_max_items; i++) {
 		row_t * row;
@@ -147,7 +162,9 @@ void tpcc_wl::init_tab_dist(uint64_t wid) {
 		row_t * row;
 		uint64_t row_id;
 		t_district->get_new_row(row, 0, row_id);
-		row->set_primary_key(did);
+
+		uint64_t key = distKey(did, wid);
+		row->set_primary_key(key);
 		
 		row->set_value(D_ID, did);
 		row->set_value(D_W_ID, wid);
@@ -183,7 +200,7 @@ void tpcc_wl::init_tab_stock(uint64_t wid) {
 		row_t * row;
 		uint64_t row_id;
 		t_stock->get_new_row(row, 0, row_id);
-		row->set_primary_key(sid);
+		row->set_primary_key( stockKey(sid, wid) );
 		row->set_value(S_I_ID, sid);
 		row->set_value(S_W_ID, wid);
 		row->set_value(S_QUANTITY, URand(10, 100, wid-1));
@@ -207,7 +224,7 @@ void tpcc_wl::init_tab_stock(uint64_t wid) {
 		row->set_value(S_ORDER_CNT, 0);
 		char s_data[50];
 		int len = MakeAlphaString(26, 50, s_data, wid-1);
-		if (rand() % 100 < 10) {
+		if (glob_manager->rand_uint64() % 100 < 10) {
 			int idx = URand(0, len - 8, wid-1);
 			strcpy(&s_data[idx], "original");
 		}
@@ -223,7 +240,7 @@ void tpcc_wl::init_tab_cust(uint64_t did, uint64_t wid) {
 		row_t * row;
 		uint64_t row_id;
 		t_customer->get_new_row(row, 0, row_id);
-		row->set_primary_key(cid);
+		row->set_primary_key( custKey(cid, did, wid) );
 
 		row->set_value(C_ID, cid);		
 		row->set_value(C_D_ID, did);
@@ -231,8 +248,11 @@ void tpcc_wl::init_tab_cust(uint64_t did, uint64_t wid) {
 		char c_last[LASTNAME_LEN];
 		if (cid <= 1000)
 			Lastname(cid - 1, c_last);
-		else
+		else {
 			Lastname(NURand(255,0,999,wid-1), c_last);
+//			if (wid == 39 && cid > g_cust_per_dist - 10 && did == 4) 
+//				cout << c_last << endl;
+		}
 		row->set_value(C_LAST, c_last);
 #if !TPCC_SMALL
 		char tmp[3] = "OE";
@@ -390,11 +410,10 @@ void * tpcc_wl::threadInitWarehouse(void * This) {
 	tpcc_wl * wl = (tpcc_wl *) This;
 	int tid = ATOM_FETCH_ADD(wl->next_tid, 1);
 	uint32_t wid = tid + 1;
-	//tpcc_buffer[tid] = (drand48_data *) _mm_malloc(sizeof(drand48_data), 64);
-	tpcc_buffer[tid] = (unsigned short *) _mm_malloc(sizeof(unsigned short) * 3, 64);
+	glob_manager->init_rand(tid);
+	glob_manager->set_thd_id(tid);
 	assert((uint64_t)tid < g_num_wh);
-	//srand48_r(wid, tpcc_buffer[tid]);
-	
+
 	if (tid == 0)
 		wl->init_tab_item();
 	wl->init_tab_wh( wid );

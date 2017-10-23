@@ -17,7 +17,7 @@ void print_usage() {
 	printf("\t-GnINT      ; NO_DL\n");
 	printf("\t-GoINT      ; TIMEOUT\n");
 	printf("\t-GlINT      ; DL_LOOP_DETECT\n");
-	
+	printf("\t-GxINT      ; MAX_TXNS_PER_THREAD\n");	
 	printf("\t-GbINT      ; TS_BATCH_ALLOC\n");
 	printf("\t-GuINT      ; TS_BATCH_NUM\n");
 	
@@ -27,6 +27,7 @@ void print_usage() {
 	printf("\t-LbINT      ; BUFFER_SIZE\n");
 	printf("\t-LrINT      ; LOG_RECOVER\n");
 	printf("\t-LnINT      ; NUM_LOGGER\n");
+	printf("\t-LfINT      ; LOG_NO_FLUSH\n");
 	
 	printf("  [YCSB]:\n");
 	printf("\t-cINT       ; PART_PER_TXN\n");
@@ -100,6 +101,8 @@ void parser(int argc, char * argv[]) {
 				g_ts_batch_alloc = atoi( &argv[i][3] );
 			else if (argv[i][2] == 'u')
 				g_ts_batch_num = atoi( &argv[i][3] );
+			else if (argv[i][2] == 'x')
+				g_max_txns_per_thread = atoi( &argv[i][3] );
 		} else if (argv[i][1] == 'T') {
 			if (argv[i][2] == 'p')
 				g_perc_payment = atof( &argv[i][3] );
@@ -121,6 +124,11 @@ void parser(int argc, char * argv[]) {
 				g_log_recover = (c == '1')? true : false;
 			} else if (argv[i][2] == 'n') 
 				g_num_logger = atoi( &argv[i][3] );
+			else if (argv[i][2] == 'f') { 
+				char c = argv[i][3];
+				assert(c == '0' || c == '1');
+				g_no_flush = (c == '1')? true : false;
+			}
 		}
 		else if (argv[i][1] == 'o') {
 			i++;

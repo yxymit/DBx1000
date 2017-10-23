@@ -19,8 +19,9 @@ Row_silo::init(row_t * row)
 }
 
 RC
-Row_silo::access(txn_man * txn, TsType type, row_t * local_row) {
+Row_silo::access(txn_man * txn, TsType type, char * data) {
 #if ATOMIC_WORD
+	uint64_t pred; 
 	uint64_t v = 0;
 	uint64_t v2 = 1;
 	while (v2 != v) {
@@ -29,14 +30,25 @@ Row_silo::access(txn_man * txn, TsType type, row_t * local_row) {
 			PAUSE
 			v = _tid_word;
 		}
-		local_row->copy(_row);
+		memcpy(data, _row->get_data(), _row->get_tuple_size());
+		//local_row->copy(_row);
+  #if LOG_ALGORITHM != LOG_NO
+		pred = _row->get_last_writer();
+  #endif
 		COMPILER_BARRIER
 		v2 = _tid_word;
-	} 
+	}
 	txn->last_tid = v & (~LOCK_BIT);
+  #if LOG_ALGORITHM == LOG_PARALLEL
+    if (pred != (uint64_t)-1)
+		txn->add_pred( pred, (type == R_REQ)? RAW : WAW);
+  #elif LOG_ALGORITHM == LOG_SERIAL
+  	txn->update_lsn(pred);
+  #endif
 #else 
 	lock();
-	local_row->copy(_row);
+	memcpy(data, _row->get_data(), _row->get_tuple_size());
+	//local_row->copy(_row);
 	txn->last_tid = _tid;
 	release();
 #endif
@@ -68,12 +80,15 @@ Row_silo::validate(ts_t tid, bool in_write_set) {
 }
 
 void
-Row_silo::write(row_t * data, uint64_t tid) {
+Row_silo::write(char * data, uint64_t tid) {
 	_row->copy(data);
 #if ATOMIC_WORD
-	uint64_t v = _tid_word;
-	M_ASSERT(tid > (v & (~LOCK_BIT)) && (v & LOCK_BIT), "tid=%ld, v & LOCK_BIT=%ld, v & (~LOCK_BIT)=%ld\n", tid, (v & LOCK_BIT), (v & (~LOCK_BIT)));
-	_tid_word = (tid | LOCK_BIT); 
+	//uint64_t v = _tid_word;
+	//M_ASSERT(tid >= (v & (~LOCK_BIT)) && (v & LOCK_BIT), "tid=%ld, v & LOCK_BIT=%ld, v & (~LOCK_BIT)=%ld\n", tid, (v & LOCK_BIT), (v & (~LOCK_BIT)));
+	_tid_word = (tid | LOCK_BIT);
+  #if LOG_ALGORITHM != NO_LOG
+    _row->set_last_writer(tid);
+  #endif
 #else
 	_tid = tid;
 #endif

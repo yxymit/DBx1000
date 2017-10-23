@@ -6,6 +6,8 @@
 #include "manager.h"
 #include "mem_alloc.h"
 
+#if CC_ALG == DL_DETECT
+
 /********************************************************/
 // The current txn aborts itself only if it holds less
 // locks than all the other txns on the loop. 
@@ -134,8 +136,9 @@ DL_detect::detect_cycle(uint64_t txnid) {
 	mem_allocator.free(detect_data->visited, sizeof(bool)*V);
 	mem_allocator.free(detect_data->recStack, sizeof(bool)*V);
 	mem_allocator.free(detect_data, sizeof(DetectData));
-	uint64_t timespan = get_sys_clock() - starttime;
-	INC_GLOB_STATS(dl_detect_time, timespan);
+	// XXX XXX
+	//uint64_t timespan = get_sys_clock() - starttime;
+	//INC_GLOB_STATS(dl_detect_time, timespan);
 	if (deadlock) return 1;
 	else return 0;
 }
@@ -153,3 +156,4 @@ void DL_detect::clear_dep(uint64_t txnid) {
 	pthread_mutex_unlock( &dependency[thd].lock );
 }
 
+#endif

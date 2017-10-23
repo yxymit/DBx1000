@@ -3,6 +3,7 @@
 
 #include "wl.h"
 #include "txn.h"
+#include "tpcc_const.h"
 
 class table_t;
 class INDEX;
@@ -36,6 +37,8 @@ public:
 	
 	bool ** delivering;
 	uint32_t next_tid;
+	
+	map<TableName, table_t *> tpcc_tables;
 private:
 	uint64_t num_wh;
 	void init_tab_item();
@@ -64,6 +67,8 @@ class tpcc_txn_man : public txn_man
 public:
 	void init(thread_t * h_thd, workload * h_wl, uint64_t part_id); 
 	RC run_txn(base_query * query);
+	
+	void get_cmd_log_entry();
 private:
 	tpcc_wl * _wl;
 	RC run_payment(tpcc_query * m_query);
@@ -71,6 +76,11 @@ private:
 	RC run_order_status(tpcc_query * query);
 	RC run_delivery(tpcc_query * query);
 	RC run_stock_level(tpcc_query * query);
+
+	tpcc_query * _query; 	
+	TPCCTxnType	_txn_type;
+
+	void 	recover_txn(RecoverState * recover_state);
 };
 
 #endif

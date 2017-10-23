@@ -39,13 +39,13 @@ RC thread_t::run() {
 		mem_allocator.register_thread(_thd_id);
 	}
 	pthread_barrier_wait( &warmup_bar );
-	stats.init(get_thd_id());
+	//stats.init(get_thd_id());
 	pthread_barrier_wait( &warmup_bar );
 
 	set_affinity(get_thd_id());
 
-	myrand rdm;
-	rdm.init(get_thd_id());
+	//myrand rdm;
+	//rdm.init(get_thd_id());
 	RC rc = RCOK;
 	txn_man * m_txn;
 	rc = _wl->get_txn_man(m_txn, this);
@@ -58,7 +58,9 @@ RC thread_t::run() {
 
 	if (g_log_recover) {
         //if (get_thd_id() == 0)
+		uint64_t starttime = get_sys_clock();
 		m_txn->recover();
+		INC_FLOAT_STATS(run_time, get_sys_clock() - starttime);
 		return FINISH;
 	}
 
@@ -161,16 +163,20 @@ RC thread_t::run() {
 
 		ts_t endtime = get_sys_clock();
 		uint64_t timespan = endtime - starttime;
-		INC_STATS(get_thd_id(), run_time, timespan);
-		
+		INC_FLOAT_STATS(run_time, timespan);
+		// running for more than 1000 seconds.
+//		if (stats._stats[GET_THD_ID]->run_time > 1000UL * 1000 * 1000 * 1000) {	
+//			cerr << "Running too long" << endl;
+//			exit(0);
+//		}
 		if (rc == RCOK) {
-			INC_STATS(get_thd_id(), txn_cnt, 1);
-			stats.commit(get_thd_id());
+			INC_INT_STATS(num_commits, 1);
 			txn_cnt ++;
 		} else if (rc == Abort) {
 			INC_STATS(get_thd_id(), time_abort, timespan);
-			INC_STATS(get_thd_id(), abort_cnt, 1);
-			stats.abort(get_thd_id());
+			//INC_STATS(get_thd_id(), abort_cnt, 1);
+			INC_INT_STATS(num_aborts, 1);
+			//stats.abort(get_thd_id());
 			m_txn->abort_cnt ++;
 		}
 
@@ -178,16 +184,17 @@ RC thread_t::run() {
 			return rc;
 		if (!warmup_finish && txn_cnt >= WARMUP / g_thread_cnt) 
 		{
-			stats.clear( get_thd_id() );
+			//stats.clear( get_thd_id() );
 			return FINISH;
 		}
 
-		if (warmup_finish && txn_cnt >= MAX_TXN_PER_PART) {
-			assert(txn_cnt == MAX_TXN_PER_PART);
-	        if( !ATOM_CAS(_wl->sim_done, false, true) )
-				assert( _wl->sim_done);
+		if (warmup_finish && txn_cnt >= g_max_txns_per_thread) {
+			assert(txn_cnt == g_max_txns_per_thread);
+	        ATOM_ADD_FETCH(_wl->sim_done, 1);
+			return FINISH;
 	    }
-	    if (_wl->sim_done) {
+	    if (_wl->sim_done > 0) {
+	        ATOM_ADD_FETCH(_wl->sim_done, 1);
    		    return FINISH;
    		}
 	}

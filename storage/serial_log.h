@@ -11,13 +11,16 @@ class SerialLogManager
     ~SerialLogManager();
     void init();
 
+	bool tryFlush();
+	uint64_t get_persistent_lsn(); 
+	
 	// For logging
-    void serialLogTxn(char * log_entry, uint32_t entry_size); 
+    uint64_t serialLogTxn(char * log_entry, uint32_t entry_size); 
 	// For recovery 
     void readFromLog(char * &entry);
     static volatile uint32_t num_files_done; 
+	static volatile uint64_t ** num_txns_recovered;
   private:
-    static uint64_t _serial_lsn;
     pthread_mutex_t lock;
 	LogManager ** _logger;
 };

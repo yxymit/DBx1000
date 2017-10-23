@@ -1,6 +1,8 @@
 #include "batch_log.h"
 #include "log.h"
 
+#if LOG_ALGORITHM == LOG_BATCH
+
 void BatchLog::init()
 {
     _num_loggers = 4;
@@ -68,3 +70,5 @@ BatchLog::logTxn( uint64_t txn_id, uint32_t num_keys, string * table_names, uint
     return;
 */
 }
+
+#endif

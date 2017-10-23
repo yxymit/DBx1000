@@ -18,6 +18,7 @@ void ycsb_query::init(uint64_t thd_id, workload * h_wl, Query_thd * query_thd) {
 	assert(the_n != 0);
 	assert(denom != 0);
 	gen_requests(thd_id, h_wl);
+	_stored_procedure_id = 0;
 }
 
 void 

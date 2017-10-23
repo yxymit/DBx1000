@@ -2,6 +2,8 @@
 
 #include "global.h"
 
+using namespace std;
+
 class workload;
 class base_query;
 

@@ -184,7 +184,7 @@ RC OptCC::get_rw_set(txn_man * txn, set_ent * &rset, set_ent *& wset) {
 	rset->txn = txn;
 
 	UInt32 n = 0, m = 0;
-	for (int i = 0; i < txn->row_cnt; i++) {
+	for (uint32_t i = 0; i < txn->row_cnt; i++) {
 		if (txn->accesses[i]->type == WR)
 			wset->rows[n ++] = txn->accesses[i]->orig_row;
 		else 

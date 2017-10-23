@@ -25,13 +25,15 @@ row_t::init(table_t * host_table, uint64_t part_id, uint64_t row_id) {
 	int tuple_size = schema->get_tuple_size();
 	data = (char *) _mm_malloc(sizeof(char) * tuple_size, 64);
 #if LOG_ALGORITHM == LOG_PARALLEL
-	_last_writer = 0; //glob_manager->rand_uint64() % LOG_PARALLEL_NUM_BUCKETS;
-  #if LOG_TYPE == LOG_COMMAND && LOG_RECOVER
-	_version = NULL;
-	_num_versions = 0;
-	min_ts = 0; 
-  #endif
-	pthread_mutex_init(&lock, NULL);
+	_last_writer = (uint64_t)-1;
+//	for (uint32_t i = 0; i < 4; i++)
+//		_pred_vector[i] = 0;
+//  #if LOG_TYPE == LOG_COMMAND && LOG_RECOVER
+//	_version = NULL;
+//	_num_versions = 0;
+//	_min_ts = UINT64_MAX; 
+//	_gc_time = 0;
+//#endif
 #endif
 	return RCOK;
 }
@@ -39,7 +41,6 @@ void
 row_t::init(int size) 
 {
 	data = (char *) _mm_malloc(size, 64);
-	pthread_mutex_init(&lock, NULL);
 }
 
 RC 
@@ -83,7 +84,8 @@ Catalog * row_t::get_schema() {
 const char * row_t::get_table_name() { 
 	return get_table()->get_table_name(); 
 };
-uint64_t row_t::get_tuple_size() {
+uint32_t 
+row_t::get_tuple_size() {
 	return get_schema()->get_tuple_size();
 }
 
@@ -147,71 +149,73 @@ row_t::set_value(Catalog * schema, uint32_t col_id, char * data, char * value)
 char * 
 row_t::get_data(txn_man * txn, access_t type) 
 {
-#if LOG_ALGORITHM == LOG_PARALLEL && LOG_TYPE == LOG_COMMAND && LOG_RECOVER
-	// TODO
-	// for paralle command recovery, should use multi-versioning.
-	// if type == RD, return the correct version. 
-	// else if type == WR, create a new version (value copied from the previous version) 
-	// Predecessor information can be accessed using txn->getPredecessorInfo();
-	pthread_mutex_lock(&lock);
+/*#if LOG_ALGORITHM == LOG_PARALLEL && LOG_TYPE == LOG_COMMAND && LOG_RECOVER
+	char * ret_data = data;
+	Version * first_delete = NULL;
+	// No need to latch the tuple.
+	// Because no conflicts occur during recover, 
 	if(type == RD) {
-		char * ret_data = data;
 		Version * cur_version = _version;
-		ts_t txn_ts = txn->get_ts();
+		ts_t txn_ts = txn->get_recover_state()->commit_ts;
 		
 		while(cur_version && cur_version->ts > txn_ts) 
 			cur_version = cur_version->next;
 		if (cur_version)
 			ret_data = cur_version->data;
-		pthread_mutex_unlock(&lock);
-		return ret_data;
 	} else if(type == WR) {
 		// TODO. reuse versions through the freequeue
 		Version * new_version = (Version *) _mm_malloc(sizeof(Version) + get_tuple_size(), 64);
 		new_version->data = (char *)((uint64_t)new_version + sizeof(Version));
 		new_version->next = _version;
-		new_version->txn_id = txn->get_txn_id();
+		new_version->txn_id = txn->get_recover_state()->txn_id;
 		new_version->ts = txn->get_recover_state()->commit_ts;
+//	uint64_t tt = get_sys_clock();
 		if(_version) { 
 			memcpy(new_version->data, _version->data, get_tuple_size());
 			M_ASSERT(new_version->ts > _version->ts, 
-					"new_version->ts=%ld, _version->ts=%ld\n", 
-					new_version->ts, _version->ts);
+					"new_version->ts=%ld (txn=%ld), _version->ts=%ld (txn=%ld) \n", 
+					new_version->ts, new_version->txn_id, _version->ts, _version->txn_id);
+			if (_version->next == NULL)
+				_min_ts = new_version->ts;
+//	INC_STATS(GET_THD_ID, debug9, get_sys_clock() - tt);
 		} else {
 			memcpy(new_version->data, this->data, get_tuple_size());
-			min_ts = new_version->ts;
+//	INC_STATS(GET_THD_ID, debug8, get_sys_clock() - tt);
 		}
 		_version = new_version;
 		
 		// If the oldest version of tuple is older than fence, garbage collect
-		if(min_ts < glob_manager->get_min_ts()) {
+		if(_min_ts < glob_manager->get_min_ts()) {
+			_gc_time ++;
 			uint64_t fence_ts = glob_manager->get_min_ts();
 			Version * cur_version = _version;
-			//Version * justbefore = NULL;
-            // first while loop find the youngest before ts
-            while(cur_version && cur_version->ts > fence_ts) 
+            while(cur_version && cur_version->ts >= fence_ts) {
+				if (cur_version->next)
+					_min_ts = cur_version->ts;
                 cur_version = cur_version->next;
-			
-			if (cur_version)
-				cur_version = cur_version->next;
-			
-			if (cur_version) {
-				// delete everyting after cur_version
-				while(cur_version->next) {
-                	Version * del_version = cur_version->next;
-					cur_version->next = cur_version->next->next;
-                    _mm_free(del_version);
-                }
 			}
+			
+			assert(cur_version && cur_version->next);	
+			first_delete = cur_version->next;
+			cur_version->next = NULL;
+			data = NULL;
 		}
-		pthread_mutex_unlock(&lock);
-		return _version->data;
+		ret_data = _version->data;
 	} 
-	assert(false);
-	return NULL;
-#else
+	if (first_delete) {
+		// delete everyting after and including dirst_delete
+		Version * cur_version = first_delete;
+		while(cur_version) {
+           	Version * del_version = cur_version;
+			cur_version = cur_version->next;
+            _mm_free(del_version);
+		}
+	}
+	assert(ret_data);
+	return ret_data;
+#else*/
 	return data; 
-#endif
+//#endif
 }
 
 char * 

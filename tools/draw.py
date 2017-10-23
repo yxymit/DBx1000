@@ -49,7 +49,7 @@ lineconfig['All Opts'] = "ls='%s', lw=3, color='%s', marker='%s', ms=8, markered
 # data[linename][x index] 
 def draw_line(fname, data, xlabels, 
 		bbox=(0.9,0.9), ncol=1, 
-		ylab='Throughput', logscale=False, 
+		ylab='Throughput (Million txn/s)', logscale=False, 
 		ylimit=0, xlimit=None, xlab='Thread Count',
 		legend=True, linenames = None, figsize=(5, 2.5), vline=None, 
 		top=None, bottom=0.18, left=0.2, right=0.95) :
@@ -87,7 +87,7 @@ def draw_line(fname, data, xlabels,
 	plt.gca().set_ylim(bottom=0)
 	ylabel(ylab)
 	xlabel(xlab)
-	ticklabel_format(axis='y', style='sci', scilimits=(-3,5), size=20)
+	ticklabel_format(axis='y', style='sci', scilimits=(6,10), size=20)
 	if legend :
 		legend_names = linenames #[x.replace('_', '\_') for x in linenames]
 		fig.legend(lines, legend_names, loc='right', prop={'size':11}, ncol=ncol, bbox_to_anchor=bbox)
@@ -107,6 +107,58 @@ def draw_line(fname, data, xlabels,
 
 	savefig('figs/' + fname +'.pdf')#, bbox_inches='tight')
 	close(fig)
+
+
+# data[linename][x index]
+def draw_errorbar(fname, data, error, xlabels,
+        bbox=(0.9,0.95), ncol=2,
+        ylab='Throughput', logscale=False,
+        ylimit=0, xlimit=None, xlab='# of nodes',
+        legend=True, linenames = None, figsize=(5, 4), vline=None,
+        top=0.95, bottom=0.18, left=0.13, right=0.95) :
+    fig = figure(figsize=figsize)
+    thr = [0] * len(xlabels)
+    lines = [0] * len(data)
+    n = 0
+    if linenames == None :
+        linenames = sorted(data.keys())
+    for key in linenames:
+        intlab = [float(x) for x in xlabels]
+        style = ''
+        #if key in lineconfig.keys():
+        #    style = lineconfig[key]
+        #pattern = re.compile(".*rperc0.*_theta0.*")
+        #exec "lines[n], = errorbar(intlab, data[key], error[key], %s)" % style
+        #exec "errorbar(intlab, data[key], error[key], %s)" % style
+        lines[n] = errorbar(intlab, data[key], error[key])
+        n += 1
+    if ylimit != 0:
+        ylim(ylimit)
+    if xlimit != None:
+        xlim(xlimit)
+    plt.locator_params(nbins=6)
+    plt.gca().set_ylim(bottom=0)
+    ylabel(ylab)
+    xlabel(xlab)
+    ticklabel_format(axis='y', style='sci', scilimits=(-3,5), size=20)
+    if legend :
+        legend_names = linenames #[x.replace('_', '\_') for x in linenames]
+        fig.legend(lines, legend_names, loc='right', prop={'size':11}, ncol=ncol, bbox_to_anchor=bbox)
+    subplots_adjust(left=left, bottom=bottom, right=right, top=top)
+    ax = plt.axes()
+    #ax.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1f'))
+    axes = ax.get_axes()
+    axes.yaxis.grid(True,
+                    linestyle='-',
+                    which='major',
+                    color='0.75'
+    )
+    ax.set_axisbelow(True)
+    if vline != None:
+        fill_between([40,80], 0, ax.get_ylim()[1], facecolor='gray', alpha=0.3, edgecolor="none")
+
+    savefig('figs/' + fname +'.pdf')#, bbox_inches='tight')
+    close(fig)
 
 def draw_bar(filename, data, label, names=None, dots=None, 
 		ylabel='Norm. Thrput.', xlabel='', rotation=0, logscale=False,

@@ -1,15 +1,15 @@
 //size, type, name
 TABLE=MAIN_TABLE
-	10,string,F0
-	10,string,F1
-	10,string,F2
-	10,string,F3
-	10,string,F4
-	10,string,F5
-	10,string,F6
-	10,string,F7
-	10,string,F8
-	10,string,F9
+	100,string,F0
+	100,string,F1
+	100,string,F2
+	100,string,F3
+	100,string,F4
+	100,string,F5
+	100,string,F6
+	100,string,F7
+	100,string,F8
+	100,string,F9
 
 INDEX=MAIN_INDEX
 MAIN_TABLE,0

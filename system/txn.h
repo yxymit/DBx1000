@@ -23,8 +23,6 @@ public:
 	access_t 	type;
 	row_t * 	orig_row;
 	char * 		data;
-	//row_t * 	data;
-	//row_t * 	orig_data;
 	char * 		orig_data;
 	void cleanup();
 #if CC_ALG == TICTOC
@@ -75,10 +73,11 @@ public:
 	RC 				finish(RC rc);
 	RC 				cleanup(RC rc);
 #if CC_ALG == TICTOC
-	ts_t 			get_max_wts() 	{ return _max_wts; }
+	uint64_t 		get_max_wts() 	{ return _max_wts; }
 	void 			update_max_wts(ts_t max_wts);
-	ts_t 			last_wts;
-	ts_t 			last_rts;
+	uint64_t 		get_commit_ts() { return _commit_ts; }
+	uint64_t 		last_wts;
+	uint64_t 		last_rts;
 #elif CC_ALG == SILO
 	ts_t 			last_tid;
 #endif
@@ -87,9 +86,10 @@ public:
 	uint64_t 		start_ts;
 	uint64_t 		end_ts;
 	// following are public for OCC
-	int 			row_cnt;
-	int	 			wr_cnt;
+	uint32_t 		row_cnt;
+	uint32_t		wr_cnt;
 	Access **		accesses;
+	uint32_t * 		write_set;		// store indexes to accesses for writes 
 	int 			num_accesses_alloc;
 
 	// For VLL
@@ -106,6 +106,7 @@ public:
 
 	// Stats
 	void 			set_start_time(uint64_t time) { _txn_start_time = time; }
+	uint64_t 		get_start_time() { return _txn_start_time; }
 
 protected:	
 	void 			insert_row(row_t * row, table_t * table);
@@ -141,27 +142,77 @@ private:
 ////////////////////////////////////////////////////
 // Logging 
 ////////////////////////////////////////////////////
+public:
+#if LOG_ALGORITHM == LOG_PARALLEL
+	void add_pred(uint64_t pred_tid, DepType type) {
+		if (type == RAW)
+			_raw_preds[_num_raw_preds ++] = pred_tid;
+		else if (type == WAW)
+			_waw_preds[_num_waw_preds ++] = pred_tid;
+	};
+#elif LOG_ALGORITHM == LOG_SERIAL
+	void update_lsn(uint64_t lsn) {
+		if (lsn > _max_lsn)
+			_max_lsn = lsn;
+	}
+#endif
 protected:	
-	virtual uint32_t get_cmd_log_size() { assert(false); }
-	virtual void 	get_cmd_log_entry(uint32_t size, char * entry) { assert(false); }
-	virtual void 	recover_txn(RecoverState * recover_state) { assert(false); }
+	//virtual uint32_t get_cmd_log_size() { assert(false); }
+	virtual void 	get_cmd_log_entry() { assert(false); }
+	virtual void 	recover_txn(char * log_entry)  { assert(false); }
+	//RecoverState * recover_state) { assert(false); }
+	uint32_t 		_log_entry_size;
+	char * 			_log_entry;
 
 private:
 	uint32_t 		get_log_entry_size();
-	void 			create_log_entry(uint32_t size, char * entry);
+	// log entry stored in _log_entry_size, and _log_entry.
+	void 			create_log_entry();
 	
-	uint32_t 		_log_entry_size;
+#if LOG_ALGORITHM == LOG_PARALLEL
+	uint32_t _num_raw_preds; 
+	uint32_t _num_waw_preds; 
+	uint64_t _raw_preds[MAX_ROW_PER_TXN];
+	uint64_t _waw_preds[MAX_ROW_PER_TXN];
+#elif LOG_ALGORITHM == LOG_SERIAL
+	// For serial logging, we only maintain the max_lsn seen by the transaction.
+	// this is an ELR technique from the following paper.
+	// Kimura, Hideaki, Goetz Graefe, and Harumi A. Kuno. 
+	// "Efficient locking techniques for databases on modern hardware." ADMS@ VLDB. 2012.
+	uint64_t _max_lsn;
+#endif
+
+
+	//void * _txn_node;
+	struct TxnState {
+	#if LOG_ALGORITHM == LOG_SERIAL
+		uint64_t max_lsn;	// the LSN
+	#elif LOG_ALGORITHM == LOG_PARALLEL
+		// preds is only used to determine when the transaction can commit. 
+		// preds includes all predecessors, both RAW and WAW.
+		// preds is stored in a compressed form, where only the max LSN is stored for each logger.
+		uint64_t preds[NUM_LOGGER]; 
+	#endif
+		uint64_t start_time;
+		uint64_t wait_start_time;
+	};
+	// Per-thread pending transactions waiting to commit 
+	queue<TxnState> ** _txn_state_queue;
+
 #if LOG_ALGORITHM == LOG_SERIAL
 	void 			serial_recover();
 	void 			serial_recover_from_log_entry(char * entry);
-
+	
 #elif LOG_ALGORITHM == LOG_PARALLEL
 	void 			parallel_recover();
-	void 			parallel_recover_from_log_entry(char * entry, 
-										   RecoverState * recover_state, ts_t commit_ts);
+	void 			parallel_recover_from_log_entry(char * entry, RecoverState * recover_state);
+	uint64_t 		get_txn_id_from_entry(char * entry);
+
 	PredecessorInfo * _predecessor_info;
 public:
 	uint64_t		last_writer;
+	uint64_t 		pred_vector[4];
+	uint64_t 		aggregate_pred_vector[4];
 	PredecessorInfo * getPredecessorInfo() { return _predecessor_info; }
   #if LOG_TYPE == LOG_COMMAND
 	RecoverState * _recover_state;

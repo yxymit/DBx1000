@@ -107,10 +107,7 @@ txn_man::validate_tictoc()
 	}
 
 #if LOG_ALGORITHM == LOG_PARALLEL
-	// computet the log entry size.
-	//tt = get_sys_clock();
 	_log_entry_size = get_log_entry_size();
-	//INC_STATS(get_thd_id(), debug1, get_sys_clock() - tt);
 #endif
 
 #if WR_VALIDATION_SEPARATE 
@@ -253,6 +250,7 @@ final:
 		if (wr_cnt > 0) {
 			uint64_t lsn = 0;
 			assert(_log_entry_size > 0);
+			uint64_t tt = get_sys_clock();
 			bool success = log_manager->allocateLogEntry(lsn, _log_entry_size, _predecessor_info, commit_wts);
 			if (!success) {
 				assert(LOG_TYPE == LOG_COMMAND);
@@ -260,7 +258,23 @@ final:
 				rc = Abort;
 				goto final;
 			}
-			txn_id = lsn * g_num_logger + GET_THD_ID % g_num_logger;
+			uint32_t logger_id = GET_THD_ID % g_num_logger;
+			txn_id = lsn * g_num_logger + logger_id;
+
+			assert(lsn >= aggregate_pred_vector[logger_id]);
+			aggregate_pred_vector[logger_id] = lsn;
+			INC_STATS(GET_THD_ID, time_log, get_sys_clock() - tt);
+			
+/*			uint32_t num_preds = _predecessor_info->num_raw_preds();
+			uint64_t raw_preds[ num_preds ];
+			
+			_predecessor_info->get_raw_preds(raw_preds);
+			INC_STATS(GET_THD_ID, debug1, get_sys_clock() - tt);
+			
+			uint64_t t1 = get_sys_clock();
+			_txn_node = log_pending_table->add_log_pending( this, raw_preds, num_preds);
+			INC_STATS(get_thd_id(), debug5, get_sys_clock() - t1);
+*/
 		}
 #endif
 		// update 
@@ -270,16 +284,14 @@ final:
 		}
 		_commit_ts = commit_wts;
 
-		if (_write_copy_ptr) {
-			assert(false);
-		} else {
+		assert(!_write_copy_ptr);
 #if WR_VALIDATION_SEPARATE 
-			for (int i = 0; i < wr_cnt; i++) {
-				Access * access = accesses[ write_set[i] ];
-				access->orig_row->manager->write_data( 
-					access->data, commit_wts, this);
-				access->orig_row->manager->release();
-			}
+		for (int i = 0; i < wr_cnt; i++) {
+			Access * access = accesses[ write_set[i] ];
+			access->orig_row->manager->write_data( 
+				access->data, commit_wts, this);
+			access->orig_row->manager->release();
+		}
 #else 
 //			for (int i = 0; i < row_cnt; i++) {
 //				Access * access = accesses[ i ];
@@ -288,13 +300,11 @@ final:
 //				access->orig_row->manager->release();
 //			}
 #endif
-		}
 		if (g_prt_lat_distr)
 			stats.add_debug(get_thd_id(), commit_wts, 2);
 
-		uint64_t tt = get_sys_clock();
+		//uint64_t tt = get_sys_clock();
 		rc = cleanup(rc);
-		INC_STATS(get_thd_id(), debug1, get_sys_clock() - tt);
 		if (_atomic_timestamp && rc == RCOK) {
 			ts_t ts = glob_manager->get_ts(get_thd_id());
 			if (g_prt_lat_distr)

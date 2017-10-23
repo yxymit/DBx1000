@@ -7,8 +7,10 @@ args_mapping = {
 	"QUERY_INTVL" 		: "-q",
 	"PRT_LAT_DISTR" 	: "-d",
 	"output file"		: "-o ",
+	"MAX_TXNS_PER_THREAD" : "-Gx",
 	# LOG
 	"NUM_LOGGER"		: "-Ln", 
+	"LOG_NO_FLUSH"		: "-Lf",
 	# YCSB
 	"READ_PERC"			: "-r",
 	"WRITE_PERC" 		: "-w",

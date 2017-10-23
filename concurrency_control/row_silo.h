@@ -11,10 +11,10 @@ struct TsReqEntry;
 class Row_silo {
 public:
 	void 				init(row_t * row);
-	RC 					access(txn_man * txn, TsType type, row_t * local_row);
+	RC 					access(txn_man * txn, TsType type, char * data);
 	
 	bool				validate(ts_t tid, bool in_write_set);
-	void				write(row_t * data, uint64_t tid);
+	void				write(char * data, uint64_t tid);
 	
 	void 				lock();
 	void 				release();

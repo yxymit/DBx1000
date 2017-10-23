@@ -24,8 +24,8 @@ public:
 	};
 
 	UInt64 id;
-	UInt32 size;
-	UInt32 index;
+	uint32_t size;
+	uint32_t index;
 	char * type;
 	char * name;
 	char pad[CL_SIZE - sizeof(uint64_t)*3 - sizeof(char *)*2];
@@ -38,10 +38,10 @@ public:
 	void init(const char * table_name, int field_cnt);
 	void add_col(char * col_name, uint64_t size, char * type);
 
-	UInt32 			field_cnt;
+	uint32_t 			field_cnt;
  	const char * 	table_name;
 	
-	UInt32 			get_tuple_size() { return tuple_size; };
+	uint32_t 		get_tuple_size() { return tuple_size; };
 	
 	uint64_t 		get_field_cnt() { return field_cnt; };
 	uint64_t 		get_field_size(int id) { return _columns[id].size; };
@@ -54,6 +54,6 @@ public:
 
 	void 			print_schema();
 	Column * 		_columns;
-	UInt32 			tuple_size;
+	uint32_t 			tuple_size;
 };
 

@@ -25,7 +25,7 @@
 
 #define COMPILER_BARRIER asm volatile("" ::: "memory");
 //#define PAUSE { __asm__ ( "pause;" ); }
-#define PAUSE usleep(1);
+#define PAUSE __asm__( "pause;" );
 
 /************************************************/
 // ASSERT Helper
@@ -88,17 +88,34 @@
 // STATS helper
 /************************************************/
 #define INC_STATS(tid, name, value) \
-	if (STATS_ENABLE) \
-		stats._stats[tid]->name += value;
+	;
 
 #define INC_TMP_STATS(tid, name, value) \
-	if (STATS_ENABLE) \
-		stats.tmp_stats[tid]->name += value;
-
+	; 
+	
 #define INC_GLOB_STATS(name, value) \
-	if (STATS_ENABLE) \
-		stats.name += value;
+	;
 
+#define INC_FLOAT_STATS(name, value) {{ \
+	if (STATS_ENABLE) \
+		stats->_stats[GET_THD_ID]->_float_stats[STAT_##name] += value; }}
+
+#define INC_INT_STATS(name, value) {{ \
+	if (STATS_ENABLE) \
+		stats->_stats[GET_THD_ID]->_int_stats[STAT_##name] += value; }}
+
+/*#define INC_STATS(tid, name, value) { \
+	if (STATS_ENABLE) \
+		stats._stats[tid]->name += value; }
+
+#define INC_TMP_STATS(tid, name, value) { \
+	if (STATS_ENABLE) \
+		stats.tmp_stats[tid]->name += value; }
+
+#define INC_GLOB_STATS(name, value) {\
+	if (STATS_ENABLE) \
+		stats.name += value;}
+*/
 /************************************************/
 // malloc helper
 /************************************************/
@@ -142,8 +159,30 @@
 		*name[i] = value; \
 
 #define MALLOC_CONSTRUCTOR(type, var) \
-	var = (type *) _mm_malloc(sizeof(type), 64); \
-	new(var) type();
+	{var = (type *) _mm_malloc(sizeof(type), 64); \
+	new(var) type();}
+
+
+/////////////////////////////
+// packatize helper 
+/////////////////////////////
+#define PACK(buffer, var, offset) {\
+	memcpy(buffer + offset, &var, sizeof(var)); \
+	offset += sizeof(var); \
+}
+#define PACK_SIZE(buffer, ptr, size, offset) {\
+    if (size > 0) {\
+		memcpy(buffer + offset, ptr, size); \
+		offset += size; }}
+
+#define UNPACK(buffer, var, offset) {\
+	memcpy(&var, buffer + offset, sizeof(var)); \
+	offset += sizeof(var); \
+}
+#define UNPACK_SIZE(buffer, ptr, size, offset) {\
+    if (size > 0) {\
+		memcpy(ptr, buffer + offset, size); \
+		offset += size; }} 
 
 enum Data_type {DT_table, DT_page, DT_row };
 
@@ -220,13 +259,13 @@ private:
 
 inline void set_affinity(uint64_t thd_id) {
 	return;
-	/*
 	// TOOD. the following mapping only works for swarm
 	// which has 4-socket, 10 physical core per socket, 
 	// 80 threads in total with hyper-threading
-	uint64_t a = thd_id % 40;
-	uint64_t processor_id = a / 10 + (a % 10) * 4;
-	processor_id += (thd_id / 40) * 40;
+	/*uint64_t processor_id = thd_id;
+	//uint64_t a = thd_id % 40;
+	//uint64_t processor_id = a / 10 + (a % 10) * 4;
+	//processor_id += (thd_id / 40) * 40;
 	
 	cpu_set_t  mask;
 	CPU_ZERO(&mask);
@@ -234,3 +273,6 @@ inline void set_affinity(uint64_t thd_id) {
 	sched_setaffinity(0, sizeof(cpu_set_t), &mask);
 	*/
 }
+
+uint64_t hash64(uint64_t x);
+

@@ -17,6 +17,7 @@ void tpcc_query::init(uint64_t thd_id, workload * h_wl) {
 }
 
 void tpcc_query::gen_payment(uint64_t thd_id) {
+	_stored_procedure_id = TPCC_PAYMENT;
 	type = TPCC_PAYMENT;
 	if (FIRST_PART_LOCAL)
 		w_id = thd_id % g_num_wh + 1;
@@ -61,6 +62,7 @@ void tpcc_query::gen_payment(uint64_t thd_id) {
 }
 
 void tpcc_query::gen_new_order(uint64_t thd_id) {
+	_stored_procedure_id = TPCC_PAYMENT;
 	type = TPCC_NEW_ORDER;
 	if (FIRST_PART_LOCAL)
 		w_id = thd_id % g_num_wh + 1;
@@ -68,7 +70,7 @@ void tpcc_query::gen_new_order(uint64_t thd_id) {
 		w_id = URand(1, g_num_wh, thd_id % g_num_wh);
 	d_id = URand(1, DIST_PER_WARE, w_id-1);
 	c_id = NURand(1023, 1, g_cust_per_dist, w_id-1);
-	rbk = URand(1, 100, w_id-1);
+	//rbk = URand(1, 100, w_id-1);
 	ol_cnt = URand(5, 15, w_id-1);
 	o_entry_d = 2013;
 	items = (Item_no *) _mm_malloc(sizeof(Item_no) * ol_cnt, 64);

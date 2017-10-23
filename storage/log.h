@@ -2,12 +2,20 @@
 
 #include "global.h"
 #include "pthread.h"
-
+#include "helper.h"
+#include "ramdisk.h"
 class PredecessorInfo;
+class RamDisk;
 
-struct buffer_entry {
-	char * data;
-	int size;
+//struct buffer_entry {
+//	char * data;
+//	int size;
+//};
+
+enum LogEntryType {
+	LOG_UPDATE,
+	LOG_INSERT,
+	LOG_DELETE
 };
 
 class RecoverState {
@@ -20,7 +28,6 @@ public:
 #if LOG_TYPE == LOG_DATA
 	uint32_t num_keys;
 	uint32_t * table_ids;
-	//string * table_names;
 	uint64_t * keys; 
 	uint32_t * lengths;
 	char ** after_image;
@@ -28,87 +35,102 @@ public:
 	char * cmd;	 
   #if LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t commit_ts; 
-	PredecessorInfo * _predecessor_info; 
-	bool is_fence;
-	uint64_t thd_id;
   #endif 
 #endif
 
 #if LOG_ALGORITHM == LOG_PARALLEL
+	uint64_t thd_id;
 	void * txn_node;
+	void * gc_entry; // GCQEntry * 
+	PredecessorInfo * _predecessor_info;
 #endif
 };
 
-class RamDisk {
+/*
+// Buffer for persistent storage. A worker thread logs to this buffer,
+// and a logging thread flushes the buffer to disk. 
+class DiskBuffer {
 public:
-	RamDisk(string file_name);
-	~RamDisk();
+	DiskBuffer(string file_name);
+	~DiskBuffer();
 	
-	// read from/write to Ram disk
-	void write(char * entry, uint64_t offset, uint32_t size);
-	char * read(); // return the next entry in the RamDisk
+	// read from/write to DiskBuffer
+	void writeBuffer(char * entry, uint64_t lsn, uint32_t size);
+	void flush(uint64_t start_lsn, uint64_t end_lsn);
 
+	char * readBuffer();
+	void load(); 
+
+	void add_tail(uint64_t lsn);
 	// flush to and load from hard disk
 	// performance of flush() and load() are not modeled
-	void flush(uint64_t total_size);
-	void load(); 
+	uint32_t _block_size;
 private:
+	//void alloc_block(uint32_t num);
 	string _file_name;
-	fstream _file;
-	uint64_t _block_size;
-	char * _block;
- 	
-	// only for recovery
-	uint64_t _total_size;
-	uint64_t _cur_offset;
-};
+	int _fd; 
+	fstream * _file;
+	char * _block; 
 
-// ARIES style logging 
+	// only for recovery
+	char * _block_next;
+	uint64_t _cur_offset;
+	uint64_t _max_size;
+	bool _eof;
+};
+*/
+
+// manager for a single log stream
 class LogManager 
 {
 public:
-/*	struct log_record{
-	  uint64_t lsn;
-	  uint64_t txn_id;
-	  uint32_t num_keys;
-	  string * table_names;
-	  uint64_t * keys;
-	  uint32_t * lengths;
-	  char ** after_images;
-	};
-*/
-	LogManager();
+	LogManager(uint32_t logger_id);
 	~LogManager();
-
-	void init();
-	void init(string log_file_name);
-	uint64_t get_lsn() { return _lsn; };
-	uint64_t allocate_lsn(uint32_t size);
-	bool allocate_lsn(uint32_t size, uint64_t lsn);
-	void setLSN(uint64_t flushLSN);
-
-	void logTxn(char * log_entry, uint32_t size);
-	// for parallel command logging (Epoch). 
-	bool logTxn(char * log_entry, uint32_t size, uint64_t lsn);
-	void addToBuffer(uint32_t my_buffer_index, char* my_buffer_entry, uint32_t size);
-	char * readFromLog(); 
-	//bool readFromLog(uint32_t &num_keys, string * &table_names, uint64_t * &keys,
-	//  uint32_t * &lengths, char ** &after_image);
-	//bool readFromLog(uint64_t &txn_id, uint32_t & num_keys, string * &table_names, uint64_t * &keys, uint32_t * &lengths, 
-	//  char ** &after_image, uint32_t &num_preds, uint64_t * &pred_txn_id);
 	
-	void flushLogBuffer();
-	//void flushLogBuffer(uint64_t lsn);
-		
-	pthread_mutex_t lock;
-	uint32_t buff_index;
-	buffer_entry *  buffer; 
+	////////////////////////////	
+	// forward processing
+	////////////////////////////	
+public:
+	void init(string log_file_name);
+	uint64_t logTxn(char * log_entry, uint32_t size);
+	// called by logging thread. 
+	// return value: flushed or not. 
+	bool tryFlush();
+	uint64_t get_persistent_lsn() { return *_persistent_lsn; }
+private: 
+	void flush(uint64_t start_lsn, uint64_t end_lsn);
+	// _lsn and _persistent_lsn must be stored in separate cachelines to avoid false sharing;
+	// Because they are updated by different threads.
+	volatile uint64_t *	_lsn;      		// log_tail. 
+	volatile uint64_t * _persistent_lsn;
+	uint64_t volatile ** _filled_lsn;
+	
+	uint64_t _last_flush_time; 
+	uint64_t _flush_interval;
 
-	//list<uint64_t> wait_lsns;
-	//int wait_count;
-	//void wait_log(uint64_t txn_id, uint32_t num_keys, string * table_names, uint64_t * keys, 
-	  //uint32_t * lengths, char ** after_images, uint64_t * file_lsn);
- private:
-	volatile uint64_t _lsn;
-	RamDisk * _ram_disk;
+	////////////////////////////	
+	// recovery 
+	////////////////////////////	
+public:
+	bool 		tryReadLog();
+	bool 		iseof() { return _eof; }
+ 	uint64_t 	get_next_log_entry(char * &entry);
+	void 		set_gc_lsn(uint64_t lsn);
+private:
+	volatile uint64_t * _disk_lsn;
+	volatile uint64_t * _next_lsn;
+	volatile uint64_t ** _gc_lsn;
+	volatile bool     _eof;
+	///////////////////////////////////////////////////////	
+	// data structures shared by forward processing and recovery 
+	///////////////////////////////////////////////////////	
+private:
+	char * 				_buffer;		// circular buffer to store unflushed data.
+	string 				_file_name;
+	int 				_fd; 
+	fstream * 			_file;
+	uint32_t 			_logger_id;
+
+	//pthread_mutex_t lock;
+//private:
 };
