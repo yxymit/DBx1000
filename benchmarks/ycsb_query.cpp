@@ -99,14 +99,7 @@ void ycsb_query::gen_requests(uint64_t thd_id, workload * h_wl) {
 		//drand48_r(&_query_thd->buffer, &r);
 		r = erand48(_query_thd->buffer);
 		ycsb_request * req = &requests[rid];
-		if (r < g_read_perc) {
-			req->rtype = RD;
-		} else if (r >= g_read_perc && r <= g_write_perc + g_read_perc) {
-			req->rtype = WR;
-		} else {
-			req->rtype = SCAN;
-			req->scan_len = SCAN_LEN;
-		}
+		req->rtype = (r < g_read_perc)? RD : WR;
 
 		// the request will access part_id.
 		uint64_t ith = tmp * part_num / g_req_per_query;

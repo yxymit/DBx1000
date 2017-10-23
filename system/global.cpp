@@ -80,7 +80,6 @@ UInt32 g_part_per_txn = PART_PER_TXN;
 double g_perc_multi_part = PERC_MULTI_PART;
 
 double g_read_perc = READ_PERC;
-double g_write_perc = WRITE_PERC;
 double g_zipf_theta = ZIPF_THETA;
 bool g_prt_lat_distr = PRT_LAT_DISTR;
 UInt32 g_part_cnt = PART_CNT;

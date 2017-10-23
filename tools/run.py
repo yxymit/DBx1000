@@ -41,35 +41,38 @@ for bench in ['TPCC', 'YCSB']:
 				add_dbms_job(app_flags, executable, output_dir)
 """
 trials = ['']
-#for trial in ['']: #, '_1', '_2']:
-for trial in trials: 
-	# logging performance
-	for bench in ['YCSB', 'TPCC']:
-		configs = ['NO_%s' % bench]
-		for alg in ['S', 'P']:
-			for t in ['D', 'C']:
+thds = [4, 8, 16, 20, 24, 28, 32]
+num_loggers = [4]
+benchmarks = ['YCSB', 'TPCC']
+algorithms = ['NO', 'S', 'P'] # serial and parallel
+types = ['D', 'C'] # data logging and command logging
+
+configs = []
+for bench in benchmarks:
+	for alg in algorithms:
+		if alg == 'NO': 
+			configs += ['%s_%s' % (alg, bench)]
+		else:
+			for t in types:
 				configs += ['%s%s_%s' % (alg, t, bench)]
-		app_flags = {}
-		#thds = [4, 8, 16, 20, 24, 28, 32]
-		thds = [32] #4, 8, 16, 20, 24, 28, 32]
-		for num_loggers in [4]: #[1, 2, 4, 8]:
-			for config in configs:
+
+for trial in trials: 
+	for config in configs: 
+		for thd in thds:
+			for num_logger in num_loggers:
 				executable = "./rundb_%s" % config
-				for thd in thds:
-					#if num_loggers >= thd: continue
-					logger = num_loggers if config[0] == 'P' else 1
-					if bench == 'TPCC':
-						app_flags['NUM_WH'] = 16
-					else : # YCSB
-						app_flags['REQ_PER_QUERY'] = 2
-					app_flags['MAX_TXNS_PER_THREAD'] = 400000 
-					if config[1] == 'C':
-						app_flags['MAX_TXNS_PER_THREAD'] = 1000000
-					app_flags['THREAD_CNT'] = thd
-					app_flags['NUM_LOGGER'] = logger
-					app_flags['LOG_NO_FLUSH'] = 0
-					output_dir = "results/%s/thd%d_L%s%s" % (config, thd, logger, trial)
-					add_dbms_job(app_flags, executable, output_dir)
+				logger = num_logger if config[0] == 'P' else 1
+				if 'TPCC' in config:
+					app_flags['NUM_WH'] = 16
+				else : # YCSB
+					app_flags['REQ_PER_QUERY'] = 2
+					app_flags['READ_PERC'] = 0.5
+				app_flags['MAX_TXNS_PER_THREAD'] = 400000 if config[1] == 'D' else 1000000
+				app_flags['THREAD_CNT'] = thd
+				app_flags['NUM_LOGGER'] = logger
+				app_flags['LOG_NO_FLUSH'] = 0
+				output_dir = "results/%s/thd%d_L%s%s" % (config, thd, logger, trial)
+				add_dbms_job(app_flags, executable, output_dir)
 """
 # recover performance
 for trial in trials: 

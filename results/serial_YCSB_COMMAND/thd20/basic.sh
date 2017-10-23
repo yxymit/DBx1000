@@ -1,1 +1,0 @@
-numactl --localalloc -- ./rundb_serial_YCSB_COMMAND -n20 -t20 -Ln1 -o results/serial_YCSB_COMMAND/thd20/output 

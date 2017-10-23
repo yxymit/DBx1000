@@ -101,19 +101,19 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM LOG_PARALLEL
+#define LOG_ALGORITHM LOG_NO
 #define LOG_TYPE LOG_DATA
 #define LOG_RAM_DISK				false
 #define LOG_NO_FLUSH			 	false
 #define LOG_RECOVER false
 #define LOG_BATCH_TIME				10 // in ms
-#define LOG_GARBAGE_COLLECT true
+#define LOG_GARBAGE_COLLECT false
 #define LOG_BUFFER_SIZE				(1048576 * 50)	// in bytes
 // For LOG_PARALLEL
 #define LOG_PARALLEL_BUFFER_FILL	false 
 #define NUM_LOGGER					4 
 #define LOG_PARALLEL_NUM_BUCKETS    4000000	// should equal the number of recovered txns
-#define MAX_LOG_ENTRY_SIZE			4096 // in Bytes
+#define MAX_LOG_ENTRY_SIZE			16384 // in Bytes
 #define LOG_FLUSH_INTERVAL   		5000 // in us. 
 /***********************************************/
 // Benchmark

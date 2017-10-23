@@ -4,6 +4,7 @@ enum StatsFloat {
 	// Worker Thread
 	STAT_run_time,
 	STAT_time_man,
+	STAT_time_cleanup,
 	STAT_time_index,
 	STAT_time_log,
 	
@@ -101,6 +102,7 @@ public:
 		// worker thread
 		"run_time",
 		"time_man",
+		"time_cleanup",
 		"time_index",
 		"time_log",
 	

@@ -39,16 +39,17 @@ def avg_and_dev(data):
     dev /= len(data)
     return avg, math.sqrt(dev)
 
+print results
 # logging performance 
 #thds = [2, 4, 10, 20, 40] #, 60, 80]
 thds = [4, 8, 16, 20, 24, 28, 32]
+thds = [32]
 for bench in ['YCSB', 'TPCC']:
 	configs = ['NO_%s' % bench]
 	for alg in ['S', 'P']:
 		for t in ['D', 'C']:
 			configs += ['%s%s_%s' % (alg, t, bench)]
 	names = ['No Logging', 'Serial Data',  'Serial Cmd', 'Parallel Data', 'Parallel Cmd']
-
 	for num_loggers in [4]: 
 		data = {}
 		err = {}
@@ -62,10 +63,10 @@ for bench in ['YCSB', 'TPCC']:
 				try:
 					logger = num_loggers if config[0] == 'P' else 1
 					vals = []
-					for trial in ['', '_1', '_2']:
+					for trial in ['']: #, '_1', '_2']:
 						tag = '%s/thd%d_L%d%s' % (config, thd, logger, trial)
 						values = results[tag]
-						vals.append(values['txn_cnt'] / values['run_time'] * thd / 1000000.0)	
+						vals.append(values['num_commits'] / values['run_time'] * thd / 1000000.0)	
 					data[name][n], err[name][n] = avg_and_dev(vals)
 					#values['txn_cnt'] / values['run_time'] * thd / 1000000.0
 				except:

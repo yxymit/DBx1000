@@ -152,7 +152,6 @@ extern ts_t g_query_intvl;
 extern UInt32 g_part_per_txn;
 extern double g_perc_multi_part;
 extern double g_read_perc;
-extern double g_write_perc;
 extern double g_zipf_theta;
 extern UInt64 g_synth_table_size;
 extern UInt32 g_req_per_query;

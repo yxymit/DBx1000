@@ -401,7 +401,7 @@ RC txn_man::finish(RC rc) {
 #endif
 	uint64_t timespan = get_sys_clock() - starttime;
 	INC_FLOAT_STATS(time_man, timespan);
-	INC_STATS(get_thd_id(), time_cleanup,  timespan);
+	INC_FLOAT_STATS(time_cleanup,  timespan);
 	return rc;
 }
 

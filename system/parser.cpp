@@ -33,7 +33,6 @@ void print_usage() {
 	printf("\t-cINT       ; PART_PER_TXN\n");
 	printf("\t-eINT       ; PERC_MULTI_PART\n");
 	printf("\t-rFLOAT     ; READ_PERC\n");
-	printf("\t-wFLOAT     ; WRITE_PERC\n");
 	printf("\t-zFLOAT     ; ZIPF_THETA\n");
 	printf("\t-sINT       ; SYNTH_TABLE_SIZE\n");
 	printf("\t-RINT       ; REQ_PER_QUERY\n");
@@ -62,8 +61,6 @@ void parser(int argc, char * argv[]) {
 			g_perc_multi_part = atof( &argv[i][2] );
 		else if (argv[i][1] == 'r') 
 			g_read_perc = atof( &argv[i][2] );
-		else if (argv[i][1] == 'w') 
-			g_write_perc = atof( &argv[i][2] );
 		else if (argv[i][1] == 'z')
 			g_zipf_theta = atof( &argv[i][2] );
 		else if (argv[i][1] == 'd')

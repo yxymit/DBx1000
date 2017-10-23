@@ -13,7 +13,6 @@ args_mapping = {
 	"LOG_NO_FLUSH"		: "-Lf",
 	# YCSB
 	"READ_PERC"			: "-r",
-	"WRITE_PERC" 		: "-w",
 	"ZIPF_THETA" 		: "-z",
 	"SYNTH_TABLE_SIZE" 	: "-s",
 	"REQ_PER_QUERY"		: "-R",
@@ -23,18 +22,20 @@ args_mapping = {
 }
 
 def get_results(fname):
-	results = {}
-	f = open(fname, 'r')
-	for line in f:
-		if not line.startswith("[summary]"): 
-			continue
-		items = line.split()
-		for item in items:
-			if not '=' in item: continue
-			item = item.rstrip(',')
-			[param, val] = item.split('=')
-			results[param] = float(val)
-	return results
+    results = {} 
+	#OrderedDict()
+    f = open(fname, 'r')
+    for line in f:
+        if ':' in line:
+            items = line.split(':')
+            if len(items) < 2: continue
+            key = items[0].strip().strip('/')
+            try:
+                value = float(items[1].split(',')[0].split('(')[0].strip())
+            except:
+                continue
+            results[key] = value
+    return results
 
 def get_all_results(result_dir = "results/"):
 	results = {}

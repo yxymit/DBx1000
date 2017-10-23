@@ -150,29 +150,32 @@ final:
 			accesses[ write_set[i] ]->orig_row->manager->release();
 		cleanup(rc);
 	} else {
-#if LOG_ALGORITHM == LOG_PARALLEL
-		// the txn is able to commit. Should append to the log record into 
-		// the log buffer, and get a ID for the log record. 
 		if (wr_cnt > 0) {
 			assert(_log_entry_size > 0);
 			uint64_t tt = get_sys_clock();
+#if LOG_ALGORITHM == LOG_PARALLEL
+			// the txn is able to commit. Should append to the log record into 
+			// the log buffer, and get a ID for the log record. 
 			uint32_t logger_id = GET_THD_ID % g_num_logger;
 			uint64_t tid = log_manager[logger_id]->logTxn(_log_entry, _log_entry_size);
 			// TID format 
 			//  | 1-bit lock bit | 16-bit logger ID | 48-bit LSN |
 			_cur_tid = (((uint64_t)logger_id) << 48) | tid; 
-			INC_FLOAT_STATS(time_log, get_sys_clock() - tt);
-		}
 #elif LOG_ALGORITHM == LOG_SERIAL 
-		if (wr_cnt > 0) {
-			assert(_log_entry_size > 0);
-			uint64_t tt = get_sys_clock();
-			_cur_tid = log_manager->logTxn(_log_entry, _log_entry_size);
-			// TID format 
-			//  | 1-bit lock bit | 16-bit logger ID | 48-bit LSN |
+			uint64_t tid = _cur_tid = log_manager->logTxn(_log_entry, _log_entry_size);
+#endif
+#if LOG_ALGORITHM != LOG_NO
+			// If tid == -1, the log buffer is full. Should abort the current transaction.  
+			if (tid == (uint64_t)-1) {
+				for (uint32_t i = 0; i < num_locks; i++) 
+					accesses[ write_set[i] ]->orig_row->manager->release();
+				cleanup(Abort);
+				return Abort;
+			}
+#endif
+
 			INC_FLOAT_STATS(time_log, get_sys_clock() - tt);
 		}
-#endif
 		for (uint32_t i = 0; i < wr_cnt; i++) {
 			Access * access = accesses[ write_set[i] ];
 			access->orig_row->manager->write( 

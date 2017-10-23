@@ -81,9 +81,9 @@ LogManager::logTxn(char * log_entry, uint32_t size)
 	// The log is stored to the in memory cirular buffer 
   #if !LOG_RAM_DISK
     // if the log buffer is full, wait for it to flush.  
-	while (*_lsn + size >= *_persistent_lsn + LOG_BUFFER_SIZE - MAX_LOG_ENTRY_SIZE * g_thread_cnt) {
-		*_filled_lsn[GET_THD_ID] = *_lsn; 
-		usleep(10);
+	if (*_lsn + size >= *_persistent_lsn + LOG_BUFFER_SIZE - MAX_LOG_ENTRY_SIZE * g_thread_cnt) {
+		*_filled_lsn[GET_THD_ID] = *_lsn;
+		return -1; 
 	}
   #endif
 	uint64_t lsn = ATOM_FETCH_ADD(*_lsn, size);
@@ -159,8 +159,13 @@ LogManager::tryFlush()
 	for (uint32_t i = 0; i < g_thread_cnt; i++)
 		if (i % g_num_logger == _logger_id && ready_lsn > *_filled_lsn[i]) {
 			ready_lsn = *_filled_lsn[i];
-			//printf("_filled_lsn[i] = %ld\n", *_lsn);
 		}
+//	if (ready_lsn < *_lsn - 1000000) {
+//		for (uint32_t i = 0; i < g_thread_cnt; i++)
+//			if (i % g_num_logger == _logger_id)
+//				printf("*_filled_lsn[%d] = %ld\n", i, *_filled_lsn[i]);
+//		printf("*_lsn = %ld, ready_lsn = %ld\n", *_lsn, ready_lsn);
+//	}
 	// Flush to disk if 1) it's been long enough since last flush. OR 2) the buffer is full enough. 
 	if (get_sys_clock() - _last_flush_time < _flush_interval &&
 	    ready_lsn - *_persistent_lsn < LOG_BUFFER_SIZE / 2) 
