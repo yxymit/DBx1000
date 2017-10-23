@@ -37,7 +37,8 @@ int main(int argc, char* argv[])
 	else
 		dir = ".";
   	
-	#if LOG_ALGORITHM == LOG_SERIAL
+#if LOG_ALGORITHM == LOG_SERIAL
+	assert(g_num_logger == 1);
 	string bench = (WORKLOAD == YCSB)? "YCSB" : "TPCC";
 	log_manager = (LogManager *) _mm_malloc(sizeof(LogManager), 64);
 	new(log_manager) LogManager(0);

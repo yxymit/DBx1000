@@ -80,7 +80,7 @@ private:
 	tpcc_query * _query; 	
 	TPCCTxnType	_txn_type;
 
-	void 	recover_txn(RecoverState * recover_state);
+	void recover_txn(char * log_entry);
 };
 
 #endif

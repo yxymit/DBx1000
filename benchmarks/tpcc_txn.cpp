@@ -654,7 +654,6 @@ tpcc_txn_man::get_cmd_log_entry()
 	// Format
 	//  | stored_procedure_id | input_params
 	PACK(_log_entry, _query->type, _log_entry_size);
-	// TODO. Continue from here!!!
 
 	if (_query->type == TPCC_PAYMENT) {
 		// format
@@ -690,73 +689,63 @@ tpcc_txn_man::get_cmd_log_entry()
 }
 
 void
-tpcc_txn_man::recover_txn(RecoverState * recover_state)
+tpcc_txn_man::recover_txn(char * log_entry)
 {
 #if LOG_TYPE == LOG_DATA
-	for (uint32_t i = 0; i < recover_state->num_keys; i ++) {
-		TableName table_id = (TableName) recover_state->table_ids[i];
-		uint64_t key = recover_state->keys[i];
-		
-		itemid_t * m_item = index_read(_wl->tpcc_tables[table_id]->get_primary_index(), key, 0);
+	// Format 
+	// 	| N | (table_id | primary_key | data_length | data) * N
+	uint32_t offset = 0;
+	uint32_t num_keys; 
+	UNPACK(log_entry, num_keys, offset);
+	for (uint32_t i = 0; i < num_keys; i ++) {
+		uint32_t table_id;
+		uint64_t key;
+		uint32_t data_length;
+		char * data;
+
+		UNPACK(log_entry, table_id, offset);
+		UNPACK(log_entry, key, offset);
+		UNPACK(log_entry, data_length, offset);
+		data = log_entry + offset;
+		offset += data_length;
+		assert(table_id < NUM_TABLES);
+		itemid_t * m_item = index_read(_wl->tpcc_tables[(TableName)table_id]->get_primary_index(), key, 0);
 		row_t * row = ((row_t *)m_item->location);
-		
-		row->set_value(0, recover_state->after_image[i], recover_state->lengths[i]);
+		row->set_data(data, data_length);
 	}
 #elif LOG_TYPE == LOG_COMMAND
-	char * cmd = recover_state->cmd; 
 	if (!_query) {
 		_query = new tpcc_query;
 		_query->items = new Item_no [15];
 	}
-  #if LOG_ALGORITHM == LOG_PARALLEL
-	_recover_state = recover_state;
-  #endif
-	uint64_t offset = 0; 
-	memcpy(&_query->type, cmd, sizeof(TPCCTxnType));
-	offset += sizeof(TPCCTxnType);
-	memcpy(&_query->w_id, cmd + offset, sizeof(uint64_t));
-	offset += sizeof(uint64_t);
-	memcpy(&_query->d_id, cmd + offset, sizeof(uint64_t));
-	offset += sizeof(uint64_t);
-	memcpy(&_query->c_id, cmd + offset, sizeof(uint64_t));
-	offset += sizeof(uint64_t);
+	// format
+	//  | stored_procedure_id | w_id | d_id | c_id | txn_specific_info
+	// txn_specific_info includes
+	// For Payment
+    //  uint64_t d_w_id | uint64_t c_w_id | uint64_t c_d_id |
+    //  double h_amount | bool by_last_name | char c_last[LASTNAME_LEN] 
+	// For New-Order
+    //  bool remote | uint64_t ol_cnt | uint64_t o_entry_d |
+    //  Item_no * ol_cnt
+	uint64_t offset = 0;
+	UNPACK(log_entry, _query->type, offset);
+	UNPACK(log_entry, _query->w_id, offset);
+	UNPACK(log_entry, _query->d_id, offset);
+	UNPACK(log_entry, _query->c_id, offset);
 	if (_query->type == TPCC_PAYMENT) {
-		// format
-		// 	TPCCTxnType type | uint64_t w_id | uint64_t d_id | uint64_t c_id |
-		// 	uint64_t d_w_id | uint64_t c_w_id | uint64_t c_d_id | 
-		//  double h_amount | bool by_last_name | char c_last[LASTNAME_LEN] 
-		memcpy(&_query->d_w_id, cmd + offset, sizeof(uint64_t));
-		offset += sizeof(uint64_t);
-		memcpy(&_query->c_w_id, cmd + offset, sizeof(uint64_t));
-		offset += sizeof(uint64_t);
-		memcpy(&_query->c_d_id, cmd + offset, sizeof(uint64_t));
-		offset += sizeof(uint64_t);
-		memcpy(&_query->h_amount, cmd + offset, sizeof(double));
-		offset += sizeof(double);
-		memcpy(&_query->by_last_name, cmd + offset, sizeof(bool));
-		offset += sizeof(bool);
-		memcpy(_query->c_last, cmd + offset, LASTNAME_LEN);
-		offset += LASTNAME_LEN;
+		UNPACK(log_entry, _query->d_w_id, offset);
+		UNPACK(log_entry, _query->c_w_id, offset);
+		UNPACK(log_entry, _query->c_d_id, offset);
+		UNPACK(log_entry, _query->h_amount, offset);
+		UNPACK(log_entry, _query->by_last_name, offset);
+		UNPACK_SIZE(log_entry, _query->c_last, LASTNAME_LEN, offset);
 	} else if (_query->type == TPCC_NEW_ORDER) {
-		// format
-		// 	TPCCTxnType type | uint64_t w_id | uint64_t d_id | uint64_t c_id |
-		//  bool remote | uint64_t ol_cnt | uint64_t o_entry_d | 
-		//  Item_no * ol_cnt
-		memcpy(&_query->remote, cmd + offset, sizeof(bool));
-		offset += sizeof(bool);
-		memcpy(&_query->ol_cnt, cmd + offset, sizeof(uint64_t));
-		offset += sizeof(uint64_t);
-		memcpy(&_query->o_entry_d, cmd + offset, sizeof(uint64_t));
-		offset += sizeof(uint64_t);
-		memcpy(_query->items, cmd + offset, sizeof(Item_no) * _query->ol_cnt);
-		offset += sizeof(Item_no) * _query->ol_cnt;
+		UNPACK(log_entry, _query->remote, offset);
+		UNPACK(log_entry, _query->ol_cnt, offset);
+		UNPACK(log_entry, _query->o_entry_d, offset);
+		UNPACK_SIZE(log_entry, _query->items, sizeof(Item_no) * _query->ol_cnt, offset);
 	} else 
 		assert(false);
-//	if (recover_state->txn_id == 55645919 || recover_state->txn_id == 55869001)	
-//	{
-//		printf("txnID=%ld\n", recover_state->txn_id);
-//		_query->print();
-//	}
 	run_txn(_query);
 #endif
 }

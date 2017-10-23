@@ -10,6 +10,7 @@
 RC
 LoggingThread::run()
 {
+	glob_manager->set_thd_id( _thd_id );
 	LogManager * logger;
   #if LOG_ALGORITHM == LOG_SERIAL
 	logger = log_manager;
@@ -19,7 +20,6 @@ LoggingThread::run()
   #endif
 
 	if (g_log_recover) {
-		glob_manager->set_thd_id( _thd_id );
 		//stats.init( _thd_id );
 		while (true) { //glob_manager->get_workload()->sim_done < g_thread_cnt) {
 			bool success = logger->tryReadLog();
@@ -29,7 +29,6 @@ LoggingThread::run()
 				usleep(100); 
 		}
 	} else {
-		glob_manager->set_thd_id( _thd_id );
 		//stats.init( _thd_id );
 		while (glob_manager->get_workload()->sim_done < g_thread_cnt) {
 			bool flushed = logger->tryFlush();

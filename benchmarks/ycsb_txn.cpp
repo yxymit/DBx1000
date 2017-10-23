@@ -104,10 +104,11 @@ ycsb_txn_man::recover_txn(char * log_entry)
 		UNPACK(log_entry, key, offset);
 		UNPACK(log_entry, data_length, offset);
 		data = log_entry + offset;
+		offset += data_length;
 		
 		itemid_t * m_item = index_read(_wl->the_index, key, 0);
 		row_t * row = ((row_t *)m_item->location);
-		row->set_value(0, data, data_length);
+		row->set_data(data, data_length);
 	}
 #elif LOG_TYPE == LOG_COMMAND
 	// Format

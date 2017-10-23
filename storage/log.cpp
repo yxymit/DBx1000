@@ -20,6 +20,7 @@
 LogManager::LogManager(uint32_t logger_id)
 	: _logger_id (logger_id)
 {
+	cout << "logger_id = " << logger_id << endl;
 	if (g_log_recover) {
 		_disk_lsn = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
 		_next_lsn = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);

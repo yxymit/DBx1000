@@ -279,6 +279,8 @@ RC txn_man::cleanup(RC in_rc)
 }
 
 RC txn_man::get_row(row_t * row, access_t type, char * &data) {
+	// NOTE. 
+	// For recovery, no need to go through concurrncy control
 	if (g_log_recover) {
 		data = row->get_data(this, type);
 		return RCOK;
