@@ -81,8 +81,10 @@ LogManager::logTxn(char * log_entry, uint32_t size)
 	// The log is stored to the in memory cirular buffer 
   #if !LOG_RAM_DISK
     // if the log buffer is full, wait for it to flush.  
-	while (*_lsn + size >= *_persistent_lsn + LOG_BUFFER_SIZE - MAX_LOG_ENTRY_SIZE * g_thread_cnt)
+	while (*_lsn + size >= *_persistent_lsn + LOG_BUFFER_SIZE - MAX_LOG_ENTRY_SIZE * g_thread_cnt) {
+		*_filled_lsn[GET_THD_ID] = *_lsn; 
 		usleep(10);
+	}
   #endif
 	uint64_t lsn = ATOM_FETCH_ADD(*_lsn, size);
 
