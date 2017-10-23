@@ -40,8 +40,9 @@ for bench in ['TPCC', 'YCSB']:
 				output_dir = "results/%s/thd%d_L%s_gen" % (config, thd, num_loggers)
 				add_dbms_job(app_flags, executable, output_dir)
 """
-#for trial in ['_1', '_2', '_3']:
-for trial in ['']: #, '_1', '_2']:
+trials = ['']
+#for trial in ['']: #, '_1', '_2']:
+for trial in trials: 
 	# logging performance
 	for bench in ['YCSB', 'TPCC']:
 		configs = ['NO_%s' % bench]
@@ -49,7 +50,7 @@ for trial in ['']: #, '_1', '_2']:
 			for t in ['D', 'C']:
 				configs += ['%s%s_%s' % (alg, t, bench)]
 		app_flags = {}
-		thds = [4, 8, 16, 20, 24, 28, 32]
+		#thds = [4, 8, 16, 20, 24, 28, 32]
 		thds = [32] #4, 8, 16, 20, 24, 28, 32]
 		for num_loggers in [4]: #[1, 2, 4, 8]:
 			for config in configs:
@@ -58,7 +59,7 @@ for trial in ['']: #, '_1', '_2']:
 					#if num_loggers >= thd: continue
 					logger = num_loggers if config[0] == 'P' else 1
 					if bench == 'TPCC':
-						app_flags['NUM_WH'] = 32
+						app_flags['NUM_WH'] = 16
 					else : # YCSB
 						app_flags['REQ_PER_QUERY'] = 2
 					app_flags['MAX_TXNS_PER_THREAD'] = 400000 
@@ -69,8 +70,9 @@ for trial in ['']: #, '_1', '_2']:
 					app_flags['LOG_NO_FLUSH'] = 0
 					output_dir = "results/%s/thd%d_L%s%s" % (config, thd, logger, trial)
 					add_dbms_job(app_flags, executable, output_dir)
+"""
 # recover performance
-for trial in ['', '_1', '_2']:
+for trial in trials: 
 	app_flags = {}
 	for bench in ['YCSB', 'TPCC']:
 		for alg in ['P', 'S']:
@@ -110,5 +112,6 @@ for trial in ['', '_1', '_2']:
 					#app_flags['REQ_PER_QUERY'] = 2 
 					output_dir = "results/%s/thd%d_L%s%s" % (config, thd, num_loggers, trial)
 					add_dbms_job(app_flags, executable, output_dir)
+"""
 
 scheduler.generateSubmitFile()
