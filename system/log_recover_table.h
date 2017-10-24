@@ -23,6 +23,7 @@ public:
     		next = NULL;
 			tid = -1;
 			log_entry = NULL;
+			recovered = false;
 		}
 		//void clear();
         TxnNode * next;
@@ -54,7 +55,8 @@ public:
 		volatile uint64_t pred_size;
 		// for parallel command recovery.
 //		bool is_fence;
-		char * log_entry;			
+		char * log_entry;		
+		bool recovered;
 //		RecoverState * recover_state;
 /*        void set_recover_done();
         bool is_recover_done();
@@ -79,18 +81,8 @@ public:
 			return node;
 		}
 		
-		TxnNode * get_new_node(uint64_t tid) {
-			TxnNode * node = NULL;
-			if (first.tid == (uint64_t)-1) 
-				node = &first;
-			else {
-				node = new TxnNode();
-				node->next = first.next;
-				first.next = node;
-			}
-			node->tid = tid;
-			return node;
-		}
+		TxnNode * get_new_node(uint64_t tid);
+
 //        void insert(TxnNode * node);
 //        TxnNode * remove(uint64_t txn_id);
         //pthread_mutex_t _lock;
@@ -127,6 +119,7 @@ public:
 	//}
 	void remove_txn(uint64_t tid);
 	bool is_recover_done();
+	void check_all_recovered();
 	//////////////////////////////////////
 	//////////////////////////////////////
 	//////////////////////////////////////

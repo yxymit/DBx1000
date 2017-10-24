@@ -510,7 +510,7 @@ LogManager::tryReadLog()
 			_eof = true;
 	}
 	end_lsn = start_lsn + bytes;
-	printf("start_lsn=%ld, end_lsn=%ld, _eof=%d\n", start_lsn, end_lsn, _eof);
+	//printf("start_lsn=%ld, end_lsn=%ld, _eof=%d\n", start_lsn, end_lsn, _eof);
 	//fsync(_fd);
 	COMPILER_BARRIER
 	*_disk_lsn = end_lsn;

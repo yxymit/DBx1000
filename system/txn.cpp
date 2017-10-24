@@ -451,6 +451,7 @@ txn_man::serial_recover() {
 		//printf("size=%d lsn=%ld\n", *(uint32_t*)(entry+4), lsn);
 		COMPILER_BARRIER
 		log_manager->set_gc_lsn(lsn);
+		INC_INT_STATS(num_commits, 1);
 		count ++;
 //		if (count % 1000 == 0)
 //			printf("count = %d\n", count);
@@ -463,14 +464,16 @@ void
 txn_man::parallel_recover() {
 	// Execution thread.
 	// Phase 1: Construct the dependency graph from the log records. 
-	//   Phase 1.1. read in all log records, each record only having predecessor info.    
-	printf("Phase 1.1 starts\n");
+	//   Phase 1.1. read in all log records, each record only having predecessor info.   
+	if (GET_THD_ID == 0)
+		printf("Phase 1.1 starts\n");
 	uint64_t tt = get_sys_clock();
 	uint32_t logger_id = GET_THD_ID % g_num_logger;	
 	char default_entry[MAX_LOG_ENTRY_SIZE]; 
 	uint64_t count = 0;
 	while (true) {
 		char * entry = default_entry;
+		uint64_t t1 = get_sys_clock();
 		uint64_t lsn = log_manager[logger_id]->get_next_log_entry(entry);
 		if (entry == NULL) {
 			if (log_manager[logger_id]->iseof()) {
@@ -483,22 +486,28 @@ txn_man::parallel_recover() {
 				continue;
 			}
 		}
+		INC_FLOAT_STATS(time_debug1, get_sys_clock() - t1);
 		//printf("get some data please\n");
 		uint64_t tid = ((uint64_t)logger_id << 48) | lsn;
 
 		uint32_t size = *(uint32_t*)(entry + sizeof(uint32_t));
 		assert(size > 0 && size <= MAX_LOG_ENTRY_SIZE);
+
+		uint64_t t2 = get_sys_clock();
 		log_recover_table->addTxn(tid, entry);
+		INC_INT_STATS(int_debug3, 1);
+		INC_FLOAT_STATS(time_debug2, get_sys_clock() - t2);
+		
 		COMPILER_BARRIER
 		log_manager[logger_id]->set_gc_lsn(lsn);
 		count ++;
 	}
-	cout << count << endl;	
 	INC_FLOAT_STATS(time_phase1_1, get_sys_clock() - tt);
 	tt = get_sys_clock();
 	
 	pthread_barrier_wait(&worker_bar);
-	printf("Phase 1.2 starts\n");
+	if (GET_THD_ID == 0)
+		printf("Phase 1.2 starts\n");
 	// Phase 1.2. add in the successor info to the graph.
 	log_recover_table->buildSucc();
 	pthread_barrier_wait(&worker_bar);
@@ -506,7 +515,8 @@ txn_man::parallel_recover() {
 	INC_FLOAT_STATS(time_phase1_2, get_sys_clock() - tt);
 	tt = get_sys_clock();
 	
-	printf("Phase 2 starts\n");
+	if (GET_THD_ID == 0)
+		printf("Phase 2 starts\n");
 	// Phase 2. Infer WAR edges.   
 	log_recover_table->buildWARSucc(); 
 	pthread_barrier_wait(&worker_bar);
@@ -514,22 +524,23 @@ txn_man::parallel_recover() {
 	INC_FLOAT_STATS(time_phase2, get_sys_clock() - tt);
 	tt = get_sys_clock();
 
-	printf("Phase 3 starts\n");
+	if (GET_THD_ID == 0)
+		printf("Phase 3 starts\n");
 	// Phase 3. Recover transactions
 	// trials: a hack to detect that all transactions are recovered. 
-	uint32_t trials = 2;
+	uint32_t trials = 0;
 	while (true) { //glob_manager->get_workload()->sim_done < g_thread_cnt) {
 		char * log_entry = NULL;
 		uint64_t tid = log_recover_table->get_txn(log_entry);		
 		if (log_entry) {
 			trials = 0;
             recover_txn(log_entry);
-			INC_INT_STATS(num_commits, 1);
 			log_recover_table->remove_txn(tid);
+			INC_INT_STATS(num_commits, 1);
 			count ++;
 			//cout << "THD=" << GET_THD_ID << "  count=" << count << endl;
 		} else if (log_recover_table->is_recover_done()) {
-			usleep(10);
+			usleep(1000);
 			trials ++;
 			if (trials == 10)
 				break;

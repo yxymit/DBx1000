@@ -10,6 +10,22 @@
 //////////////////////
 // Bucket 
 //////////////////////
+LogRecoverTable::TxnNode * 
+LogRecoverTable::Bucket::get_new_node(uint64_t tid) {
+	TxnNode * node = NULL;
+	if (first.tid == (uint64_t)-1) { 
+		node = &first;
+		INC_INT_STATS(int_debug1, 1);
+	} else {
+		INC_INT_STATS(int_debug2, 1);
+		node = new TxnNode();
+		node->next = first.next;
+		first.next = node;
+	}
+	node->tid = tid;
+	return node;
+}
+
 /*LogRecoverTable::Bucket::Bucket()
 {
     pthread_mutex_init(&_lock, NULL);
@@ -162,13 +178,19 @@ LogRecoverTable::addTxn(uint64_t tid, char * log_entry)
 	// | checksum | size | predecessor_info | ... 
 	// predecessor_info has the following format
 	//   | num_raw_preds | raw_preds | num_waw_preds | waw_preds
+	uint64_t tt = get_sys_clock();
 	uint64_t bid = hash64(tid) % _num_buckets;
 	while (!ATOM_CAS(_buckets[bid].latch, false, true))
 		PAUSE;
 	
+	INC_FLOAT_STATS(time_debug3, get_sys_clock() - tt);
+	tt = get_sys_clock();
+
 	TxnNode * node = _buckets[bid].find_txn(tid);
+	INC_FLOAT_STATS(time_debug4, get_sys_clock() - tt);
 	if (node == NULL) 
 		node = _buckets[bid].get_new_node(tid);
+	INC_FLOAT_STATS(time_debug5, get_sys_clock() - tt);
 	uint32_t size = 0;
 	uint32_t offset = sizeof(uint32_t);	
 	UNPACK(log_entry, size, offset);
@@ -180,9 +202,13 @@ LogRecoverTable::addTxn(uint64_t tid, char * log_entry)
 	assert(size > 0 && size <= MAX_LOG_ENTRY_SIZE);
 	memcpy(node->log_entry, log_entry + offset, size - offset);
 	assert(*(uint32_t*)node->log_entry <= MAX_ROW_PER_TXN);
+	
+	INC_FLOAT_STATS(time_debug6, get_sys_clock() - tt);
+	node->pred_size = node->num_raw_pred + node->num_waw_pred;	
 	if (node->num_raw_pred == 0 && node->num_waw_pred == 0)
 		_ready_txns->add(node);
 	
+	INC_FLOAT_STATS(time_debug7, get_sys_clock() - tt);
 //	uint64_t b = hash64(tid) % _num_buckets;
 //	TxnNode * n = _buckets[b].find_txn(tid);
 //	M_ASSERT(n && n == node, "b=%ld, bid=%ld, tid=%ld\n", b, bid, tid);
@@ -199,7 +225,6 @@ LogRecoverTable::buildSucc()
 	uint64_t end_bid = _num_buckets * (GET_THD_ID + 1) / g_thread_cnt; 
 
 	for (uint64_t bid = start_bid; bid < end_bid; bid ++) {
-		// TODO. continue from here.
 		TxnNode * node = &_buckets[bid].first;
 		while (node && node->tid != (uint64_t)-1) {
 			// update the RAW successor list 
@@ -285,6 +310,7 @@ LogRecoverTable::remove_txn(uint64_t tid)
 	uint64_t bid = hash64(tid) % _num_buckets;
 	TxnNode * node = _buckets[bid].find_txn(tid);
 	assert(node);
+	node->recovered = true;
 	// wake up RAW successors
 	for (uint32_t i = 0; i < node->num_raw_succ; i ++) {
 		wakeup_succ( node->raw_succ[i] );
@@ -319,6 +345,17 @@ LogRecoverTable::is_recover_done()
 		if (!*_recover_done[i])
 			return false;
 	return true;
+}
+
+void 
+LogRecoverTable::check_all_recovered()
+{
+	for (uint64_t bid = 0; bid < _num_buckets; bid ++) {
+		TxnNode * node = &_buckets[bid].first;
+		while (node && node->tid != (uint64_t)-1) {
+			assert(node->recovered);
+		}
+	}
 }
 /*LogRecoverTable::TxnNode * 
 LogRecoverTable::Bucket::find_txn(uint64_t txn_id)
