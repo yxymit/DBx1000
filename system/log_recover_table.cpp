@@ -354,6 +354,7 @@ LogRecoverTable::check_all_recovered()
 		TxnNode * node = &_buckets[bid].first;
 		while (node && node->tid != (uint64_t)-1) {
 			assert(node->recovered);
+			node = node->next;
 		}
 	}
 }
