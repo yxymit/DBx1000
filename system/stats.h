@@ -34,6 +34,11 @@ enum StatsInt {
 	STAT_num_commits,
 	STAT_num_aborts,
 
+	// For Log Recovery
+	STAT_num_raw_edges,
+	STAT_num_waw_edges,
+	STAT_num_war_edges,
+
 	STAT_int_debug1,
 	STAT_int_debug2,
 	STAT_int_debug3,
@@ -130,6 +135,11 @@ public:
 		"num_commits",
 		"num_aborts",
 		
+		// For Log Recovery
+		"num_raw_edges",
+		"num_waw_edges",
+		"num_war_edges",
+	
 		"int_debug1",
 		"int_debug2",
 		"int_debug3",

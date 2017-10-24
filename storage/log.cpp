@@ -492,20 +492,27 @@ LogManager::tryReadLog()
 	if (start_lsn == end_lsn) return false;
 	assert(end_lsn - start_lsn <= LOG_BUFFER_SIZE);
 	uint32_t bytes;
-	if (start_lsn % LOG_BUFFER_SIZE > end_lsn % LOG_BUFFER_SIZE) {
+	if (start_lsn % LOG_BUFFER_SIZE >= end_lsn % LOG_BUFFER_SIZE) {
 		// flush in two steps.
 		uint32_t tail_size = LOG_BUFFER_SIZE - start_lsn % LOG_BUFFER_SIZE;
 
 		bytes = read(_fd, _buffer + start_lsn % LOG_BUFFER_SIZE, tail_size);
-		if (bytes < tail_size) { _eof = true; return true; } 
-		bytes = read(_fd, _buffer, end_lsn % LOG_BUFFER_SIZE);
-		if (bytes < end_lsn % LOG_BUFFER_SIZE) { _eof = true; return true; } 
+		if (bytes < tail_size) 
+			_eof = true; 
+		else {
+			bytes += read(_fd, _buffer, end_lsn % LOG_BUFFER_SIZE);
+			if (bytes < end_lsn  - start_lsn)
+				_eof = true; 
+		}
 	} else { 
 		bytes = read(_fd, _buffer + start_lsn % LOG_BUFFER_SIZE, end_lsn - start_lsn);
-		if (bytes < end_lsn - start_lsn) { _eof = true; return true; } 
+		if (bytes < end_lsn - start_lsn) 
+			_eof = true;
 	}
-	//printf("bytes = %d. disk_lsn=%ld\n", bytes, end_lsn);
+	end_lsn = start_lsn + bytes;
+	printf("start_lsn=%ld, end_lsn=%ld, _eof=%d\n", start_lsn, end_lsn, _eof);
 	//fsync(_fd);
+	COMPILER_BARRIER
 	*_disk_lsn = end_lsn;
 	return true;
 }
@@ -517,9 +524,15 @@ LogManager::get_next_log_entry(char * &entry)
 	uint32_t size;
 	char * mentry = entry;
 	do {
-
+		mentry = entry;
 		next_lsn = *_next_lsn;
-		if (next_lsn + sizeof(uint32_t) * 2 >= *_disk_lsn) {
+
+		// TODO. There is a werid bug: for the last block (512-bit) of the file, the data 
+		// is corrupted? the assertion in txn.cpp : 449 would fail.
+		// Right now, the hack to solve this bug:
+		//  	do not read the last few blocks.
+		uint32_t dead_tail = _eof? 2048 : 0;
+		if (next_lsn + sizeof(uint32_t) * 2 >= *_disk_lsn - dead_tail) {
 			entry = NULL;
 			return -1;
 		}
@@ -535,7 +548,7 @@ LogManager::get_next_log_entry(char * &entry)
 			memcpy((char *)&size + tail, _buffer, sizeof(uint32_t) - tail);
 		} else 
 			memcpy(&size, _buffer + size_offset, sizeof(uint32_t));
-		if (next_lsn + size >= *_disk_lsn) {
+		if (next_lsn + size >= *_disk_lsn - dead_tail) {
 			entry = NULL;
 			return -1;
 		}

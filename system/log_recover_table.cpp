@@ -208,7 +208,9 @@ LogRecoverTable::buildSucc()
 				TxnNode * pred_node = _buckets[ hash64(pred_tid) % _num_buckets ].find_txn(pred_tid);
 				if (pred_node) {
 					uint32_t id = ATOM_FETCH_ADD(pred_node->num_raw_succ, 1);
+					assert(id < MAX_ROW_PER_TXN);
 					pred_node->raw_succ[id] = node->tid; 
+					INC_INT_STATS(num_raw_edges, 1);
 				}
 			}
 			// update the WAW successor list 
@@ -217,7 +219,9 @@ LogRecoverTable::buildSucc()
 				TxnNode * pred_node = _buckets[ hash64(pred_tid) % _num_buckets ].find_txn(pred_tid);
 				if (pred_node) {
 					uint32_t id = ATOM_FETCH_ADD(pred_node->num_waw_succ, 1);
+					assert(id < MAX_ROW_PER_TXN);
 					pred_node->waw_succ[id] = node->tid; 
+					INC_INT_STATS(num_waw_edges, 1);
 				}
 			}
 			node = node->next;
@@ -237,17 +241,19 @@ LogRecoverTable::buildWARSucc()
 		TxnNode * node = &_buckets[bid].first;
 		while (node && node->tid != (uint64_t)-1) {
 			// update the RAW successor list 
-			for (uint32_t i = 0; i < node->num_raw_pred; i ++) {
-				for (uint32_t j = 0; j < node->num_waw_pred; j ++) {
-					uint64_t pred_raw = node->raw_pred[i];
-					uint64_t pred_waw = node->waw_pred[j];
+			for (uint32_t i = 0; i < node->num_raw_succ; i ++) {
+				for (uint32_t j = 0; j < node->num_waw_succ; j ++) {
+					uint64_t raw_succ_tid = node->raw_succ[i];
+					uint64_t waw_succ_tid = node->waw_succ[j];
 	
-					TxnNode * raw_node = _buckets[ hash64(pred_raw) % _num_buckets ].find_txn(pred_raw);
-					TxnNode * waw_node = _buckets[ hash64(pred_waw) % _num_buckets ].find_txn(pred_waw);
+					TxnNode * raw_node = _buckets[ hash64(raw_succ_tid) % _num_buckets ].find_txn(raw_succ_tid);
+					TxnNode * waw_node = _buckets[ hash64(waw_succ_tid) % _num_buckets ].find_txn(waw_succ_tid);
 					if (raw_node && waw_node) {
 						uint32_t id = ATOM_FETCH_ADD(raw_node->num_war_succ, 1);
-						raw_node->war_succ[id] = pred_waw;
+						assert(id < MAX_ROW_PER_TXN);
+						raw_node->war_succ[id] = waw_succ_tid;
 						ATOM_FETCH_ADD(waw_node->pred_size, 1);
+						INC_INT_STATS(num_war_edges, 1);
 					}
 				}
 			}
