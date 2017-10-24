@@ -172,8 +172,8 @@ final:
 				cleanup(Abort);
 				return Abort;
 			}
+			INC_INT_STATS(num_log_records, 1);
 #endif
-
 			INC_FLOAT_STATS(time_log, get_sys_clock() - tt);
 		}
 		for (uint32_t i = 0; i < wr_cnt; i++) {

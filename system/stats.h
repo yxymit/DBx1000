@@ -33,6 +33,7 @@ enum StatsFloat {
 enum StatsInt {
 	STAT_num_commits,
 	STAT_num_aborts,
+	STAT_num_log_records,
 
 	// For Log Recovery
 	STAT_num_raw_edges,
@@ -134,6 +135,7 @@ public:
 	std::string statsIntName[NUM_INT_STATS] = {
 		"num_commits",
 		"num_aborts",
+		"num_log_records",
 		
 		// For Log Recovery
 		"num_raw_edges",

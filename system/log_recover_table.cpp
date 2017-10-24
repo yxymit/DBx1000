@@ -258,6 +258,7 @@ LogRecoverTable::buildSucc()
 void 
 LogRecoverTable::buildWARSucc()
 {
+	// XXX
 	uint64_t start_bid = _num_buckets * GET_THD_ID / g_thread_cnt; 	
 	uint64_t end_bid = _num_buckets * (GET_THD_ID + 1) / g_thread_cnt; 
 
@@ -270,14 +271,14 @@ LogRecoverTable::buildWARSucc()
 				for (uint32_t j = 0; j < node->num_waw_succ; j ++) {
 					uint64_t raw_succ_tid = node->raw_succ[i];
 					uint64_t waw_succ_tid = node->waw_succ[j];
-	
+					//printf("war edge from %ld to %ld\n", raw_succ_tid, waw_succ_tid);	
 					TxnNode * raw_node = _buckets[ hash64(raw_succ_tid) % _num_buckets ].find_txn(raw_succ_tid);
 					TxnNode * waw_node = _buckets[ hash64(waw_succ_tid) % _num_buckets ].find_txn(waw_succ_tid);
 					if (raw_node && waw_node) {
 						uint32_t id = ATOM_FETCH_ADD(raw_node->num_war_succ, 1);
 						assert(id < MAX_ROW_PER_TXN);
 						raw_node->war_succ[id] = waw_succ_tid;
-						ATOM_FETCH_ADD(waw_node->pred_size, 1);
+						ATOM_ADD(waw_node->pred_size, 1);
 						INC_INT_STATS(num_war_edges, 1);
 					}
 				}
@@ -310,7 +311,6 @@ LogRecoverTable::remove_txn(uint64_t tid)
 	uint64_t bid = hash64(tid) % _num_buckets;
 	TxnNode * node = _buckets[bid].find_txn(tid);
 	assert(node);
-	node->recovered = true;
 	// wake up RAW successors
 	for (uint32_t i = 0; i < node->num_raw_succ; i ++) {
 		wakeup_succ( node->raw_succ[i] );
@@ -320,10 +320,11 @@ LogRecoverTable::remove_txn(uint64_t tid)
 		wakeup_succ( node->waw_succ[i] );
 	}
 	// wake up WAR successors
-	for (uint32_t i = 0; i < node->num_raw_succ; i ++) {
+	for (uint32_t i = 0; i < node->num_war_succ; i ++) {
 		wakeup_succ( node->war_succ[i] );
 	}
 	COMPILER_BARRIER
+	node->recovered = true;
 	//printf("bean here?\n");
 	*_recover_done[GET_THD_ID] = true;
 }
@@ -334,6 +335,8 @@ LogRecoverTable::wakeup_succ(uint64_t tid)
 	TxnNode * node = _buckets[hash64(tid) % _num_buckets].find_txn(tid);
 	assert(node);
 	uint32_t num_pred = ATOM_SUB_FETCH(node->pred_size, 1);
+	//printf("tid= %ld; num_pred=%d\n", tid, num_pred);
+	assert(num_pred != (uint32_t)-1);
 	if (num_pred == 0)
 		_ready_txns->add( node ); 
 }
@@ -350,13 +353,17 @@ LogRecoverTable::is_recover_done()
 void 
 LogRecoverTable::check_all_recovered()
 {
+	uint32_t count = 0;
 	for (uint64_t bid = 0; bid < _num_buckets; bid ++) {
 		TxnNode * node = &_buckets[bid].first;
 		while (node && node->tid != (uint64_t)-1) {
-			assert(node->recovered);
+			if (!node->recovered)
+				count ++;
+			//	printf("tid = %ld is not recovered\n", node->tid);
 			node = node->next;
 		}
 	}
+	printf("%d transactions are not recovered\n", count);
 }
 /*LogRecoverTable::TxnNode * 
 LogRecoverTable::Bucket::find_txn(uint64_t txn_id)
