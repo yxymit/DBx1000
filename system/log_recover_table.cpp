@@ -133,6 +133,29 @@ LogRecoverTable::TxnPool::get_txn(char * & log_entry)
 	}
 }
 
+bool 
+LogRecoverTable::TxnPool::is_empty()
+{
+	for (uint32_t i = 0; i < _num_pools; i ++)
+		if (!_pools[i].empty())
+			return false;
+	return true;
+}
+
+uint32_t
+LogRecoverTable::TxnPool::get_size()
+{
+	uint32_t count = 0;
+	TxnNode * node = NULL;
+	for (uint32_t i = 0; i < _num_pools; i ++)
+		while (!_pools[i].empty()) {
+			_pools[i].pop(node);
+			printf("node->tid=%ld\n", node->tid);
+			count ++;
+		}
+	return count;
+}
+
 //////////////////////
 // LogRecoverTable
 //////////////////////
@@ -290,10 +313,13 @@ LogRecoverTable::buildWARSucc()
 
 uint64_t 
 LogRecoverTable::get_txn(char * &log_entry) {
+//	COMPILER_BARRIER
+//	*_recover_done[GET_THD_ID] = false;
 	COMPILER_BARRIER
 	uint64_t tid = _ready_txns->get_txn(log_entry);
-	if (log_entry)
-		*_recover_done[GET_THD_ID] = false;
+//	COMPILER_BARRIER
+	if (!log_entry)
+		*_recover_done[GET_THD_ID] = true;
 	// DEBUG
 	//////////////////////////////
 //	uint64_t bid = hash64(tid) % _num_buckets;
@@ -326,7 +352,6 @@ LogRecoverTable::remove_txn(uint64_t tid)
 	COMPILER_BARRIER
 	node->recovered = true;
 	//printf("bean here?\n");
-	*_recover_done[GET_THD_ID] = true;
 }
 
 void 
@@ -347,7 +372,7 @@ LogRecoverTable::is_recover_done()
 	for (uint32_t i = 0; i < g_thread_cnt; i ++)	
 		if (!*_recover_done[i])
 			return false;
-	return true;
+	return _ready_txns->is_empty();
 }
 
 void 
@@ -357,13 +382,16 @@ LogRecoverTable::check_all_recovered()
 	for (uint64_t bid = 0; bid < _num_buckets; bid ++) {
 		TxnNode * node = &_buckets[bid].first;
 		while (node && node->tid != (uint64_t)-1) {
-			if (!node->recovered)
+			if (!node->recovered) {
 				count ++;
-			//	printf("tid = %ld is not recovered\n", node->tid);
+				printf("tid = %ld is not recovered\n", node->tid);
+			}
 			node = node->next;
 		}
 	}
 	printf("%d transactions are not recovered\n", count);
+	printf("empty = %d. size=%d\n", _ready_txns->is_empty(), _ready_txns->get_size());
+	assert(_ready_txns->is_empty());
 }
 /*LogRecoverTable::TxnNode * 
 LogRecoverTable::Bucket::find_txn(uint64_t txn_id)

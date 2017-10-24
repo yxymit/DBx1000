@@ -99,7 +99,9 @@ public:
 	class TxnPool {
 	public:
 		TxnPool();
-
+		
+		bool is_empty();
+		uint32_t get_size();
 		//void add(uint64_t tid, char * log_entry);
 		void add(TxnNode * node);
 		// return value: log_entry

@@ -528,25 +528,32 @@ txn_man::parallel_recover() {
 		printf("Phase 3 starts\n");
 	// Phase 3. Recover transactions
 	// trials: a hack to detect that all transactions are recovered. 
-	uint32_t trials = 0;
+	bool vote_done = false;
+	uint64_t last_idle_time = 0; //get_sys_clock();
 	while (true) { //glob_manager->get_workload()->sim_done < g_thread_cnt) {
 		char * log_entry = NULL;
 		uint64_t tid = log_recover_table->get_txn(log_entry);		
 		if (log_entry) {
-			trials = 0;
+			if (vote_done) {
+		        ATOM_SUB_FETCH(GET_WORKLOAD->sim_done, 1);
+				vote_done = false;
+			}
+			last_idle_time = 0;
             recover_txn(log_entry);
 			log_recover_table->remove_txn(tid);
 			INC_INT_STATS(num_commits, 1);
 			count ++;
-			//cout << "THD=" << GET_THD_ID << "  count=" << count << endl;
-		} else if (log_recover_table->is_recover_done()) {
-			usleep(1000);
-			trials ++;
-			if (trials == 10)
+		} else { //if (log_recover_table->is_recover_done()) {
+			if (last_idle_time == 0)
+				last_idle_time = get_sys_clock();
+			PAUSE
+			if (!vote_done && get_sys_clock() - last_idle_time > 100 * 1000) {
+				vote_done = true;
+		       	ATOM_ADD_FETCH(GET_WORKLOAD->sim_done, 1);
+			}
+			if (GET_WORKLOAD->sim_done == g_thread_cnt)
 				break;
 		}
-		else 
-			PAUSE
 	}
 	INC_FLOAT_STATS(time_phase3, get_sys_clock() - tt);
 ///////////////////////////////
