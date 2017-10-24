@@ -209,7 +209,8 @@ int main(int argc, char* argv[])
 		stats->print();
 	}
 #if LOG_ALGORITHM == LOG_PARALLEL
-	log_recover_table->check_all_recovered();
+	if (g_log_recover)
+		log_recover_table->check_all_recovered();
 #endif
 #if LOG_ALGORITHM != LOG_NO	
 	delete log_manager;

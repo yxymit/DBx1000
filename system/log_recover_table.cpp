@@ -281,7 +281,7 @@ LogRecoverTable::buildSucc()
 void 
 LogRecoverTable::buildWARSucc()
 {
-	// XXX
+#if MODEL_WAR_DEPENDENCY
 	uint64_t start_bid = _num_buckets * GET_THD_ID / g_thread_cnt; 	
 	uint64_t end_bid = _num_buckets * (GET_THD_ID + 1) / g_thread_cnt; 
 
@@ -309,6 +309,7 @@ LogRecoverTable::buildWARSucc()
 			node = node->next;
 		}
 	}
+#endif
 }
 
 uint64_t 
@@ -345,10 +346,12 @@ LogRecoverTable::remove_txn(uint64_t tid)
 	for (uint32_t i = 0; i < node->num_waw_succ; i ++) {
 		wakeup_succ( node->waw_succ[i] );
 	}
+#if MODEL_WAR_DEPENDENCY
 	// wake up WAR successors
 	for (uint32_t i = 0; i < node->num_war_succ; i ++) {
 		wakeup_succ( node->war_succ[i] );
 	}
+#endif
 	COMPILER_BARRIER
 	node->recovered = true;
 	//printf("bean here?\n");
@@ -384,7 +387,7 @@ LogRecoverTable::check_all_recovered()
 		while (node && node->tid != (uint64_t)-1) {
 			if (!node->recovered) {
 				count ++;
-				printf("tid = %ld is not recovered\n", node->tid);
+				//printf("tid = %ld is not recovered\n", node->tid);
 			}
 			node = node->next;
 		}

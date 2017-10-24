@@ -114,7 +114,8 @@
 #define NUM_LOGGER					4 
 #define LOG_PARALLEL_NUM_BUCKETS    4000000	// should equal the number of recovered txns
 #define MAX_LOG_ENTRY_SIZE			16384 // in Bytes
-#define LOG_FLUSH_INTERVAL   		5000 // in us. 
+#define LOG_FLUSH_INTERVAL   		5000 // in us.
+#define MODEL_WAR_DEPENDENCY		true 
 /***********************************************/
 // Benchmark
 /***********************************************/

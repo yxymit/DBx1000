@@ -527,7 +527,9 @@ txn_man::parallel_recover() {
 	if (GET_THD_ID == 0)
 		printf("Phase 3 starts\n");
 	// Phase 3. Recover transactions
-	// trials: a hack to detect that all transactions are recovered. 
+	// XXX the following termination detection is a HACK
+	// Basically if no thread has seen a new txn in 100 us,
+	// the program is terminated.
 	bool vote_done = false;
 	uint64_t last_idle_time = 0; //get_sys_clock();
 	while (true) { //glob_manager->get_workload()->sim_done < g_thread_cnt) {
