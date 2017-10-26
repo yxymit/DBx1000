@@ -40,6 +40,7 @@ def avg_and_dev(data):
     return avg, math.sqrt(dev)
 
 trials = ['', '_1', '_2']
+trials = ['']
 
 #thds = [4, 8] #, 16, 20, 24, 28, 32]
 thds = [4, 8, 16, 20, 24, 28, 32]
@@ -82,10 +83,13 @@ for bench in ['YCSB', 'TPCC']:
 		for n in range(0, len(thds)):
 			thd = thds[n]
 			try:
-				logger = num_logger if config[0] == 'P' else 1
+				logger = num_logger
+				if config[0] == 'S' or config[0] == 'N':
+					logger = 1
 				vals = []
 				for trial in trials:
 					tag = '%s_%s/thd%d_L%d%s' % (config, bench, thd, logger, trial)
+					print tag
 					values = results[tag]
 					vals.append(values['num_commits'] / values['run_time'] * thd / 1000000.0)	
 				data[name][n], err[name][n] = avg_and_dev(vals)
@@ -95,10 +99,9 @@ for bench in ['YCSB', 'TPCC']:
 				data[name][n] = 0
 				err[name][n] = 0
 	fname = 'thr_logging%s_%s' % (num_logger, bench)
-	print fname
-	print data
 	#draw_line('thr_logging%s_%s' % (num_loggers, bench), data, [str(x) for x in thds], ncol=2, 
 	#	top=0.85, bbox=[0.82, 0.85])
+	print bench, data
 	draw_errorbar(fname, data, err, 
 		[str(x) for x in thds], bbox=[0.82, 0.9], ncol=2, 
 		top=0.80)
@@ -121,20 +124,20 @@ for bench in benchmarks:
 		name = names[i]
 		data[name] = [0] * len(thds)
 		err[name] = [0] * len(thds)
-		if config.startswith('S'): num_loggers = 1
-		else : num_loggers = 4
+		if config[0] == 'S': 	num_logger = 1
+		else : 					num_logger = 4
 		for n in range(0, len(thds)):
 			thd = thds[n]
-			logger = num_loggers if config[0] == 'P' else 1
 			try:
 				vals = []
 				for trial in trials:
-					tag = '%s_%s/thd%d_L%d%s' % (config, bench, thd, logger, trial)
+					tag = '%s_%s_rec/thd%d_L%d%s' % (config, bench, thd, num_logger, trial)
+					print tag
 					values = results[tag]
 					if config[0] == 'S':
 						vals.append(values['num_commits'] / values['run_time'] / 1000000.0)	
 						#vals.append(1.0 / values['run_time'] / 1000000.0)	
-					elif config[0] == 'P':
+					else:
 						vals.append(values['num_commits'] / (values['run_time'] / thd) / 1000000.0)	
 						#vals.append(1.0 / (values['run_time'] / thd) / 1000000.0)	
 				data[name][n], err[name][n] = avg_and_dev(vals)

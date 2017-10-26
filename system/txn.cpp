@@ -500,7 +500,7 @@ txn_man::parallel_recover() {
 					break;
 			}
 			else { 
-				usleep(50);
+				PAUSE
 				INC_FLOAT_STATS(time_debug10, get_sys_clock() - t1);
 				continue;
 			}
