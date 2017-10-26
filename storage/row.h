@@ -114,7 +114,7 @@ public:
 	{ _last_writer = last_writer; }
 
 	// txnID of the last writer txn
-	uint64_t 		_last_writer;
+	volatile uint64_t 		_last_writer;
 	// TODO assume upto 4 loggers. 
 	//uint64_t		_pred_vector[4];
 

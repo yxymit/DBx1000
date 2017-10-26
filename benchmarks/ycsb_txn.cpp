@@ -15,6 +15,7 @@
 #include "row_mvcc.h"
 #include "mem_alloc.h"
 #include "query.h"
+#include "row_silo.h"
 
 void ycsb_txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	txn_man::init(h_thd, h_wl, thd_id);
@@ -84,7 +85,7 @@ final:
 }
 
 void 
-ycsb_txn_man::recover_txn(char * log_entry)
+ycsb_txn_man::recover_txn(char * log_entry, uint64_t tid)
 {
 #if LOG_TYPE == LOG_DATA
 	// Format 
@@ -108,7 +109,15 @@ ycsb_txn_man::recover_txn(char * log_entry)
 		
 		itemid_t * m_item = index_read(_wl->the_index, key, 0);
 		row_t * row = ((row_t *)m_item->location);
+	#if LOG_ALGORITHM == LOG_BATCH
+		uint64_t cur_tid = row->manager->get_tid();
+		if (tid > cur_tid) { 
+			row->set_data(data, data_length);
+			row->manager->set_tid(tid);
+		}
+	#else
 		row->set_data(data, data_length);
+	#endif
 	}
 #elif LOG_TYPE == LOG_COMMAND
 	// Format

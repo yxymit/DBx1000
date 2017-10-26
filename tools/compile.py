@@ -20,30 +20,38 @@ def insert_his(alg, workload='YCSB', log_type='LOG_DATA', recovery='false',
 		name = 'NO'
 	else :
 		name = 'S' if alg == 'serial' else 'P'
-		name += 'D' if log_type == 'LOG_DATA' else 'C'
-		name += '' if recovery == 'false' else '_rec'
+		if alg == 'serial': name = 'S'
+		elif alg == 'parallel': name = 'P'
+		elif alg == 'batch': name = 'B'
+		else:  assert(False)
+		
+		if log_type == 'LOG_DATA':
+			name += 'D'
+		elif log_type == 'LOG_COMMAND':
+			name += 'C'
+		else:
+			assert(False)
 	name += '_%s' % workload
 	jobs[name] = {}
 	jobs[name]["LOG_ALGORITHM"] = "LOG_%s" % alg.upper()
 	jobs[name]["WORKLOAD"] = workload
 	jobs[name]["LOG_TYPE"] = log_type
-	jobs[name]["LOG_RECOVER"] = recovery
-	jobs[name]["LOG_GARBAGE_COLLECT"] = gc
-	jobs[name]["LOG_RAM_DISC"] = ramdisc
-	jobs[name]["MAX_TXN_PER_PART"] = max_txn
+	#jobs[name]["LOG_RECOVER"] = recovery
+	#jobs[name]["LOG_GARBAGE_COLLECT"] = gc
+	#jobs[name]["LOG_RAM_DISC"] = ramdisc
+	#jobs[name]["MAX_TXN_PER_THREAD"] = max_txn
 
 jobs = {}
+benchmarks = ['TPCC']
 benchmarks = ['YCSB']
-#for bench in ['TPCC']:
-#for bench in ['YCSB', 'TPCC']:
+benchmarks = ['YCSB', 'TPCC']
 for bench in benchmarks:
-	for recovery in ['false']: #, 'true']:
-		#for recovery in ['false', 'true']:
-		#insert_his('serial', bench, 'LOG_DATA', recovery, 'true')
-		#insert_his('serial', bench, 'LOG_COMMAND', recovery, 'true')
-		#insert_his('parallel', bench, 'LOG_DATA', recovery, 'true')
-		insert_his('parallel', bench, 'LOG_COMMAND', recovery, 'true')
-	insert_his('no', bench)
+	#insert_his('serial', bench, 'LOG_DATA')
+	#insert_his('serial', bench, 'LOG_COMMAND')
+	#insert_his('parallel', bench, 'LOG_DATA')
+	#insert_his('parallel', bench, 'LOG_COMMAND')
+	insert_his('batch', bench, 'LOG_DATA')
+	#insert_his('no', bench)
 	
 for (jobname, v) in jobs.iteritems():
 	os.system("cp "+ dbms_cfg[0] +' ' + dbms_cfg[1])

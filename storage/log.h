@@ -93,9 +93,13 @@ public:
 public:
 	void init(string log_file_name);
 	uint64_t logTxn(char * log_entry, uint32_t size);
+	
+	// for LOG_ALGORITHM == LOG_BATCH
+	uint64_t logTxn(char * log_entry, uint32_t size, uint64_t epoch);
+	
 	// called by logging thread. 
-	// return value: flushed or not. 
-	bool tryFlush();
+	// return value: bytes flushed to disk
+	uint32_t tryFlush();
 	uint64_t get_persistent_lsn() { return *_persistent_lsn; }
 private: 
 	void flush(uint64_t start_lsn, uint64_t end_lsn);
@@ -112,7 +116,8 @@ private:
 	// recovery 
 	////////////////////////////	
 public:
-	bool 		tryReadLog();
+	// bytes read from the log
+	uint32_t	tryReadLog();
 	bool 		iseof() { return _eof; }
  	uint64_t 	get_next_log_entry(char * &entry);
 	void 		set_gc_lsn(uint64_t lsn);
@@ -125,7 +130,26 @@ private:
 	// data structures shared by forward processing and recovery 
 	///////////////////////////////////////////////////////	
 private:
+#if LOG_ALGORITHM == LOG_BATCH
+public:
+	uint64_t get_max_flushed_epoch() {
+		return *_max_flushed_epoch;
+	}
+private:
+	enum BufferState {BUF_WAIT_FOR_FLUSH, BUF_FLUSHED};
+	// one buffer for each epoch.
+	uint32_t 			_num_buffers;
+	char ** 			_buffers;
+	BufferState ** 		_buffer_state;
+	// the maximum epoch number seen by each worker thread.
+	// the logs for an epoch E can be flushed when E is smaller than all entries in _max_epochs 
+	//volatile uint64_t **			_max_epochs;
+	uint64_t * 			_max_flushed_epoch; 
+	// log_tail for each buffer.
+	uint64_t ** 		_lsns;
+#else 
 	char * 				_buffer;		// circular buffer to store unflushed data.
+#endif
 	string 				_file_name;
 	int 				_fd; 
 	fstream * 			_file;

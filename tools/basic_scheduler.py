@@ -16,6 +16,7 @@ class BasicScheduler:
 		submit_file = open("tools/start.sh", 'w')
 		for output_dir in self.jobqueue:
 			#if not os.path.exists('./%s/output' % output_dir):
+			submit_file.write("echo %s\n" % output_dir)
 			submit_file.write(". ./%s/basic.sh\n" % output_dir)
 		#submit_file.write('python tools/send_email.py')	
 		submit_file.close()

@@ -15,6 +15,7 @@
 #include "log_pending_table.h"
 #include "log_recover_table.h"
 #include "free_queue.h"
+#include <fcntl.h>
 
 void * f(void *);
 void * f_log(void *);
@@ -51,9 +52,10 @@ int main(int argc, char* argv[])
 	#endif
 	//log_manager->init();
 	
-#elif LOG_ALGORITHM == LOG_PARALLEL
+#elif LOG_ALGORITHM == LOG_PARALLEL || LOG_ALGORITHM == LOG_BATCH
 	string bench = (WORKLOAD == YCSB)? "YCSB" : "TPCC";
 	log_manager = new LogManager * [g_num_logger];
+	string type = (LOG_ALGORITHM == LOG_PARALLEL)? "P" : "B";
 	for (uint32_t i = 0; i < g_num_logger; i ++) {
 		if (strncmp(hostname, "istc", 4) == 0) {
 			if (i == 0)
@@ -65,43 +67,41 @@ int main(int argc, char* argv[])
 			else if (i == 3)
 				dir = "/data/yxy/";
 		}
+	  #if LOG_ALGORITHM == LOG_BATCH
+	  	dir += "silo/";
+      #endif
 		log_manager[i] = (LogManager *) _mm_malloc(sizeof(LogManager), 64);
 		new(log_manager[i]) LogManager(i);
 		#if LOG_TYPE == LOG_DATA
-		log_manager[i]->init(dir + "/PD_log" + to_string(i) + "_" + bench + ".log");
+		log_manager[i]->init(dir + type + "D_log" + to_string(i) + "_" + bench + ".log");
 		#else
-		log_manager[i]->init(dir + "/PC_log" + to_string(i) + "_" + bench + ".log");
+		log_manager[i]->init(dir + type + "C_log" + to_string(i) + "_" + bench + ".log");
 		#endif
 	}
 	
-//	MALLOC_CONSTRUCTOR(LogPendingTable, log_pending_table);
-	if (g_log_recover) {
+  #if LOG_ALGORITHM == LOG_PARALLEL
+	if (g_log_recover) 
 		MALLOC_CONSTRUCTOR(LogRecoverTable, log_recover_table);
-	}
-//	dispatch_queue = new DispatchQueue * [g_thread_cnt];
-//	gc_queue = new GCQueue * [g_thread_cnt];
-
-//	txns_ready_for_recovery = new boost::lockfree::queue<RecoverState *>  * [g_thread_cnt]; 
-//	for(uint32_t i = 0; i < g_thread_cnt; i++) {
-//		txns_ready_for_recovery[i] = (boost::lockfree::queue<RecoverState *> *) 
-//			_mm_malloc(sizeof(boost::lockfree::queue<RecoverState *>{100}), 64);
-//		new(txns_ready_for_recovery[i]) boost::lockfree::queue<RecoverState *>{100};
-		//txns_ready_for_recovery[i] = new boost::lockfree::queue<RecoverState *>{100};
-//	}
-
-//	for(uint32_t i = 0; i < g_thread_cnt; i++) { 
-//		dispatch_queue[i] = (DispatchQueue *) _mm_malloc(sizeof(DispatchQueue), 64);
-//		new(dispatch_queue[i]) DispatchQueue();	
-//		
-//		gc_queue[i] = (GCQueue *) _mm_malloc(sizeof(GCQueue), 64);
-//		new(gc_queue[i]) GCQueue();	
-//	}
+  #endif
 #endif
-//	free_queue_recover_state = new FreeQueue * [g_thread_cnt];
-///	for (uint32_t i = 0 ; i < g_thread_cnt; i ++) {
-//		free_queue_recover_state[i] = (FreeQueue *) _mm_malloc(sizeof(FreeQueue), 64);
-//		new (free_queue_recover_state[i]) FreeQueue();
-//	}
+#if LOG_ALGORITHM == LOG_BATCH
+	assert(LOG_TYPE == LOG_DATA);
+	if (g_log_recover) {
+		next_log_file_epoch = (uint32_t *) _mm_malloc(sizeof(uint32_t), 64);
+		string path = "/f0/yxy/silo/";
+		#if LOG_TYPE == LOG_DATA
+		path += "BD_log0_" + bench + ".log";
+		#else
+		path += "BC_log0_" + bench + ".log";
+		#endif
+		int fd = open(path.c_str(), O_RDONLY);
+		fd = open(path.c_str(), O_RDONLY);
+		int bytes = read(fd, next_log_file_epoch, sizeof(uint32_t));
+		printf("next_log_file_epoch=%d\n", *next_log_file_epoch);
+		assert(bytes == sizeof(uint32_t));
+		close(fd);
+	}
+#endif
 
 	mem_allocator.init(g_part_cnt, MEM_SIZE / g_part_cnt); 
 	stats = new Stats();
@@ -212,7 +212,10 @@ int main(int argc, char* argv[])
 	if (g_log_recover)
 		log_recover_table->check_all_recovered();
 #endif
-#if LOG_ALGORITHM != LOG_NO	
+#if LOG_ALGORITHM == LOG_PARALLEL
+	for (uint32_t i = 0; i < g_num_logger; i ++)
+		delete log_manager[i];
+#elif LOG_ALGORITHM == LOG_SERIAL
 	delete log_manager;
 #endif
     return 0;

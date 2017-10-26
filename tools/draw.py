@@ -112,7 +112,7 @@ def draw_line(fname, data, xlabels,
 # data[linename][x index]
 def draw_errorbar(fname, data, error, xlabels,
         bbox=(0.9,0.95), ncol=2,
-        ylab='Throughput', logscale=False,
+        ylab='Throughput (Million Txns/s)', logscale=False,
         ylimit=0, xlimit=None, xlab='# of nodes',
         legend=True, linenames = None, figsize=(5, 4), vline=None,
         top=0.95, bottom=0.18, left=0.13, right=0.95) :

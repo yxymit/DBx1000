@@ -2,6 +2,7 @@
 #include "row.h"
 #include "row_silo.h"
 #include "mem_alloc.h"
+#include "table.h"
 
 #if CC_ALG==SILO
 
@@ -21,7 +22,7 @@ Row_silo::init(row_t * row)
 RC
 Row_silo::access(txn_man * txn, TsType type, char * data) {
 #if ATOMIC_WORD
-  #if LOG_ALGORITHM != LOG_NO
+  #if LOG_ALGORITHM == LOG_SERIAL || LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t pred; 
   #endif
 	uint64_t v = 0;
@@ -32,9 +33,10 @@ Row_silo::access(txn_man * txn, TsType type, char * data) {
 			PAUSE
 			v = _tid_word;
 		}
+		//COMPILER_BARRIER
 		memcpy(data, _row->get_data(), _row->get_tuple_size());
 		//local_row->copy(_row);
-  #if LOG_ALGORITHM != LOG_NO
+  #if LOG_ALGORITHM == LOG_SERIAL || LOG_ALGORITHM == LOG_PARALLEL
 		pred = _row->get_last_writer();
   #endif
 		COMPILER_BARRIER
@@ -42,8 +44,11 @@ Row_silo::access(txn_man * txn, TsType type, char * data) {
 	}
 	txn->last_tid = v & (~LOCK_BIT);
   #if LOG_ALGORITHM == LOG_PARALLEL
-    if (pred != (uint64_t)-1)
-		txn->add_pred( pred, (type == R_REQ)? RAW : WAW);
+    //if (pred != (uint64_t)-1)
+	txn->add_pred( pred, _row->get_primary_key(), _row->get_table()->get_table_id(),
+		(type == R_REQ)? RAW : WAW);
+	//if (_row->get_primary_key() == 1 && _row->get_table()->get_table_id() == 0)
+	//	printf("last_writer = %ld\n", pred);
   #elif LOG_ALGORITHM == LOG_SERIAL
   	txn->update_lsn(pred);
   #endif
@@ -87,10 +92,11 @@ Row_silo::write(char * data, uint64_t tid) {
 #if ATOMIC_WORD
 	//uint64_t v = _tid_word;
 	//M_ASSERT(tid >= (v & (~LOCK_BIT)) && (v & LOCK_BIT), "tid=%ld, v & LOCK_BIT=%ld, v & (~LOCK_BIT)=%ld\n", tid, (v & LOCK_BIT), (v & (~LOCK_BIT)));
-	_tid_word = (tid | LOCK_BIT);
   #if LOG_ALGORITHM != NO_LOG
     _row->set_last_writer(tid);
   #endif
+  	COMPILER_BARRIER
+	_tid_word = (tid | LOCK_BIT);
 #else
 	_tid = tid;
 #endif

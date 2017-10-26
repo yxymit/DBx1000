@@ -50,11 +50,15 @@ public:
     void            set_workload(workload * wl) { _workload = wl; }
     workload *      get_workload()  { return _workload; }
 
-
+	// SILO Epochs
+	void 			update_max_epoch(uint64_t epoch);
+	uint64_t 		get_ready_epoch();
 private:
 	// for SILO
-	volatile uint64_t * _epoch;		
-	ts_t * 			_last_epoch_update_time;
+	volatile uint64_t * 			_epoch;		
+	volatile uint64_t * 			_last_epoch_update_time;
+	volatile uint64_t **			_max_epochs;
+
 
 	pthread_mutex_t ts_mutex;
 	uint64_t *		timestamp;

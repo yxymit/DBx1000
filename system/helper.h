@@ -22,6 +22,8 @@
 	__sync_fetch_and_add(&(dest), value)
 #define ATOM_SUB_FETCH(dest, value) \
 	__sync_sub_and_fetch(&(dest), value)
+#define ATOM_FETCH_SUB(dest, value) \
+	__sync_fetch_and_sub(&(dest), value)
 
 #define COMPILER_BARRIER asm volatile("" ::: "memory");
 //#define PAUSE { __asm__ ( "pause;" ); }

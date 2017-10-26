@@ -34,7 +34,7 @@ class ycsb_txn_man : public txn_man
 public:
 	void init(thread_t * h_thd, workload * h_wl, uint64_t part_id); 
 	RC run_txn(base_query * query);
-	void recover_txn(char * log_record); 
+	void recover_txn(char * log_record, uint64_t tid = (uint64_t)-1); 
 
 	void get_cmd_log_entry();
 private:

@@ -10,7 +10,6 @@
 #include "log.h"
 #include "serial_log.h"
 #include "parallel_log.h"
-#include "batch_log.h"
 #include "log_pending_table.h"
 #include "log_recover_table.h"
 #include "free_queue.h"
@@ -35,7 +34,8 @@ OptCC occ_man;
 #if LOG_ALGORITHM == LOG_SERIAL
 LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
-BatchLog * log_manager;
+LogManager ** log_manager; 
+uint32_t * next_log_file_epoch;
 #elif LOG_ALGORITHM == LOG_PARALLEL
 LogManager ** log_manager; 
 //LogPendingTable * log_pending_table;
@@ -96,8 +96,9 @@ double g_perc_payment = PERC_PAYMENT;
 bool g_wh_update = WH_UPDATE;
 char * output_file = NULL;
 char * logging_dir = NULL;
+uint32_t g_log_parallel_num_buckets = LOG_PARALLEL_NUM_BUCKETS;
 
-UInt32 g_buffer_size = BUFFER_SIZE;
+UInt32 g_log_buffer_size = LOG_BUFFER_SIZE;
 
 //map<string, string> g_params;
 bool g_abort_buffer_enable = ABORT_BUFFER_ENABLE;

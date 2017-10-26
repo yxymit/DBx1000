@@ -16,6 +16,7 @@
 #include "log_pending_table.h"
 #include "free_queue.h"
 #include "manager.h"
+#include <fcntl.h>
 
 void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	this->h_thd = h_thd;
@@ -49,9 +50,9 @@ void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 #if LOG_ALGORITHM == LOG_PARALLEL
 	_num_raw_preds = 0;
 	_num_waw_preds = 0;
-	_predecessor_info = new PredecessorInfo;	
-	for (uint32_t i = 0; i < 4; i++)
-		aggregate_pred_vector[i] = 0;
+//	_predecessor_info = new PredecessorInfo;	
+//	for (uint32_t i = 0; i < 4; i++)
+//		aggregate_pred_vector[i] = 0;
 #endif
 	_log_entry = new char [MAX_LOG_ENTRY_SIZE];
 	_log_entry_size = 0;
@@ -150,8 +151,8 @@ RC txn_man::cleanup(RC in_rc)
 			} else {
 				queue<TxnState> * state_queue = _txn_state_queue[GET_THD_ID];
 				TxnState state;
+				state.max_lsn = max_lsn;
 				state.start_time = _txn_start_time;
-				//memcpy(state.preds, _preds, sizeof(uint64_t) * g_num_logger);
 				state.wait_start_time = get_sys_clock();
 				state_queue->push(state);
 				bool success = true;
@@ -177,8 +178,9 @@ RC txn_man::cleanup(RC in_rc)
 				success = false;
 			if (success) {
 				for (uint32_t i=0; i < _num_raw_preds; i++)  {
-					logger_id = _raw_preds[i] >> 48;
-					lsn = (_raw_preds[i] << 16) >> 16;
+					if (_raw_preds_tid[i] == (uint64_t)-1) continue;
+					logger_id = _raw_preds_tid[i] >> 48;
+					lsn = (_raw_preds_tid[i] << 16) >> 16;
 					if (lsn > log_manager[logger_id]->get_persistent_lsn()) { 
 						success = false;
 						break;
@@ -187,8 +189,9 @@ RC txn_man::cleanup(RC in_rc)
 			}
 			if (success) {
 				for (uint32_t i=0; i < _num_waw_preds; i++)  {
-					logger_id = _waw_preds[i] >> 48;
-					lsn = (_waw_preds[i] << 16) >> 16;
+					if (_waw_preds_tid[i] == (uint64_t)-1) continue;
+					logger_id = _waw_preds_tid[i] >> 48;
+					lsn = (_waw_preds_tid[i] << 16) >> 16;
 					if (lsn > log_manager[logger_id]->get_persistent_lsn()) { 
 						success = false;
 						break;
@@ -208,14 +211,16 @@ RC txn_man::cleanup(RC in_rc)
 				if (lsn > state.preds[logger_id])
 					state.preds[logger_id] = lsn;
 				for (uint32_t i=0; i < _num_raw_preds; i++)  {
-					logger_id = _raw_preds[i] >> 48;
-					lsn = (_raw_preds[i] << 16) >> 16;
+					if (_raw_preds_tid[i] == (uint64_t)-1) continue;
+					logger_id = _raw_preds_tid[i] >> 48;
+					lsn = (_raw_preds_tid[i] << 16) >> 16;
 					if (lsn > state.preds[logger_id])
 						state.preds[logger_id] = lsn;
 				} 
 				for (uint32_t i=0; i < _num_waw_preds; i++)  {
-					logger_id = _waw_preds[i] >> 48;
-					lsn = (_waw_preds[i] << 16) >> 16;
+					if (_waw_preds_tid[i] == (uint64_t)-1) continue;
+					logger_id = _waw_preds_tid[i] >> 48;
+					lsn = (_waw_preds_tid[i] << 16) >> 16;
 					if (lsn > state.preds[logger_id])
 						state.preds[logger_id] = lsn;
 				} 
@@ -240,25 +245,42 @@ RC txn_man::cleanup(RC in_rc)
 					}
 				}
 			}
-/*		#if LOG_TYPE == LOG_COMMAND
-			// should periodically write epoch log.
-			// Only a single thread does this. 
-			if (get_thd_id() == 0 && get_sys_clock() / TIMESTAMP_SYNC_EPOCH / 1000000 > _last_epoch_time) {
-				_last_epoch_time = get_sys_clock() / TIMESTAMP_SYNC_EPOCH / 1000000;
-				uint64_t max_ts = glob_manager->get_max_ts();
-				//log_manager->logFence(max_ts);
-				//printf("logFence max_ts = %ld\n", max_ts);
+  #elif LOG_ALGORITHM == LOG_BATCH
+  			uint64_t flushed_epoch = (uint64_t)-1;
+			for (uint32_t i = 0; i < g_num_logger; i ++) {
+				uint64_t max_epoch = log_manager[i]->get_max_flushed_epoch();
+				if (max_epoch < flushed_epoch)
+					flushed_epoch = max_epoch; 
 			}
-		#endif
-*/
+			if (_epoch <= flushed_epoch) {
+				INC_FLOAT_STATS(latency, get_sys_clock() - _txn_start_time);
+			} else {
+				queue<TxnState> * state_queue = _txn_state_queue[GET_THD_ID];
+				TxnState state;
+				state.epoch = _epoch;
+				state.start_time = _txn_start_time;
+				state.wait_start_time = get_sys_clock();
+				state_queue->push(state);
+				bool success = true;
+				while (!state_queue->empty() && success) 
+				{
+					TxnState state = state_queue->front();
+					if (state.epoch > flushed_epoch) { 
+						success = false;
+						break;
+					}
+					if (success) {
+						INC_FLOAT_STATS(latency, get_sys_clock() - state.start_time);
+						state_queue->pop();
+					}
+				}
+			}
+
   #endif
 			uint64_t after_log_time = get_sys_clock();
 			INC_FLOAT_STATS(time_log, after_log_time - before_log_time);
 		}
 	}
-//  #if LOG_ALGORITHM == LOG_PARALLEL
-//	_predecessor_info->clear();
-//  #endif
 #else // LOG_ALGORITHM == LOG_NO
 	INC_FLOAT_STATS(latency, get_sys_clock() - _txn_start_time);
 #endif
@@ -306,13 +328,6 @@ RC txn_man::get_row(row_t * row, access_t type, char * &data) {
 	}
 	
 	rc = row->get_row(type, this, accesses[ row_cnt ]->data);
-//#if LOG_ALGORITHM == LOG_PARALLEL
-//	if (last_writer != (uint64_t)-1) 
-//		_predecessor_info->insert_pred(last_writer, type);
-//	for (uint32_t i = 0; i < 4; i ++) 
-//		if (pred_vector[i] > aggregate_pred_vector[i])
-//			aggregate_pred_vector[i] = pred_vector[i];
-//#endif
 	if (rc == Abort) {
 		return Abort;
 	}
@@ -419,6 +434,8 @@ txn_man::recover() {
 	serial_recover();
 #elif LOG_ALGORITHM == LOG_PARALLEL
 	parallel_recover();
+#elif LOG_ALGORITHM == LOG_BATCH
+	batch_recover();
 #endif
 }
 
@@ -475,6 +492,7 @@ txn_man::parallel_recover() {
 		char * entry = default_entry;
 		uint64_t t1 = get_sys_clock();
 		uint64_t lsn = log_manager[logger_id]->get_next_log_entry(entry);
+		//INC_FLOAT_STATS(time_debug1, get_sys_clock() - t1);
 		if (entry == NULL) {
 			if (log_manager[logger_id]->iseof()) {
 				lsn = log_manager[logger_id]->get_next_log_entry(entry);
@@ -483,35 +501,36 @@ txn_man::parallel_recover() {
 			}
 			else { 
 				usleep(50);
+				INC_FLOAT_STATS(time_debug10, get_sys_clock() - t1);
 				continue;
 			}
 		}
-		INC_FLOAT_STATS(time_debug1, get_sys_clock() - t1);
+		INC_FLOAT_STATS(time_debug2, get_sys_clock() - t1);
 		//printf("get some data please\n");
 		uint64_t tid = ((uint64_t)logger_id << 48) | lsn;
 
 		uint32_t size = *(uint32_t*)(entry + sizeof(uint32_t));
-		assert(size > 0 && size <= MAX_LOG_ENTRY_SIZE);
+		M_ASSERT(size > 0 && size <= MAX_LOG_ENTRY_SIZE, "size=%d\n", size);
 
-		uint64_t t2 = get_sys_clock();
 		log_recover_table->addTxn(tid, entry);
 		INC_INT_STATS(int_debug3, 1);
-		INC_FLOAT_STATS(time_debug2, get_sys_clock() - t2);
 		
 		COMPILER_BARRIER
 		log_manager[logger_id]->set_gc_lsn(lsn);
 		count ++;
+		INC_FLOAT_STATS(time_debug3, get_sys_clock() - t1);
 	}
+	
+	pthread_barrier_wait(&worker_bar);
 	INC_FLOAT_STATS(time_phase1_1, get_sys_clock() - tt);
 	tt = get_sys_clock();
 	
-	pthread_barrier_wait(&worker_bar);
 	if (GET_THD_ID == 0)
 		printf("Phase 1.2 starts\n");
 	// Phase 1.2. add in the successor info to the graph.
 	log_recover_table->buildSucc();
-	pthread_barrier_wait(&worker_bar);
 	
+	pthread_barrier_wait(&worker_bar);
 	INC_FLOAT_STATS(time_phase1_2, get_sys_clock() - tt);
 	tt = get_sys_clock();
 	
@@ -519,8 +538,8 @@ txn_man::parallel_recover() {
 		printf("Phase 2 starts\n");
 	// Phase 2. Infer WAR edges.   
 	log_recover_table->buildWARSucc(); 
+	
 	pthread_barrier_wait(&worker_bar);
-
 	INC_FLOAT_STATS(time_phase2, get_sys_clock() - tt);
 	tt = get_sys_clock();
 
@@ -532,7 +551,7 @@ txn_man::parallel_recover() {
 	// the program is terminated.
 	bool vote_done = false;
 	uint64_t last_idle_time = 0; //get_sys_clock();
-	while (true) { //glob_manager->get_workload()->sim_done < g_thread_cnt) {
+	while (true) { 
 		char * log_entry = NULL;
 		uint64_t tid = log_recover_table->get_txn(log_entry);		
 		if (log_entry) {
@@ -558,155 +577,55 @@ txn_man::parallel_recover() {
 		}
 	}
 	INC_FLOAT_STATS(time_phase3, get_sys_clock() - tt);
-///////////////////////////////
-///////////////////////////////
-///////////////////////////////
-	/*
-	uint64_t starttime = get_sys_clock();
-	bool log_read_done = false;
-	if (get_thd_id() < g_num_logger) {
-		// Logging thread. 
-		// Reads from log file and insert to the recovery graph. 
-		char * entry = NULL;
-		char * raw_entry = NULL;
-		uint64_t commit_ts = 0;
-		uint64_t num_txns = 0;
-		uint32_t start_thd = g_num_logger + GET_THD_ID * (g_thread_cnt - g_num_logger) / g_num_logger; 
-		uint32_t end_thd = g_num_logger + (GET_THD_ID  + 1) * (g_thread_cnt - g_num_logger) / g_num_logger;
-		uint32_t cur_dispatch_thd = start_thd;
-		uint32_t cur_gc_thd = start_thd;
-		//log_recover_table->_gc_front = NULL;
-		while (!h_wl->sim_done) {
-			if (!log_read_done && log_recover_table->_gc_queue[GET_THD_ID]->size() < 1000) {
-				bool is_fence = log_manager->readLogEntry(raw_entry, entry, commit_ts);
-	#if LOG_TYPE == LOG_COMMAND
-				if (is_fence) {
-				  	assert(commit_ts >= glob_manager->get_min_ts());
-					log_recover_table->add_fence(commit_ts);
-//					printf("Add Fence. commit_ts=%ld, THD=%ld, num_txns=%ld\n", 
-//						commit_ts, GET_THD_ID, num_txns);
+}
+#elif LOG_ALGORITHM == LOG_BATCH
+void
+txn_man::batch_recover()
+{
+	while (true) {
+		int32_t next_epoch = ATOM_FETCH_SUB(*next_log_file_epoch, 1);
+		if (next_epoch <= 0) 
+			break;
 
-//					pthread_barrier_wait(&log_bar);
-					continue;
-				}
-	#endif
-				assert(!is_fence);
-				if (!entry) {
-					// end of the log file.
-					log_read_done = true;
-					ATOM_ADD_FETCH(ParallelLogManager::num_txns_from_log, num_txns);
-					printf("Thread %ld Done\n", GET_THD_ID);
-					uint32_t thds_done = ATOM_ADD_FETCH(ParallelLogManager::num_threads_done, 1);
-					if (thds_done == g_num_logger)
-						printf("total txns from log = %ld\n", ParallelLogManager::num_txns_from_log);
-					continue;
-				}
-				INC_STATS(GET_THD_ID, debug7, 1);
-				uint64_t txn_id = get_txn_id_from_entry(entry); 
-				void * gc_entry = log_recover_table->insert_gc_entry(txn_id);
-				while (!dispatch_queue[cur_dispatch_thd]->push(DispatchJob{raw_entry, gc_entry})) {
-					timespec time {0, 10}; 
-					nanosleep(&time, NULL);
-				}
-				cur_dispatch_thd ++;
-				if (cur_dispatch_thd == end_thd) 
-					cur_dispatch_thd = start_thd;
-  				num_txns ++;
-			} else if (log_read_done && ParallelLogManager::num_threads_done == g_num_logger) {
-				if (GET_THD_ID == 1 && glob_manager->rand_uint64() % 10 < 1) {
-					uint64_t total_txns = 0;
-					for (uint32_t i = 0; i < g_thread_cnt; i++)
-						total_txns += *ParallelLogManager::num_txns_recovered[i];
-					if (total_txns == ParallelLogManager::num_txns_from_log) 
-	        			h_wl->sim_done = true;
-//					printf("progress %ld/%ld\n", total_txns, ParallelLogManager::num_txns_from_log);
-				}
+		string path = "/f0/yxy/silo/";
+		string bench = (WORKLOAD == YCSB)? "YCSB" : "TPCC";
+		path += "BD_log0_" + bench + ".log." + to_string(next_epoch);
+		int fd = open(path.c_str(), O_RDONLY);
+		uint32_t fsize = lseek(fd, 0, SEEK_END);
+		char * buffer = new char [fsize];
+		lseek(fd, 0, SEEK_SET);
+		uint32_t bytes = read(fd, buffer, fsize);
+		assert(bytes == fsize);
+		
+		// Format for batch logging 
+		// | checksum | size | TID | N | (table_id | primary_key | data_length | data) * N
+		uint32_t offset = 0;
+		while (offset < fsize) {
+			// read entries from buffer
+			uint32_t checksum;
+			uint32_t size; 
+			uint64_t tid;
+			uint32_t start = offset;
+			UNPACK(buffer, checksum, offset);
+			UNPACK(buffer, size, offset);
+			UNPACK(buffer, tid, offset);
+			if (checksum != 0xdead) {
+				//printf("checksum=%x, offset=%d, fsize=%d\n", checksum, offset, fsize);
+				break;
 			}
-			log_recover_table->garbage_collection(cur_gc_thd, start_thd, end_thd);
+			
+			recover_txn(buffer + offset);
+			INC_INT_STATS(num_commits, 1);
+			
+			offset = start + size;
 		}
-		return;
+		printf("Epoch %d done\n", next_epoch);
 	}
-	// Execution thread.
-	// recover transactions that are ready 
-	uint64_t num_records = 0;
-	log_recover_table->next_node = NULL;
-	RecoverState  * recover_state = NULL;
-	while (!h_wl->sim_done) {
-		uint64_t t1 = get_sys_clock();
-		bool progress = false; 
-		// Garbage Collection
-		GCJob gc_job;
-		while (gc_queue[GET_THD_ID]->pop(gc_job)) {
-			progress = true;
-			log_recover_table->gc_txn(gc_job.txn_id);
-		}
-		INC_STATS(get_thd_id(), time_dep, get_sys_clock() - t1);
-	//	INC_STATS(get_thd_id(), debug6, get_sys_clock() - t1);
-		//uint64_t t3 = get_sys_clock();
-		while (txns_ready_for_recovery[GET_THD_ID]->pop(recover_state)) {
-			progress = true;
-			uint64_t tt = get_sys_clock();
-			recover_txn(recover_state);
-			INC_STATS(GET_THD_ID, debug2, get_sys_clock() - tt);
-			tt = get_sys_clock();
-			log_recover_table->txn_recover_done(recover_state);
-			INC_STATS(get_thd_id(), time_dep, get_sys_clock() - tt);
-			free_queue_recover_state[GET_THD_ID]->return_element((void *) recover_state);
-			num_records ++;
-			*ParallelLogManager::num_txns_recovered[GET_THD_ID] += 1;
-		} 
-	//	INC_STATS(GET_THD_ID, debug3, get_sys_clock() - t3);
 
-		//uint64_t t2 = get_sys_clock();
-		// Insert to Recovery graph 
-		DispatchJob dispatch_job;
-		uint64_t tt = get_sys_clock();
-		if (!log_read_done) 
-		{
-			if (dispatch_queue[GET_THD_ID]->pop(dispatch_job)) 
-			{
-		INC_STATS(get_thd_id(), time_dep, get_sys_clock() - tt);
-				progress = true;
-				// allocate recover_state
-				RecoverState * recover_state = (RecoverState *) 
-					free_queue_recover_state[ GET_THD_ID ]->get_element();
-				if (recover_state == NULL) {
-					recover_state = new RecoverState;
-				} else  {
-					recover_state->clear();
-				}
-				uint64_t commit_ts;
-				char * entry;
-				// parse the raw log entry
-				log_manager->parseLogEntry(dispatch_job.entry, entry, recover_state->_predecessor_info, commit_ts);
-	#if LOG_TYPE == LOG_COMMAND
-				recover_state->commit_ts = commit_ts;
-	#endif
-				recover_state->thd_id = GET_THD_ID;
-				recover_state->gc_entry = dispatch_job.gc_entry; 
-				// parse the log entry 
-				parallel_recover_from_log_entry(entry, recover_state);
-
-				// add the txn to the recover graph
-		uint64_t tt = get_sys_clock();
-				log_recover_table->add_log_recover(recover_state);
-		INC_STATS(get_thd_id(), time_dep, get_sys_clock() - tt);
-			} else if (ParallelLogManager::num_threads_done == g_num_logger) {
-				log_read_done = true;
-			}
-		}
-		//INC_STATS(get_thd_id(), debug5, get_sys_clock() - t2);
-		if (!progress) 
-			INC_STATS(get_thd_id(), time_idle, get_sys_clock() - t1);
-	}
-   	INC_STATS(get_thd_id(), txn_cnt, num_records);
-	//INC_STATS(GET_THD_ID, debug8, get_sys_clock() - starttime);
-	if (get_thd_id() == g_num_logger) {
-		INC_STATS(get_thd_id(), run_time, get_sys_clock() - starttime);
-		uint32_t size = log_recover_table->get_size();
-		cout << "table size = " << size << endl;
-	}
-	*/
+	// each worker thread picks a log file and process it.
+	//  
+	//	 read from log file to buffer.
+	//   process in arbitrary TID order.
 }
 #endif
 
@@ -751,16 +670,25 @@ txn_man::get_log_entry_size()
 void 
 txn_man::create_log_entry()
 {
-	// TODO. in order to have a fair comparison with SiloR, Taurus only supports Silo at the moment. 
+	// TODO. in order to have a fair comparison with SiloR, Taurus only supports Silo at the moment 
 	assert(CC_ALG == SILO);
-	// TODO. for better efficiency, should directly copy fields to _log_entry instead of copying them to a temporary string first. 
 #if LOG_TYPE == LOG_DATA
 	// Format for serial logging
 	// | checksum | size | N | (table_id | primary_key | data_length | data) * N
 	// Format for parallel logging
 	// | checksum | size | predecessor_info | N | (table_id | primary_key | data_length | data) * N
+	//
 	// predecessor_info has the following format
-	//   | num_raw_preds | raw_preds | num_waw_preds | waw_preds
+	// if TRACK_WAR_DEPENDENCY
+	//   | num_raw_preds | TID * num_raw_preds | key * num_raw_preds | table * ...
+	//   | num_waw_preds | TID * num_waw_preds | key * num_waw_preds | table * ...
+	// else 
+	//   | num_raw_preds | TID * num_raw_preds 
+	//   | num_waw_preds | TID * num_waw_preds
+	//
+	// Format for batch logging 
+	// | checksum | size | TID | N | (table_id | primary_key | data_length | data) * N
+	// 
 	// Assumption: every write is actually an update. 
 	// predecessors store the TID of predecessor transactions. 
 	uint32_t offset = 0;
@@ -769,13 +697,33 @@ txn_man::create_log_entry()
 	PACK(_log_entry, checksum, offset);
 	PACK(_log_entry, size, offset);
   #if LOG_ALGORITHM == LOG_PARALLEL 
+	uint32_t start = offset;
     PACK(_log_entry, _num_raw_preds, offset);
-	PACK_SIZE(_log_entry, _raw_preds, _num_raw_preds * sizeof(uint64_t), offset);
-    PACK(_log_entry, _num_waw_preds, offset);
-	PACK_SIZE(_log_entry, _waw_preds, _num_waw_preds * sizeof(uint64_t), offset);
-  #endif
-	PACK(_log_entry, wr_cnt, offset);
+	PACK_SIZE(_log_entry, _raw_preds_tid, _num_raw_preds * sizeof(uint64_t), offset);
+	#if TRACK_WAR_DEPENDENCY
+	PACK_SIZE(_log_entry, _raw_preds_key, _num_raw_preds * sizeof(uint64_t), offset);
+	PACK_SIZE(_log_entry, _raw_preds_table, _num_raw_preds * sizeof(uint32_t), offset);
+	//for (uint32_t i = 0; i < _num_raw_preds; i++)
+	//	if (_raw_preds_key[i] == 1 && _raw_preds_table[i] == 0)
+	//	printf("tid=%ld, key=%ld, table=%d\n", _raw_preds_tid[i], _raw_preds_key[i], _raw_preds_table[i]);
 
+	#endif
+    PACK(_log_entry, _num_waw_preds, offset);
+	PACK_SIZE(_log_entry, _waw_preds_tid, _num_waw_preds * sizeof(uint64_t), offset);
+	#if TRACK_WAR_DEPENDENCY
+	PACK_SIZE(_log_entry, _waw_preds_key, _num_waw_preds * sizeof(uint64_t), offset);
+	PACK_SIZE(_log_entry, _waw_preds_table, _num_waw_preds * sizeof(uint32_t), offset);
+	#endif
+	uint32_t dep_size = offset - start;	
+	INC_FLOAT_STATS(log_dep_size, dep_size);
+	//for (uint32_t i = 0; i < _num_waw_preds; i++)
+	//	if (_waw_preds_key[i] == 1 && _waw_preds_table[i] == 0)
+	//		printf("tid=%ld, key=%ld, table=%d\n", _waw_preds_tid[i], _waw_preds_key[i], _waw_preds_table[i]);
+  #elif LOG_ALGORITHM == LOG_BATCH
+    PACK(_log_entry, _cur_tid, offset);
+  #endif
+
+	PACK(_log_entry, wr_cnt, offset);
 	for (uint32_t i = 0; i < wr_cnt; i ++) {
 		row_t * orig_row = accesses[write_set[i]]->orig_row; 
 		uint32_t table_id = orig_row->get_table()->get_table_id();
@@ -793,22 +741,34 @@ txn_man::create_log_entry()
 	assert(_log_entry_size < MAX_LOG_ENTRY_SIZE);
 	// update size. 
 	memcpy(_log_entry + sizeof(uint32_t), &_log_entry_size, sizeof(uint32_t));
+	INC_FLOAT_STATS(log_total_size, _log_entry_size);
 
 #elif LOG_TYPE == LOG_COMMAND
 	// Format for serial logging
 	// 	| checksum | size | benchmark_specific_command | 
 	// Format for parallel logging
-	// 	| checksum | size | num_preds | predecessors | benchmark_specific_command | 
+	// 	| checksum | size | predecessor_info | benchmark_specific_command | 
 	uint32_t offset = 0;
 	uint32_t checksum = 0xdead;
 	uint32_t size = 0;
 	PACK(_log_entry, checksum, offset);
 	PACK(_log_entry, size, offset);
   #if LOG_ALGORITHM == LOG_PARALLEL 
+	uint32_t start = offset;
     PACK(_log_entry, _num_raw_preds, offset);
-	PACK_SIZE(_log_entry, _raw_preds, _num_raw_preds * sizeof(uint64_t), offset);
+	PACK_SIZE(_log_entry, _raw_preds_tid, _num_raw_preds * sizeof(uint64_t), offset);
+	#if TRACK_WAR_DEPENDENCY
+	PACK_SIZE(_log_entry, _raw_preds_key, _num_raw_preds * sizeof(uint64_t), offset);
+	PACK_SIZE(_log_entry, _raw_preds_table, _num_raw_preds * sizeof(uint32_t), offset);
+	#endif
     PACK(_log_entry, _num_waw_preds, offset);
-	PACK_SIZE(_log_entry, _waw_preds, _num_waw_preds * sizeof(uint64_t), offset);
+	PACK_SIZE(_log_entry, _waw_preds_tid, _num_waw_preds * sizeof(uint64_t), offset);
+	#if TRACK_WAR_DEPENDENCY
+	PACK_SIZE(_log_entry, _waw_preds_key, _num_waw_preds * sizeof(uint64_t), offset);
+	PACK_SIZE(_log_entry, _waw_preds_table, _num_waw_preds * sizeof(uint32_t), offset);
+	#endif
+	uint32_t dep_size = offset - start;	
+	INC_FLOAT_STATS(log_dep_size, dep_size);
   #endif
     _log_entry_size = offset;
 	// internally, the following function will update _log_entry_size and _log_entry
@@ -817,191 +777,8 @@ txn_man::create_log_entry()
 	assert(_log_entry_size < MAX_LOG_ENTRY_SIZE);
 	assert(_log_entry_size > sizeof(uint32_t) * 2);
 	memcpy(_log_entry + sizeof(uint32_t), &_log_entry_size, sizeof(uint32_t));
+	INC_FLOAT_STATS(log_total_size, _log_entry_size);
 #else
 	assert(false);
 #endif
 }
-#if LOG_ALGORITHM == LOG_SERIAL
-/*void
-txn_man::serial_recover_from_log_entry(char * entry)
-{
-  #if LOG_TYPE == LOG_DATA
-	char * ptr = entry;
-	ptr += sizeof(uint32_t);
-	uint64_t txn_id = *(uint64_t *)ptr;
-	ptr += sizeof(uint64_t);
-	uint32_t num_keys = *(uint32_t *)ptr;
-	ptr += sizeof(uint32_t);
-	
-	assert(g_num_logger == 1);
-	#if LOG_SERIAL_LOG_PARALLEL_RECOVER
-	static uint32_t cur_thd = g_num_logger;
-	assert(g_num_logger == 1);
-	RecoverState * recovery_tuples[num_keys];
-	for (uint32_t i = 0; i < num_keys; i++) {
-		if (!rs_queue[cur_thd]->pop(recovery_tuples[i]))
-			recovery_tuples[i] = new RecoverState;
-		else 
-			recovery_tuples[i]->clear();
-		cur_thd ++;
-		if (cur_thd == g_thread_cnt)
-			cur_thd = g_num_logger;
-	}
-	INC_STATS(GET_THD_ID, debug7, get_sys_clock() - tt);
-	
-	for(uint32_t i = 0; i < num_keys; i++) {
-		memcpy(recovery_tuples[i]->table_ids, ptr, sizeof(uint32_t));
-		ptr += sizeof(uint32_t);
-	}
-	for(uint32_t i = 0; i < num_keys; i++) {
-		memcpy(recovery_tuples[i]->keys, ptr, sizeof(uint64_t));
-		ptr += sizeof(uint64_t);
-	}
-	for(uint32_t i = 0; i < num_keys; i++) {
-		memcpy(recovery_tuples[i]->lengths, ptr, sizeof(uint32_t));
-		ptr += sizeof(uint32_t);
-	}
-	// Since we are using RAM disk and the after images are readonly,
-	// we don't copy the after_image to recover_state, instead, we just copy the pointer
-	for (uint32_t i = 0; i < num_keys; i ++) {
-		recovery_tuples[i]->after_image[0] = ptr;
-		ptr += recovery_tuples[i]->lengths[0];
-	}
-	for(uint32_t i = 0; i < num_keys; i++) {
-		recovery_tuples[i]->txn_id = txn_id;
-		recovery_tuples[i]->num_keys = 1;
-		// hash key	
-		uint32_t num_workers = g_thread_cnt - g_num_logger;
-		uint32_t worker_id = recovery_tuples[i]->keys[i];
-		worker_id = (worker_id ^ (worker_id / num_workers)) % num_workers;
-		worker_id += g_num_logger;	
-		//% (g_thread_cnt - g_num_logger) + g_num_logger; 
-		while (!txns_ready_for_recovery[worker_id]->push(recovery_tuples[i])) {
-			uint64_t tt = get_sys_clock();
-			timespec time {0, 10}; 
-			nanosleep(&time, NULL);
-			INC_STATS(GET_THD_ID, debug4, get_sys_clock() - tt);
-		}
-	}
-	#else 
-	RecoverState * recover_state; // = new RecoverState;
-	if (!rs_queue[1]->pop(recover_state))
-		recover_state = new RecoverState;
-	else 
-		recover_state->clear();
-
-	recover_state->txn_id = txn_id;
-	recover_state->num_keys = num_keys;
-	// table_ids
-	memcpy(recover_state->table_ids, ptr, sizeof(uint32_t) * num_keys);
-	ptr += sizeof(uint32_t) * num_keys;
-	// keys 
-	memcpy(recover_state->keys, ptr, sizeof(uint64_t) * num_keys);
-	ptr += sizeof(uint64_t) * num_keys;
-	// lengths
-	memcpy(recover_state->lengths, ptr, sizeof(uint32_t) * num_keys);
-	ptr += sizeof(uint32_t) * num_keys;
-
-	// after images
-	// Since we are using RAM disk and the after images are readonly,
-	// we don't copy the after_image to recover_state, instead, we just copy the pointer
-	for (uint32_t i = 0; i < num_keys; i ++) {
-		recover_state->after_image[i] = ptr;
-		ptr += recover_state->lengths[i];
-	}
-	INC_STATS(GET_THD_ID, debug7, get_sys_clock() - tt);
-	while (!txns_ready_for_recovery[g_num_logger]->push(recover_state)) {
-		//uint64_t t1 = get_sys_clock();
-		timespec time {0, 10}; 
-		nanosleep(&time, NULL);
-		//INC_STATS(GET_THD_ID, debug8, get_sys_clock() - t1);
-	}
-	#endif
-	INC_STATS(GET_THD_ID, debug5, get_sys_clock() - tt);
-  #elif LOG_TYPE == LOG_COMMAND
-	uint32_t offset = 0;
-	uint32_t size;
-	memcpy(&size, entry, sizeof(size));
-	offset += sizeof(size);
-	uint64_t tid;
-	memcpy(&tid, entry + offset, sizeof(tid));
-	offset += sizeof(tid);
-	assert(size < 4096);
-	RecoverState * recover_state;
-	if (!rs_queue[1]->pop(recover_state))
-		recover_state= new RecoverState;
-	else 
-		recover_state->clear();
-	//assert(recover_state->cmd);
-	recover_state->txn_id = tid;
-	memcpy(recover_state->cmd, entry + offset, size); 
-
-	//M_ASSERT(*(TPCCTxnType *)recover_state->cmd == TPCC_PAYMENT || *(TPCCTxnType *)recover_state->cmd == TPCC_NEW_ORDER, "type = %d\n", *(TPCCTxnType *)recover_state->cmd);
-	while (!txns_ready_for_recovery[1]->push(recover_state)) {
-		uint64_t tt = get_sys_clock();
-		timespec time {0, 10}; 
-		nanosleep(&time, NULL);
-		INC_STATS(GET_THD_ID, debug4, get_sys_clock() - tt);
-	}
-  #else 
-	assert(false);
-  #endif
-}*/
-#elif LOG_ALGORITHM == LOG_PARALLEL
-/*void
-txn_man::parallel_recover_from_log_entry(char * entry, RecoverState * recover_state)
-{
-	assert(LOG_ALGORITHM == LOG_PARALLEL);
-  #if LOG_TYPE == LOG_DATA
-	char * ptr = entry;
-	uint32_t size = *(uint32_t *)entry;
-	ptr += sizeof(uint32_t);
-	recover_state->txn_id = *(uint64_t *)ptr;
-	ptr += sizeof(uint64_t);
-	uint32_t num_keys = *(uint32_t *)ptr;
-	recover_state->num_keys = num_keys; 
-	ptr += sizeof(uint32_t);
-
-	memcpy(recover_state->table_ids, ptr, sizeof(uint32_t) * num_keys);
-	ptr += sizeof(uint32_t) * num_keys;
-	memcpy(recover_state->keys, ptr, sizeof(uint64_t) * num_keys);
-	ptr += sizeof(uint64_t) * num_keys;
-	memcpy(recover_state->lengths, ptr, sizeof(uint32_t) * num_keys);
-	ptr += sizeof(uint32_t) * num_keys;
-	// Since we are using RAM disk and the after images are readonly,
-	// we don't copy the after_image to recover_state, instead, we just copy the pointer
-	for (uint32_t i = 0; i < num_keys; i ++) {
-		recover_state->after_image[i] = ptr;
-		ptr += recover_state->lengths[i];
-	}
-	assert(size == (uint64_t)(ptr - entry));
-  #elif LOG_TYPE == LOG_COMMAND
-	// A regular entry
-	// Format
-	// size | txn_id | cmd_log_entry
-	uint32_t offset = 0;
-	uint32_t size;
-	memcpy(&size, entry, sizeof(size));
-	offset += sizeof(size);
-	uint64_t tid;
-	memcpy(&tid, entry + offset, sizeof(tid));
-	offset += sizeof(tid);
-	//char * cmd = entry + offset;
-	recover_state->txn_id = tid;
-	//assert(recover_state->txn_id > 0);
-	memcpy(recover_state->cmd, entry + offset, size); 
-	//recover_state->cmd = cmd;
-  #else 
-	assert(false);
-  #endif
-}
-uint64_t
-txn_man::get_txn_id_from_entry(char * entry)
-{
-	// Format:
-	//   size | txn_id | log_entry
-	return *(uint64_t *)(entry + sizeof(uint32_t));
-}
-*/
-
-#endif

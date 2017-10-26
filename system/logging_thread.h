@@ -11,4 +11,7 @@ public:
 	RC 			run();
 private:
 	uint64_t _thd_id;
+
+	// For SILO
+	// the looging thread also manages the epoch number. 
 };

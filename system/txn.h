@@ -2,7 +2,6 @@
 
 #include "global.h"
 #include "helper.h"
-#include "batch_log.h"
 
 class workload;
 class thread_t;
@@ -130,6 +129,7 @@ private:
 	RC				validate_tictoc();
 	uint64_t		_min_cts;
 #elif CC_ALG == SILO
+	uint64_t 		_epoch;
 	ts_t 			_cur_tid;
 	RC				validate_silo();
 #elif CC_ALG == HEKATON
@@ -144,11 +144,22 @@ private:
 ////////////////////////////////////////////////////
 public:
 #if LOG_ALGORITHM == LOG_PARALLEL
-	void add_pred(uint64_t pred_tid, DepType type) {
-		if (type == RAW)
-			_raw_preds[_num_raw_preds ++] = pred_tid;
-		else if (type == WAW)
-			_waw_preds[_num_waw_preds ++] = pred_tid;
+	void add_pred(uint64_t pred_tid, uint64_t key, uint32_t table, DepType type) {
+		if (type == RAW) {
+			_raw_preds_tid[_num_raw_preds] = pred_tid;
+			#if TRACK_WAR_DEPENDENCY
+			_raw_preds_key[_num_raw_preds] = key;
+			_raw_preds_table[_num_raw_preds] = table;
+			#endif
+			_num_raw_preds++;
+		} else if (type == WAW) {
+			_waw_preds_tid[_num_waw_preds] = pred_tid;
+			#if TRACK_WAR_DEPENDENCY
+			_waw_preds_key[_num_waw_preds] = key;
+			_waw_preds_table[_num_waw_preds] = table;
+			#endif
+			_num_waw_preds++;
+		}
 	};
 #elif LOG_ALGORITHM == LOG_SERIAL
 	void update_lsn(uint64_t lsn) {
@@ -159,7 +170,8 @@ public:
 protected:	
 	//virtual uint32_t get_cmd_log_size() { assert(false); }
 	virtual void 	get_cmd_log_entry() { assert(false); }
-	virtual void 	recover_txn(char * log_entry)  { assert(false); }
+	virtual void 	recover_txn(char * log_entry, uint64_t tid = (uint64_t)-1)  
+	{ assert(false); }
 	//RecoverState * recover_state) { assert(false); }
 	uint32_t 		_log_entry_size;
 	char * 			_log_entry;
@@ -172,8 +184,14 @@ private:
 #if LOG_ALGORITHM == LOG_PARALLEL
 	uint32_t _num_raw_preds; 
 	uint32_t _num_waw_preds; 
-	uint64_t _raw_preds[MAX_ROW_PER_TXN];
-	uint64_t _waw_preds[MAX_ROW_PER_TXN];
+	uint64_t _raw_preds_tid[MAX_ROW_PER_TXN];
+	uint64_t _waw_preds_tid[MAX_ROW_PER_TXN];
+  #if TRACK_WAR_DEPENDENCY
+	uint64_t _raw_preds_key[MAX_ROW_PER_TXN];
+	uint64_t _waw_preds_key[MAX_ROW_PER_TXN];
+	uint32_t _raw_preds_table[MAX_ROW_PER_TXN];
+	uint32_t _waw_preds_table[MAX_ROW_PER_TXN];
+  #endif
 #elif LOG_ALGORITHM == LOG_SERIAL
 	// For serial logging, we only maintain the max_lsn seen by the transaction.
 	// this is an ELR technique from the following paper.
@@ -192,6 +210,8 @@ private:
 		// preds includes all predecessors, both RAW and WAW.
 		// preds is stored in a compressed form, where only the max LSN is stored for each logger.
 		uint64_t preds[NUM_LOGGER]; 
+	#elif LOG_ALGORITHM == LOG_BATCH
+		uint64_t epoch;
 	#endif
 		uint64_t start_time;
 		uint64_t wait_start_time;
@@ -201,22 +221,18 @@ private:
 
 #if LOG_ALGORITHM == LOG_SERIAL
 	void 			serial_recover();
-	void 			serial_recover_from_log_entry(char * entry);
-	
 #elif LOG_ALGORITHM == LOG_PARALLEL
 	void 			parallel_recover();
-	void 			parallel_recover_from_log_entry(char * entry, RecoverState * recover_state);
-	uint64_t 		get_txn_id_from_entry(char * entry);
-
-	PredecessorInfo * _predecessor_info;
+#elif LOG_ALGORITHM == LOG_BATCH
+	void 			batch_recover();	
+#endif
 public:
 	uint64_t		last_writer;
-	uint64_t 		pred_vector[4];
-	uint64_t 		aggregate_pred_vector[4];
-	PredecessorInfo * getPredecessorInfo() { return _predecessor_info; }
-  #if LOG_TYPE == LOG_COMMAND
-	RecoverState * _recover_state;
-	RecoverState * get_recover_state() { return _recover_state; }
-  #endif
-#endif
+//	uint64_t 		pred_vector[4];
+//	uint64_t 		aggregate_pred_vector[4];
+//	PredecessorInfo * getPredecessorInfo() { return _predecessor_info; }
+//  #if LOG_TYPE == LOG_COMMAND
+//	RecoverState * _recover_state;
+//	RecoverState * get_recover_state() { return _recover_state; }
+//  #endif
 };

@@ -20,13 +20,18 @@ void Manager::init() {
 	*timestamp = 1;
 	_last_min_ts_time = 0;
 	_min_ts = 0;
-	_epoch = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
+	_epoch = (volatile uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
+	_max_epochs = new volatile uint64_t * [g_thread_cnt];
 	_last_epoch_update_time = (ts_t *) _mm_malloc(sizeof(uint64_t), 64);
-	_epoch = 0;
-	_last_epoch_update_time = 0;
+	// First epoch is epoch 1. 
+	*_epoch = 1;
+	*_last_epoch_update_time = get_sys_clock();
 	all_ts = (ts_t volatile **) _mm_malloc(sizeof(ts_t *) * g_thread_cnt, 64);
-	for (uint32_t i = 0; i < g_thread_cnt; i++) 
+	for (uint32_t i = 0; i < g_thread_cnt; i++) {
 		all_ts[i] = (ts_t *) _mm_malloc(sizeof(ts_t), 64);
+		_max_epochs[i] = (volatile uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
+		*_max_epochs[i] = 0;
+	}
 
 	_all_txns = new txn_man * [g_thread_cnt];
 	for (UInt32 i = 0; i < g_thread_cnt; i++) {
@@ -145,7 +150,7 @@ void
 Manager::update_epoch()
 {
 	ts_t time = get_sys_clock();
-	if (time - *_last_epoch_update_time > LOG_BATCH_TIME * 1000 * 1000) {
+	if (time - *_last_epoch_update_time > EPOCH_PERIOD * 1000 * 1000) {
 		*_epoch = *_epoch + 1;
 		*_last_epoch_update_time = time;
 	}
@@ -220,4 +225,24 @@ Manager::remove_log_pending(uint64_t txn_id)
 	//COMMIT
 	pthread_mutex_lock(&_log_mutex);
 	*/
+}
+
+void
+Manager::update_max_epoch(uint64_t epoch)
+{
+	*_max_epochs[GET_THD_ID] = epoch;
+}
+
+uint64_t 		
+Manager::get_ready_epoch()
+{
+	uint64_t ready_epoch = (uint64_t)-1;
+	for (uint32_t i = 0; i < g_thread_cnt; i++) {
+		if (ready_epoch > *_max_epochs[i])
+			ready_epoch = *_max_epochs[i];
+	}
+	if (ready_epoch > 1)
+		return ready_epoch - 1;
+	else 
+		return 0;
 }

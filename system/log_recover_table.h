@@ -18,14 +18,15 @@ public:
         TxnNode() {
 			num_raw_succ = 0;
 			num_waw_succ = 0;
+	#if TRACK_WAR_DEPENDENCY
 			num_war_succ = 0;
+	#endif
 			pred_size = 0;
     		next = NULL;
 			tid = -1;
-			log_entry = NULL;
 			recovered = false;
 		}
-		//void clear();
+		void print();
         TxnNode * next;
         
 		uint64_t tid;
@@ -36,35 +37,20 @@ public:
 
 		uint64_t raw_succ[MAX_ROW_PER_TXN];
 		uint64_t waw_succ[MAX_ROW_PER_TXN];
-		uint64_t war_succ[MAX_ROW_PER_TXN];
 		uint32_t num_raw_succ;
 		uint32_t num_waw_succ;
+	#if TRACK_WAR_DEPENDENCY
+		uint64_t war_succ[MAX_ROW_PER_TXN];
 		uint32_t num_war_succ;
-//        boost::lockfree::queue<TxnNode *> raw_succ{10};
-//        boost::lockfree::queue<TxnNode *> waw_succ{10};
-//        boost::lockfree::queue<TxnNode *> war_succ{10};
-      
-	  	// Format (data logging): 
-		//	recover_done (1) | recoverable (1) | can_gc (1) | semaphore (61)
-		// For command logging, recoverable bit is not used. 
-//	   	volatile uint64_t semaphore;  
-		// For data logging, raw and waw are handled differently.
-		// RAW checks if a txn is recoverable.
-		// WAW checks if a txn can start recovery.
-		// Format: raw_size (32 bits) | waw_size (32 bits)
+		
+		uint64_t raw_pred_key[MAX_ROW_PER_TXN];
+		uint64_t waw_pred_key[MAX_ROW_PER_TXN];
+		uint32_t raw_pred_table[MAX_ROW_PER_TXN];
+		uint32_t waw_pred_table[MAX_ROW_PER_TXN];
+	#endif
 		volatile uint64_t pred_size;
-		// for parallel command recovery.
-//		bool is_fence;
-		char * log_entry;		
+		char log_entry[MAX_LOG_ENTRY_SIZE];	
 		bool recovered;
-//		RecoverState * recover_state;
-/*        void set_recover_done();
-        bool is_recover_done();
-        void set_recoverable();
-		bool is_recoverable();
-		void set_can_gc();
-		bool can_gc();
-*/
     };
 
     class Bucket {
@@ -81,7 +67,6 @@ public:
 			return node;
 		}
 		
-		TxnNode * get_new_node(uint64_t tid);
 
 //        void insert(TxnNode * node);
 //        TxnNode * remove(uint64_t txn_id);
@@ -109,7 +94,7 @@ public:
 	private:
 		uint32_t _num_pools;
 		//boost::lockfree::queue< pair<uint64_t, char *> > * _pools;
-		boost::lockfree::queue<TxnNode *> * _pools;
+		boost::lockfree::queue<TxnNode *> ** _pools;
 	};
 
 	void addTxn(uint64_t tid, char * log_entry);
@@ -162,7 +147,12 @@ private:
 	// one bool variable per worker threand. 
 	bool ** 			_recover_done;	
 	
+	TxnNode * 			get_new_node(uint64_t tid);
 	void 				wakeup_succ(uint64_t tid);
+
+	uint32_t 			_num_free_nodes_per_thread;
+	TxnNode ** 			_free_nodes; 
+	uint32_t **			_next_free_node_idx;
 //////////////////
 //	stack<TxnNode *> ** _free_nodes;
     

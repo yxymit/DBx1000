@@ -9,8 +9,11 @@ args_mapping = {
 	"output file"		: "-o ",
 	"MAX_TXNS_PER_THREAD" : "-Gx",
 	# LOG
+	"LOG_BUFFER_SIZE"	: "-Lb", 
 	"NUM_LOGGER"		: "-Ln", 
 	"LOG_NO_FLUSH"		: "-Lf",
+	"LOG_RECOVER" 		: "-Lr",
+	"LOG_PARALLEL_NUM_BUCKETS" : "-Lk",
 	# YCSB
 	"READ_PERC"			: "-r",
 	"ZIPF_THETA" 		: "-z",

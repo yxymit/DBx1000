@@ -8,6 +8,11 @@ enum StatsFloat {
 	STAT_time_index,
 	STAT_time_log,
 	
+	STAT_time_io,
+	STAT_log_bytes,
+	STAT_log_dep_size,
+	STAT_log_total_size,
+	
 	STAT_latency,
 
 	STAT_time_ts_alloc,
@@ -26,6 +31,9 @@ enum StatsFloat {
 	STAT_time_debug5,
 	STAT_time_debug6,
 	STAT_time_debug7,
+	STAT_time_debug8,
+	STAT_time_debug9,
+	STAT_time_debug10,
 
 	NUM_FLOAT_STATS
 };
@@ -33,6 +41,8 @@ enum StatsFloat {
 enum StatsInt {
 	STAT_num_commits,
 	STAT_num_aborts,
+	// For logging
+	STAT_num_aborts_logging,
 	STAT_num_log_records,
 
 	// For Log Recovery
@@ -111,6 +121,11 @@ public:
 		"time_cleanup",
 		"time_index",
 		"time_log",
+		
+		"time_io",
+		"log_bytes",
+		"log_dep_size",
+		"log_total_size",
 	
 		"latency",
 
@@ -130,13 +145,18 @@ public:
 		"time_debug5",
 		"time_debug6",
 		"time_debug7",
+		"time_debug8",
+		"time_debug9",
+		"time_debug10",
 	};
 
 	std::string statsIntName[NUM_INT_STATS] = {
 		"num_commits",
 		"num_aborts",
+		// For logging
+		"num_aborts_logging",
 		"num_log_records",
-		
+
 		// For Log Recovery
 		"num_raw_edges",
 		"num_waw_edges",
@@ -150,6 +170,7 @@ public:
 		"int_debug6",
 	};
 private:
+	uint32_t _total_thread_cnt;
 	//vector<double> _aggregate_latency;
 	//vector<Stats *> _checkpoints;
     //uint32_t        _num_cp;

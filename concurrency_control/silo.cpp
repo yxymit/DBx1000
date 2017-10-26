@@ -2,6 +2,7 @@
 #include "row.h"
 #include "row_silo.h"
 #include "manager.h"
+#include "log.h"
 
 #if CC_ALG == SILO
 
@@ -36,10 +37,27 @@ txn_man::validate_silo()
 			}
 		}
 	}
-	create_log_entry();
 
 	uint32_t num_locks = 0;
 	ts_t max_tid = 0;
+	// calculated max_tid
+	for (uint32_t i = 0; i < row_cnt - wr_cnt; i ++) {
+		Access * access = accesses[ read_set[i] ];
+		if (access->tid > max_tid)
+			max_tid = access->tid;
+	}
+	for (uint32_t i = 0; i < wr_cnt; i++) {
+		Access * access = accesses[ write_set[i] ];
+		if (access->tid > max_tid)
+			max_tid = access->tid;
+	}
+	if (max_tid > _cur_tid)
+		_cur_tid = max_tid + 1;
+	else 
+		_cur_tid ++;
+
+	create_log_entry();
+
 	bool done = false;
 	if (_pre_abort) {
 		for (uint32_t i = 0; i < wr_cnt; i++) {
@@ -59,6 +77,10 @@ txn_man::validate_silo()
 		}
 #endif
 	}
+	
+	// Read the epoch number 
+	_epoch = glob_manager->get_epoch();	
+	COMPILER_BARRIER
 
 	// lock all rows in the write set.
 	if (_validation_no_wait) {
@@ -100,7 +122,7 @@ txn_man::validate_silo()
 					}
 #endif
 				}
-				usleep(1);
+				PAUSE //usleep(1);
 			}
 		}
 	} else {
@@ -114,7 +136,7 @@ txn_man::validate_silo()
 			}
 		}
 	}
-
+	COMPILER_BARRIER
 	// validate rows in the read set
 #if ISOLATION_LEVEL != REPEATABLE_READ
 	// for repeatable_read, no need to validate the read set.
@@ -125,8 +147,6 @@ txn_man::validate_silo()
 			rc = Abort;
 			goto final;
 		}
-		if (access->tid > max_tid)
-			max_tid = access->tid;
 	}
 #endif
 	// validate rows in the write set
@@ -137,13 +157,7 @@ txn_man::validate_silo()
 			rc = Abort;
 			goto final;
 		}
-		if (access->tid > max_tid)
-			max_tid = access->tid;
 	}
-	if (max_tid > _cur_tid)
-		_cur_tid = max_tid + 1;
-	else 
-		_cur_tid ++;
 final:
 	if (rc == Abort) {
 		for (uint32_t i = 0; i < num_locks; i++) 
@@ -163,15 +177,20 @@ final:
 			_cur_tid = (((uint64_t)logger_id) << 48) | tid; 
 #elif LOG_ALGORITHM == LOG_SERIAL 
 			uint64_t tid = _cur_tid = log_manager->logTxn(_log_entry, _log_entry_size);
+#elif LOG_ALGORITHM == LOG_BATCH
+			uint32_t logger_id = GET_THD_ID % g_num_logger;
+			uint64_t tid = log_manager[logger_id]->logTxn(_log_entry, _log_entry_size, _epoch);
 #endif
 #if LOG_ALGORITHM != LOG_NO
 			// If tid == -1, the log buffer is full. Should abort the current transaction.  
 			if (tid == (uint64_t)-1) {
 				for (uint32_t i = 0; i < num_locks; i++) 
 					accesses[ write_set[i] ]->orig_row->manager->release();
+				INC_INT_STATS(num_aborts_logging, 1);
 				cleanup(Abort);
 				return Abort;
 			}
+			//printf("lsn = %ld\n", tid);
 			INC_INT_STATS(num_log_records, 1);
 #endif
 			INC_FLOAT_STATS(time_log, get_sys_clock() - tt);

@@ -1,7 +1,6 @@
 #include "ramdisk.h"
 #include "manager.h"
 /*#include "parallel_log.h"
-#include "batch_log.h"
 #include <iostream>
 #include <fstream>
 #include <sys/time.h>

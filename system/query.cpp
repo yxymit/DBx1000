@@ -17,7 +17,6 @@ Query_queue::init(workload * h_wl) {
 	all_queries = new Query_thd * [g_thread_cnt];
 	_wl = h_wl;
 	_next_tid = 0;
-	
 
 #if WORKLOAD == YCSB	
 	ycsb_query::calculateDenom();
@@ -66,7 +65,7 @@ void
 Query_thd::init(workload * h_wl, int thread_id) {
 	uint64_t request_cnt;
 	q_idx = 0;
-	request_cnt = WARMUP / g_thread_cnt + g_max_txns_per_thread + 4;
+	request_cnt = WARMUP / g_thread_cnt + g_max_txns_per_thread + ABORT_BUFFER_SIZE;
 #if WORKLOAD == YCSB	
 	queries = (ycsb_query *) 
 		mem_allocator.alloc(sizeof(ycsb_query) * request_cnt, thread_id);

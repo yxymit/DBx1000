@@ -24,11 +24,12 @@ void print_usage() {
 	printf("\t-o STRING   ; output file\n\n");
 	
 	printf("[Logging]:\n");
-	printf("\t-LbINT      ; BUFFER_SIZE\n");
+	printf("\t-LbINT      ; LOG_BUFFER_SIZE\n");
 	printf("\t-LrINT      ; LOG_RECOVER\n");
 	printf("\t-LnINT      ; NUM_LOGGER\n");
 	printf("\t-LfINT      ; LOG_NO_FLUSH\n");
-	
+	printf("\t-LkINT      ; LOG_PARALLEL_NUM_BUCKETS\n");
+		
 	printf("  [YCSB]:\n");
 	printf("\t-cINT       ; PART_PER_TXN\n");
 	printf("\t-eINT       ; PERC_MULTI_PART\n");
@@ -114,7 +115,7 @@ void parser(int argc, char * argv[]) {
 		// Logging
 		else if (argv[i][1] == 'L'){
 			if (argv[i][2] == 'b')
-				g_buffer_size = atoi( &argv[i][3]);
+				g_log_buffer_size = atoi( &argv[i][3]);
 			else if (argv[i][2] == 'r') {
 				char c = argv[i][3];
 				assert(c == '0' || c == '1');
@@ -125,7 +126,9 @@ void parser(int argc, char * argv[]) {
 				char c = argv[i][3];
 				assert(c == '0' || c == '1');
 				g_no_flush = (c == '1')? true : false;
-			}
+			} else if (argv[i][2] == 'k')
+				g_log_parallel_num_buckets = atoi( &argv[i][3] );
+
 		}
 		else if (argv[i][1] == 'o') {
 			i++;

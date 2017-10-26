@@ -45,7 +45,6 @@ class OptCC;
 class VLLMan;
 class LogManager;
 class SerialLogManager;
-class BatchLog;
 class ParallelLogManager;
 class LogPendingTable;
 class LogRecoverTable;
@@ -86,7 +85,9 @@ extern OptCC occ_man;
 //extern SerialLogManager * log_manager;
 extern LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
-extern BatchLog * log_manager;
+extern LogManager ** log_manager;
+// for batch recovery  
+extern uint32_t * next_log_file_epoch;
 #elif LOG_ALGORITHM == LOG_PARALLEL
 extern LogManager ** log_manager;
 //#define ReadyQueue   
@@ -145,6 +146,7 @@ extern string g_validation_lock;
 
 extern char * output_file;
 extern char * logging_dir;
+extern uint32_t g_log_parallel_num_buckets;
 
 // YCSB
 extern UInt32 g_cc_alg;
@@ -166,7 +168,7 @@ extern UInt32 g_max_items;
 extern UInt32 g_cust_per_dist;
 
 // Logging
-extern UInt32  g_buffer_size;
+extern UInt32  g_log_buffer_size;
 
 enum RC { RCOK, Commit, Abort, WAIT, ERROR, FINISH};
 enum DepType { RAW, WAW, WAR };

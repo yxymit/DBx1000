@@ -14,9 +14,11 @@ def add_dbms_job(app_flags = {}, executable = "./rundb", output_dir = "results/"
 			app_args += "--%s=%s " % (key, app_flags[key])
 	app_args += "-o %s/output " % output_dir
 	command = executable + app_args
-	command = "numactl --localalloc -- " + command
+	command = "numactl -i all " + command
 	scheduler.addJob(command, output_dir)
 app_flags = {}
+
+
 
 """
 # generate log files.
@@ -41,11 +43,21 @@ for bench in ['TPCC', 'YCSB']:
 				add_dbms_job(app_flags, executable, output_dir)
 """
 trials = ['']
+trials = ['', '_1', '_2']
+
+#thds = [4, 8] #, 16, 20, 24, 28, 32]
 thds = [4, 8, 16, 20, 24, 28, 32]
+
 num_loggers = [4]
+
 benchmarks = ['YCSB', 'TPCC']
-algorithms = ['NO', 'S', 'P'] # serial and parallel
+#benchmarks = ['YCSB']
+
+algorithms = ['NO', 'S', 'P', 'B'] # serial and parallel
+algorithms = ['B'] # serial and parallel
+
 types = ['D', 'C'] # data logging and command logging
+types = ['D'] 	# data logging and command logging
 
 configs = []
 for bench in benchmarks:
@@ -54,8 +66,59 @@ for bench in benchmarks:
 			configs += ['%s_%s' % (alg, bench)]
 		else:
 			for t in types:
+				if alg == 'B' and t == 'C': continue
 				configs += ['%s%s_%s' % (alg, t, bench)]
 
+"""
+##########################
+### test
+##########################
+# logging
+for config in configs: 
+	thd = 16			
+	num_logger = 4
+	executable = "./rundb_%s" % config
+	logger = num_logger if config[0] == 'P' else 1
+	app_flags['LOG_RECOVER'] = 0
+	app_flags['REQ_PER_QUERY'] = 2
+	app_flags['READ_PERC'] = 0.5
+	app_flags['MAX_TXNS_PER_THREAD'] = 10000
+	app_flags['THREAD_CNT'] = thd
+	app_flags['NUM_LOGGER'] = logger
+	app_flags['LOG_NO_FLUSH'] = 0
+	app_flags['SYNTH_TABLE_SIZE'] = 1024
+	app_flags['NUM_WH'] = 1
+	output_dir = "results/test/%s/thd%d_L%s" % (config, thd, logger)
+	add_dbms_job(app_flags, executable, output_dir)
+
+# recovery
+for config in configs: 
+	thd = 16			
+	num_logger = 4
+	executable = "./rundb_%s" % config
+	logger = num_logger if config[0] == 'P' else 1
+	app_flags['LOG_RECOVER'] = 1 
+	app_flags['REQ_PER_QUERY'] = 2
+	app_flags['READ_PERC'] = 0.5
+	app_flags['MAX_TXNS_PER_THREAD'] = 10000
+	app_flags['THREAD_CNT'] = thd
+	app_flags['NUM_LOGGER'] = logger
+	app_flags['LOG_NO_FLUSH'] = 0
+	app_flags['SYNTH_TABLE_SIZE'] = 1024
+	app_flags['NUM_WH'] = 1
+	app_flags['LOG_PARALLEL_NUM_BUCKETS'] = 10000
+	output_dir = "results/test/%s_rec/thd%d_L%s" % (config, thd, logger)
+	add_dbms_job(app_flags, executable, output_dir)
+"""
+##########################
+##########################
+#########################
+
+
+"""
+##########################
+# Logging Performance 
+##########################
 for trial in trials: 
 	for config in configs: 
 		for thd in thds:
@@ -74,47 +137,50 @@ for trial in trials:
 				output_dir = "results/%s/thd%d_L%s%s" % (config, thd, logger, trial)
 				add_dbms_job(app_flags, executable, output_dir)
 """
+
+
+##########################
+# Generate Log Files 
+##########################
+for config in configs: 
+	thd = 16
+	if 'NO' in config: continue
+	for num_logger in num_loggers:
+		executable = "./rundb_%s" % config
+		logger = 1 if config[0] == 'S' else num_logger
+		if 'TPCC' in config:
+			app_flags['NUM_WH'] = 16
+		else : # YCSB
+			app_flags['REQ_PER_QUERY'] = 2
+			app_flags['READ_PERC'] = 0.5
+		app_flags['MAX_TXNS_PER_THREAD'] = 1000000 if config[1] == 'C' else 400000
+		app_flags['THREAD_CNT'] = thd
+		app_flags['NUM_LOGGER'] = logger
+		app_flags['LOG_NO_FLUSH'] = 0
+		app_flags['LOG_RECOVER'] = 0
+		app_flags['LOG_BUFFER_SIZE'] = 1048576 * 400 if config[0] == 'B' else 1048576 * 50
+		output_dir = "results/%s_gen/thd%d_L%s" % (config, thd, logger)
+		add_dbms_job(app_flags, executable, output_dir)
+
 # recover performance
 for trial in trials: 
 	app_flags = {}
-	for bench in ['YCSB', 'TPCC']:
-		for alg in ['P', 'S']:
-			thds = [8, 12, 16, 20, 24, 28, 32]
-			if alg == 'P':
-				num_loggers = 4 
-			else:
-				num_loggers = 1
-			for t in ['D', 'C']:
-				config = '%s%s_rec_%s' % (alg, t, bench)
-				#if alg == 'S':
-				#	thds = [8, 12, 16, 20, 24, 28, 32] 
-				executable = "./rundb_%s" % config
-				for thd in thds: 
-					if bench == 'TPCC':
-						app_flags['NUM_WH'] = 32
-					app_flags['THREAD_CNT'] = thd
-					app_flags['NUM_LOGGER'] = num_loggers
-					#app_flags['REQ_PER_QUERY'] = 2 
-					output_dir = "results/%s/thd%d_L%s%s" % (config, thd, num_loggers, trial)
-					add_dbms_job(app_flags, executable, output_dir)
-
-for trial in ['', '_1', '_2']:
-	app_flags = {}
-	for bench in ['YCSB', 'TPCC']:
-		for num_loggers in [1, 2]:
-			alg = 'P'
-			thds = [8, 12, 16, 20, 24, 28, 32]
-			for t in ['D', 'C']:
+	for bench in benchmarks : #['YCSB', 'TPCC']:
+		for alg in algorithms:
+			if alg == 'NO': continue
+			num_logger = 4 if alg == 'P' else 1
+			for t in types:
+				if alg == 'B' and t == 'C': continue
 				config = '%s%s_%s' % (alg, t, bench)
 				executable = "./rundb_%s" % config
 				for thd in thds: 
 					if bench == 'TPCC':
-						app_flags['NUM_WH'] = 32
+						app_flags['NUM_WH'] = 16
 					app_flags['THREAD_CNT'] = thd
-					app_flags['NUM_LOGGER'] = num_loggers
-					#app_flags['REQ_PER_QUERY'] = 2 
-					output_dir = "results/%s/thd%d_L%s%s" % (config, thd, num_loggers, trial)
+					app_flags['LOG_RECOVER'] = 1
+					app_flags['NUM_LOGGER'] = num_logger
+					app_flags['LOG_PARALLEL_NUM_BUCKETS'] = 10000000
+					output_dir = "results/%s_rec/thd%d_L%s%s" % (config, thd, num_logger, trial)
 					add_dbms_job(app_flags, executable, output_dir)
-"""
 
 scheduler.generateSubmitFile()

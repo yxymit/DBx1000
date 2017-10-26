@@ -80,7 +80,7 @@ private:
 	tpcc_query * _query; 	
 	TPCCTxnType	_txn_type;
 
-	void recover_txn(char * log_entry);
+	void recover_txn(char * log_entry, uint64_t tid = (uint64_t)-1);
 };
 
 #endif

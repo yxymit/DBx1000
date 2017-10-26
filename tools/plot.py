@@ -39,80 +39,108 @@ def avg_and_dev(data):
     dev /= len(data)
     return avg, math.sqrt(dev)
 
-print results
-# logging performance 
-#thds = [2, 4, 10, 20, 40] #, 60, 80]
-thds = [4, 8, 16, 20, 24, 28, 32]
-thds = [32]
-for bench in ['YCSB', 'TPCC']:
-	configs = ['NO_%s' % bench]
-	for alg in ['S', 'P']:
-		for t in ['D', 'C']:
-			configs += ['%s%s_%s' % (alg, t, bench)]
-	names = ['No Logging', 'Serial Data',  'Serial Cmd', 'Parallel Data', 'Parallel Cmd']
-	for num_loggers in [4]: 
-		data = {}
-		err = {}
-		for i in range(0, len(configs)):
-			config = configs[i]
-			name = names[i]
-			data[name] = [0] * len(thds)
-			err[name] = [0] * len(thds)
-			for n in range(0, len(thds)):
-				thd = thds[n]
-				try:
-					logger = num_loggers if config[0] == 'P' else 1
-					vals = []
-					for trial in ['']: #, '_1', '_2']:
-						tag = '%s/thd%d_L%d%s' % (config, thd, logger, trial)
-						values = results[tag]
-						vals.append(values['num_commits'] / values['run_time'] * thd / 1000000.0)	
-					data[name][n], err[name][n] = avg_and_dev(vals)
-					#values['txn_cnt'] / values['run_time'] * thd / 1000000.0
-				except:
-					data[name][n] = 0
-					err[name][n] = 0
-		print data
-		#draw_line('thr_logging%s_%s' % (num_loggers, bench), data, [str(x) for x in thds], ncol=2, 
-		#	top=0.85, bbox=[0.82, 0.85])
-		draw_errorbar('thr_logging%s_%s' % (num_loggers, bench), 
-			data, err, 
-			[str(x) for x in thds], bbox=[0.82, 0.85], ncol=2, 
-			top=0.85)
+trials = ['', '_1', '_2']
 
-# recovery performance
-num_loggers = 4
-for bench in ['TPCC', 'YCSB']:
-	configs = []
-	for alg in ['S', 'P']:
-		for t in ['D', 'C']:
-			configs += ['%s%s_rec_%s' % (alg, t, bench)]
-	names = ['Serial Data',  'Serial Cmd', 'Parallel Data', 'Parallel Cmd']
+#thds = [4, 8] #, 16, 20, 24, 28, 32]
+thds = [4, 8, 16, 20, 24, 28, 32]
+
+num_loggers = [4]
+
+benchmarks = ['YCSB', 'TPCC']
+#benchmarks = ['YCSB']
+
+algorithms = ['NO', 'S', 'P', 'B'] # serial and parallel
+#algorithms = ['P'] # serial and parallel
+
+types = ['D', 'C'] # data logging and command logging
+#types = ['C'] 	# data logging and command logging
+
+configs = []
+for alg in algorithms:
+	if alg == 'NO': 
+		configs += ['%s' % (alg)]
+	else:
+		for t in types:
+			if alg == 'B' and t == 'C': continue
+			configs += ['%s%s' % (alg, t)]
+
+mapping = {
+	"PD": 'Parallel Data',
+}
+
+# logging performance 
+for bench in ['YCSB', 'TPCC']:
+	num_logger = 4
 	data = {}
 	err = {}
-	all_thds = [8, 12, 16, 20, 24, 28, 32]
+	names = [ c[0:2] for c in configs ]
 	for i in range(0, len(configs)):
 		config = configs[i]
 		name = names[i]
-		data[name] = [0] * len(all_thds)
-		err[name] = [0] * len(all_thds)
+		data[name] = [0] * len(thds)
+		err[name] = [0] * len(thds)
+		for n in range(0, len(thds)):
+			thd = thds[n]
+			try:
+				logger = num_logger if config[0] == 'P' else 1
+				vals = []
+				for trial in trials:
+					tag = '%s_%s/thd%d_L%d%s' % (config, bench, thd, logger, trial)
+					values = results[tag]
+					vals.append(values['num_commits'] / values['run_time'] * thd / 1000000.0)	
+				data[name][n], err[name][n] = avg_and_dev(vals)
+
+				#values['txn_cnt'] / values['run_time'] * thd / 1000000.0
+			except:
+				data[name][n] = 0
+				err[name][n] = 0
+	fname = 'thr_logging%s_%s' % (num_logger, bench)
+	print fname
+	print data
+	#draw_line('thr_logging%s_%s' % (num_loggers, bench), data, [str(x) for x in thds], ncol=2, 
+	#	top=0.85, bbox=[0.82, 0.85])
+	draw_errorbar(fname, data, err, 
+		[str(x) for x in thds], bbox=[0.82, 0.9], ncol=2, 
+		top=0.80)
+
+
+################################
+# recovery performance
+################################
+num_loggers = 4
+for bench in benchmarks:
+	for c in configs:
+		if 'NO' in c: configs.remove(c)
+		if 'BC' in c: configs.remove(c)
+
+	names = [ c[0:2] for c in configs ]
+	data = {}
+	err = {}
+	for i in range(0, len(configs)):
+		config = configs[i]
+		name = names[i]
+		data[name] = [0] * len(thds)
+		err[name] = [0] * len(thds)
 		if config.startswith('S'): num_loggers = 1
 		else : num_loggers = 4
-		thds = all_thds
-		for n in range(0, len(all_thds)):
-			thd = all_thds[n]
+		for n in range(0, len(thds)):
+			thd = thds[n]
 			logger = num_loggers if config[0] == 'P' else 1
 			try:
 				vals = []
-				for trial in ['', '_1', '_2']:
-					tag = '%s/thd%d_L%d%s' % (config, thd, logger, trial)
+				for trial in trials:
+					tag = '%s_%s/thd%d_L%d%s' % (config, bench, thd, logger, trial)
 					values = results[tag]
-					vals.append(values['txn_cnt'] / values['run_time'] / 1000000.0)	
+					if config[0] == 'S':
+						vals.append(values['num_commits'] / values['run_time'] / 1000000.0)	
+						#vals.append(1.0 / values['run_time'] / 1000000.0)	
+					elif config[0] == 'P':
+						vals.append(values['num_commits'] / (values['run_time'] / thd) / 1000000.0)	
+						#vals.append(1.0 / (values['run_time'] / thd) / 1000000.0)	
 				data[name][n], err[name][n] = avg_and_dev(vals)
 			except:
 				data[name][n] = 0
 				err[name][n] = 0
 	print bench, data
 	draw_errorbar('thr_rec_%s' % bench, data, err, 
-		[str(x) for x in all_thds], ncol=2,	top=0.78)
-	#draw_line('thr_rec_%s' % bench, data, [str(x) for x in all_thds], ncol=2,
+		[str(x) for x in thds], ncol=2,	top=0.78)

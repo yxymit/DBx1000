@@ -54,12 +54,13 @@ void Stats::init() {
 	if (!STATS_ENABLE) 
 		return;
     //_num_cp = 0;
-	_stats = new Stats_thd * [g_thread_cnt];
-	for (uint32_t i = 0; i < g_thread_cnt; i++) {
+	_total_thread_cnt = g_thread_cnt + g_num_logger;
+	_stats = new Stats_thd * [_total_thread_cnt];
+	for (uint32_t i = 0; i < _total_thread_cnt; i++) {
 		_stats[i] = (Stats_thd *) _mm_malloc(sizeof(Stats_thd), 64);
 		new(_stats[i]) Stats_thd();
 	}
-	//_stats = (Stats_thd**) _mm_malloc(sizeof(Stats_thd*) * g_thread_cnt, 64);
+	//_stats = (Stats_thd**) _mm_malloc(sizeof(Stats_thd*) * _total_thread_cnt, 64);
 }
 
 void Stats::clear(uint64_t tid) {
@@ -79,7 +80,7 @@ void Stats::output(std::ostream * os)
 		Stats * base = _checkpoints[cp];
 //		for (cp=0; cp<5; cp++)
 //		printf("cp=%d. commits=%ld\n", cp, _checkpoints[cp]->_stats[0]->_int_stats[0]);
-		for (uint32_t i = 0; i < g_thread_cnt; i++) {
+		for (uint32_t i = 0; i < _total_thread_cnt; i++) {
 			for	(uint32_t n = 0; n < NUM_FLOAT_STATS; n++) 
 				_stats[i]->_float_stats[n] -= base->_stats[i]->_float_stats[n];
 			if (i < g_num_worker_threads)
@@ -98,7 +99,7 @@ void Stats::output(std::ostream * os)
 */
 	uint64_t total_num_commits = 0;
 	double total_run_time = 0;
-	for (uint32_t tid = 0; tid < g_thread_cnt; tid ++) { 
+	for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++) { 
 		total_num_commits += _stats[tid]->_int_stats[STAT_num_commits];
 		total_run_time += _stats[tid]->_float_stats[STAT_run_time];
 	}
@@ -106,18 +107,18 @@ void Stats::output(std::ostream * os)
 	//assert(total_num_commits > 0);
 	out << "=Worker Thread=" << endl;
 	out << "    " << setw(30) << left << "Throughput:"
-		<< BILLION * total_num_commits / total_run_time * g_thread_cnt << endl;
+		<< BILLION * total_num_commits / total_run_time * _total_thread_cnt << endl;
 	// print floating point stats
 	for	(uint32_t i = 0; i < NUM_FLOAT_STATS; i++) {
 		double total = 0;
-		for (uint32_t tid = 0; tid < g_thread_cnt; tid ++) 
+		for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++) 
 			total += _stats[tid]->_float_stats[i];
 		if (i == STAT_latency)
 			total /= total_num_commits;
 		string suffix = "";
 		out << "    " << setw(30) << left << statsFloatName[i] + suffix + ':' << total / BILLION;
 		out << " (";
-		for (uint32_t tid = 0; tid < g_thread_cnt; tid ++) {
+		for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++) {
 			out << _stats[tid]->_float_stats[i] / BILLION << ',';
 		}
 		out << ')' << endl; 
@@ -127,7 +128,7 @@ void Stats::output(std::ostream * os)
 
 #if COLLECT_LATENCY
 	double avg_latency = 0;
-	for (uint32_t tid = 0; tid < g_thread_cnt; tid ++)
+	for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++)
 		avg_latency += _stats[tid]->_float_stats[STAT_txn_latency];
 	avg_latency /= total_num_commits;
 
@@ -147,12 +148,12 @@ void Stats::output(std::ostream * os)
 	// print integer stats
 	for	(uint32_t i = 0; i < NUM_INT_STATS; i++) {
 		double total = 0;
-		for (uint32_t tid = 0; tid < g_thread_cnt; tid ++) {
+		for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++) {
 			total += _stats[tid]->_int_stats[i];
 		}
 		out << "    " << setw(30) << left << statsIntName[i] + ':'<< total; 
 		out << " (";
-		for (uint32_t tid = 0; tid < g_thread_cnt; tid ++)
+		for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++)
 			out << _stats[tid]->_int_stats[i] << ',';
 		out << ')' << endl; 
 
@@ -174,7 +175,7 @@ void Stats::output(std::ostream * os)
 	for (uint32_t i = 1; i < _checkpoints.size(); i ++)
 	{
 		uint64_t num_commits = 0;
-		for (uint32_t tid = 0; tid < g_thread_cnt; tid ++) {
+		for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++) {
 			num_commits += _checkpoints[i]->_stats[tid]->_int_stats[STAT_num_commits];
 			num_commits -= _checkpoints[i - 1]->_stats[tid]->_int_stats[STAT_num_commits];
 		}
@@ -183,7 +184,7 @@ void Stats::output(std::ostream * os)
 		out << "\t" << thr << ','; 
 		for	(uint32_t n = 0; n < NUM_INT_STATS; n++) { 
 			uint64_t value = 0;
-			for (uint32_t tid = 0; tid < g_thread_cnt; tid ++) {
+			for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++) {
 				value += _checkpoints[i]->_stats[tid]->_int_stats[n];
 				value -= _checkpoints[i - 1]->_stats[tid]->_int_stats[n];
 			}
@@ -191,7 +192,7 @@ void Stats::output(std::ostream * os)
 		}
 		for	(uint32_t n = 0; n < NUM_FLOAT_STATS; n++) {
 			double value = 0;
-			for (uint32_t tid = 0; tid < g_thread_cnt; tid ++) {
+			for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++) {
 				value += _checkpoints[i]->_stats[tid]->_float_stats[n];
 				value -= _checkpoints[i - 1]->_stats[tid]->_float_stats[n];
 			}
@@ -200,8 +201,8 @@ void Stats::output(std::ostream * os)
 		for (uint32_t n = 0; n < Message::NUM_MSG_TYPES; n++) {
 			uint64_t value = 0;
 			// for input thread
-			value += _checkpoints[i]->_stats[g_thread_cnt - 2]->_msg_count[n];
-			value -= _checkpoints[i - 1]->_stats[g_thread_cnt - 2]->_msg_count[n];
+			value += _checkpoints[i]->_stats[_total_thread_cnt - 2]->_msg_count[n];
+			value -= _checkpoints[i - 1]->_stats[_total_thread_cnt - 2]->_msg_count[n];
 			out << value << ',';
 		}
 		out << endl;
@@ -219,7 +220,7 @@ void Stats::print()
 	}
 	// compute the latency distribution
 #if COLLECT_LATENCY
-	for (uint32_t tid = 0; tid < g_thread_cnt; tid ++) { 
+	for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++) { 
 		M_ASSERT(_stats[tid]->all_latency.size() == _stats[tid]->_int_stats[STAT_num_commits], 
 				 "%ld vs. %ld\n", 
 				 _stats[tid]->all_latency.size(), _stats[tid]->_int_stats[STAT_num_commits]);
@@ -274,7 +275,7 @@ void
 Stats::copy_from(Stats * stats)
 {
 	// TODO. this checkpoint may be slightly inconsistent. But it should be fine.  
-	for (uint32_t i = 0; i < g_thread_cnt; i ++)	
+	for (uint32_t i = 0; i < _total_thread_cnt; i ++)	
 		_stats[i]->copy_from(stats->_stats[i]);
 }
 
@@ -285,15 +286,15 @@ Stats::last_cp_bytes_sent(double &dummy_bytes)
 	if (num_cp > 0) {
 		if (num_cp == 1) {
 			Stats * cp = _checkpoints[num_cp - 1];
-			dummy_bytes = cp->_stats[g_thread_cnt - 1]->_float_stats[STAT_dummy_bytes_sent]; 
-    		return cp->_stats[g_thread_cnt - 1]->_float_stats[STAT_bytes_sent];
+			dummy_bytes = cp->_stats[_total_thread_cnt - 1]->_float_stats[STAT_dummy_bytes_sent]; 
+    		return cp->_stats[_total_thread_cnt - 1]->_float_stats[STAT_bytes_sent];
 		} else {
 			Stats * cp1 = _checkpoints[num_cp - 1];
 			Stats * cp2 = _checkpoints[num_cp - 2];
-			dummy_bytes = cp1->_stats[g_thread_cnt - 1]->_float_stats[STAT_dummy_bytes_sent]
-						- cp2->_stats[g_thread_cnt - 1]->_float_stats[STAT_dummy_bytes_sent]; 
-    		return cp1->_stats[g_thread_cnt - 1]->_float_stats[STAT_bytes_sent] 
-    			 - cp2->_stats[g_thread_cnt - 1]->_float_stats[STAT_bytes_sent]; 
+			dummy_bytes = cp1->_stats[_total_thread_cnt - 1]->_float_stats[STAT_dummy_bytes_sent]
+						- cp2->_stats[_total_thread_cnt - 1]->_float_stats[STAT_dummy_bytes_sent]; 
+    		return cp1->_stats[_total_thread_cnt - 1]->_float_stats[STAT_bytes_sent] 
+    			 - cp2->_stats[_total_thread_cnt - 1]->_float_stats[STAT_bytes_sent]; 
 		}
 	} else { 
 		dummy_bytes = 0;
@@ -357,7 +358,7 @@ void Stats_tmp::clear() {
 void Stats::init() {
 	if (!STATS_ENABLE) 
 		return;
-	uint32_t thread_cnt = g_thread_cnt + g_num_logger;
+	uint32_t thread_cnt = _total_thread_cnt + g_num_logger;
 	_stats = (Stats_thd**) 
 			_mm_malloc(sizeof(Stats_thd*) * thread_cnt, 64);
 	tmp_stats = (Stats_tmp**) 
@@ -443,7 +444,7 @@ void Stats::print() {
 	double total_time_ts_alloc = 0;
 	double total_latency = 0;
 	double total_time_query = 0;
-	for (uint64_t tid = 0; tid < g_thread_cnt; tid ++) {
+	for (uint64_t tid = 0; tid < _total_thread_cnt; tid ++) {
 		total_txn_cnt += _stats[tid]->txn_cnt;
 		total_abort_cnt += _stats[tid]->abort_cnt;
 		total_run_time += _stats[tid]->run_time;
@@ -561,7 +562,7 @@ void Stats::print_lat_distr() {
 	FILE * outf;
 	if (output_file != NULL) {
 		outf = fopen(output_file, "a");
-		for (UInt32 tid = 0; tid < g_thread_cnt; tid ++) {
+		for (UInt32 tid = 0; tid < _total_thread_cnt; tid ++) {
 			fprintf(outf, "[all_debug1 thd=%d] ", tid);
 			for (uint32_t tnum = 0; tnum < _stats[tid]->txn_cnt; tnum ++) 
 				fprintf(outf, "%" PRIu64 ",", _stats[tid]->all_debug1[tnum]);

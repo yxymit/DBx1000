@@ -10,6 +10,7 @@
 #include "index_btree.h"
 #include "tpcc_const.h"
 #include "manager.h"
+#include "row_silo.h"
 
 void tpcc_txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	txn_man::init(h_thd, h_wl, thd_id);
@@ -19,6 +20,7 @@ void tpcc_txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 RC tpcc_txn_man::run_txn(base_query * query) {
 	_query = (tpcc_query *) query;
 	RC rc = RCOK;
+//	cout << _query->type << endl;
 	switch (_query->type) {
 		case TPCC_PAYMENT :
 			rc = run_payment(_query); 
@@ -33,7 +35,8 @@ RC tpcc_txn_man::run_txn(base_query * query) {
 		case TPCC_STOCK_LEVEL :
 			return run_stock_level(_query); break;*/
 		default:
-			M_ASSERT(false, "type=%d\n", _query->type);
+			M_ASSERT(false, "type=%d num_commit=%ld\n", 
+				_query->type, stats->_stats[GET_THD_ID]->_int_stats[STAT_num_commits]);
 	}
 	return rc;
 }
@@ -689,7 +692,7 @@ tpcc_txn_man::get_cmd_log_entry()
 }
 
 void
-tpcc_txn_man::recover_txn(char * log_entry)
+tpcc_txn_man::recover_txn(char * log_entry, uint64_t tid)
 {
 #if LOG_TYPE == LOG_DATA
 	// Format 
@@ -711,7 +714,15 @@ tpcc_txn_man::recover_txn(char * log_entry)
 		assert(table_id < NUM_TABLES);
 		itemid_t * m_item = index_read(_wl->tpcc_tables[(TableName)table_id]->get_primary_index(), key, 0);
 		row_t * row = ((row_t *)m_item->location);
+	#if LOG_ALGORITHM == LOG_BATCH
+		uint64_t cur_tid = row->manager->get_tid();
+		if (tid > cur_tid) { 
+			row->set_data(data, data_length);
+			row->manager->set_tid(tid);
+		}
+	#else
 		row->set_data(data, data_length);
+	#endif
 	}
 #elif LOG_TYPE == LOG_COMMAND
 	if (!_query) {
