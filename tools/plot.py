@@ -146,4 +146,5 @@ for bench in benchmarks:
 				err[name][n] = 0
 	print bench, data
 	draw_errorbar('thr_rec_%s' % bench, data, err, 
-		[str(x) for x in thds], ncol=2,	top=0.78)
+		[str(x) for x in thds], ncol=2,
+		bbox=[0.82, 0.9], top=0.80)

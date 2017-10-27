@@ -18,68 +18,6 @@ enum LogEntryType {
 	LOG_DELETE
 };
 
-class RecoverState {
-public:
-	RecoverState(); 
-	~RecoverState();
-	void clear();
-
-	uint64_t txn_id;
-#if LOG_TYPE == LOG_DATA
-	uint32_t num_keys;
-	uint32_t * table_ids;
-	uint64_t * keys; 
-	uint32_t * lengths;
-	char ** after_image;
-#elif LOG_TYPE == LOG_COMMAND
-	char * cmd;	 
-  #if LOG_ALGORITHM == LOG_PARALLEL
-	uint64_t commit_ts; 
-  #endif 
-#endif
-
-#if LOG_ALGORITHM == LOG_PARALLEL
-	uint64_t thd_id;
-	void * txn_node;
-	void * gc_entry; // GCQEntry * 
-	PredecessorInfo * _predecessor_info;
-#endif
-};
-
-/*
-// Buffer for persistent storage. A worker thread logs to this buffer,
-// and a logging thread flushes the buffer to disk. 
-class DiskBuffer {
-public:
-	DiskBuffer(string file_name);
-	~DiskBuffer();
-	
-	// read from/write to DiskBuffer
-	void writeBuffer(char * entry, uint64_t lsn, uint32_t size);
-	void flush(uint64_t start_lsn, uint64_t end_lsn);
-
-	char * readBuffer();
-	void load(); 
-
-	void add_tail(uint64_t lsn);
-	// flush to and load from hard disk
-	// performance of flush() and load() are not modeled
-	uint32_t _block_size;
-private:
-	//void alloc_block(uint32_t num);
-	string _file_name;
-	int _fd; 
-	fstream * _file;
-	char * _block; 
-
-	// only for recovery
-	char * _block_next;
-	uint64_t _cur_offset;
-	uint64_t _max_size;
-	bool _eof;
-};
-*/
-
 // manager for a single log stream
 class LogManager 
 {
@@ -120,6 +58,8 @@ public:
 	uint32_t	tryReadLog();
 	bool 		iseof() { return _eof; }
  	uint64_t 	get_next_log_entry(char * &entry);
+	uint32_t 	get_next_log_chunk(char * &chunk, uint64_t &size, uint64_t &base_lsn);
+	void 		return_log_chunk(char * buffer, uint32_t chunk_num);
 	void 		set_gc_lsn(uint64_t lsn);
 private:
 	volatile uint64_t * _disk_lsn;
@@ -149,9 +89,18 @@ private:
 	uint64_t ** 		_lsns;
 #else 
 	char * 				_buffer;		// circular buffer to store unflushed data.
+	//uint32_t  			_curr_file_id;
+		
+	uint64_t * 			_starting_lsns;
+	uint64_t 			_file_size;
+	uint32_t 			_num_chunks;
+	uint32_t  			_next_chunk;
 #endif
+	pthread_mutex_t * 	_mutex;
+	
 	string 				_file_name;
 	int 				_fd; 
+	int 				_fd_data; 
 	fstream * 			_file;
 	uint32_t 			_logger_id;
 

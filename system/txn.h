@@ -224,7 +224,8 @@ private:
 #elif LOG_ALGORITHM == LOG_PARALLEL
 	void 			parallel_recover();
 #elif LOG_ALGORITHM == LOG_BATCH
-	void 			batch_recover();	
+	void 			batch_recover();
+	//static pthread_mutex_t * _log_lock;
 #endif
 public:
 	uint64_t		last_writer;

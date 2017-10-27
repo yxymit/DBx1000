@@ -18,6 +18,8 @@
 #include "manager.h"
 #include <fcntl.h>
 
+//pthread_mutex_t * txn_man::_log_lock;
+
 void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	this->h_thd = h_thd;
 	this->h_wl = h_wl;
@@ -485,6 +487,53 @@ txn_man::parallel_recover() {
 	if (GET_THD_ID == 0)
 		printf("Phase 1.1 starts\n");
 	uint64_t tt = get_sys_clock();
+	uint32_t logger = GET_THD_ID % g_num_logger;
+	while (true) {
+		char * buffer = NULL;
+		uint64_t file_size = 0;
+		uint64_t base_lsn = 0;
+		uint32_t chunk_num = log_manager[logger]->get_next_log_chunk(buffer, file_size, base_lsn);
+		if (chunk_num == (uint32_t)-1) 
+			break;
+	
+		// Format of log record 
+		// | checksum | size | ... 
+		uint32_t offset = 0;
+		uint32_t count = 0;
+		uint64_t lsn = base_lsn;
+		while (offset < file_size) {
+			// read entries from buffer
+			uint32_t checksum;
+			uint32_t size; 
+			uint32_t start = offset;
+			if (offset + sizeof(uint32_t) * 2 >= file_size)
+				break;
+			UNPACK(buffer, checksum, offset);
+			UNPACK(buffer, size, offset);
+			if (offset + size > file_size)
+				break;
+			if (checksum != 0xdead) 
+				break;
+			M_ASSERT(size > 0 && size <= MAX_LOG_ENTRY_SIZE, "size=%d\n", size);
+			uint64_t tid = ((uint64_t)logger << 48) | lsn;
+//			printf("chunk_num=%d, base_lsn=%ld, lsn=%ld, tid= %ld\n", 
+//				chunk_num, base_lsn, lsn, tid);
+			log_recover_table->addTxn(tid, buffer + start);
+		
+			COMPILER_BARRIER
+			//log_manager[logger_id]->set_gc_lsn(lsn);
+			//count ++;
+			//INC_FLOAT_STATS(time_debug3, get_sys_clock() - t1);
+			offset = start + size;
+			lsn += size; 
+			M_ASSERT(offset <= file_size, "offset=%d, file_size=%ld\n", offset, file_size);
+			count ++;
+		}
+		log_manager[logger]->return_log_chunk(buffer, chunk_num);
+		printf("Log file %d done. Count=%d\n", chunk_num, count);
+	}
+
+/*
 	uint32_t logger_id = GET_THD_ID % g_num_logger;	
 	char default_entry[MAX_LOG_ENTRY_SIZE]; 
 	uint64_t count = 0;
@@ -492,6 +541,7 @@ txn_man::parallel_recover() {
 		char * entry = default_entry;
 		uint64_t t1 = get_sys_clock();
 		uint64_t lsn = log_manager[logger_id]->get_next_log_entry(entry);
+		INC_FLOAT_STATS(time_debug1, get_sys_clock() - t1);
 		//INC_FLOAT_STATS(time_debug1, get_sys_clock() - t1);
 		if (entry == NULL) {
 			if (log_manager[logger_id]->iseof()) {
@@ -512,7 +562,9 @@ txn_man::parallel_recover() {
 		uint32_t size = *(uint32_t*)(entry + sizeof(uint32_t));
 		M_ASSERT(size > 0 && size <= MAX_LOG_ENTRY_SIZE, "size=%d\n", size);
 
+		uint64_t t2 = get_sys_clock();
 		log_recover_table->addTxn(tid, entry);
+		INC_FLOAT_STATS(time_debug8, get_sys_clock() - t2);
 		INC_INT_STATS(int_debug3, 1);
 		
 		COMPILER_BARRIER
@@ -520,11 +572,10 @@ txn_man::parallel_recover() {
 		count ++;
 		INC_FLOAT_STATS(time_debug3, get_sys_clock() - t1);
 	}
-	
+*/	
 	pthread_barrier_wait(&worker_bar);
 	INC_FLOAT_STATS(time_phase1_1, get_sys_clock() - tt);
 	tt = get_sys_clock();
-	
 	if (GET_THD_ID == 0)
 		printf("Phase 1.2 starts\n");
 	// Phase 1.2. add in the successor info to the graph.
@@ -563,7 +614,6 @@ txn_man::parallel_recover() {
             recover_txn(log_entry);
 			log_recover_table->remove_txn(tid);
 			INC_INT_STATS(num_commits, 1);
-			count ++;
 		} else { //if (log_recover_table->is_recover_done()) {
 			if (last_idle_time == 0)
 				last_idle_time = get_sys_clock();
@@ -582,21 +632,37 @@ txn_man::parallel_recover() {
 void
 txn_man::batch_recover()
 {
+//	if (GET_THD_ID == 0) {
+//		_log_lock = new pthread_mutex_t;
+//		pthread_mutex_init(_log_lock, NULL);
+//	}
+//	pthread_barrier_wait(&worker_bar);
+	uint32_t logger = GET_THD_ID % g_num_logger;
 	while (true) {
-		int32_t next_epoch = ATOM_FETCH_SUB(*next_log_file_epoch, 1);
+		int32_t next_epoch = ATOM_FETCH_SUB(*next_log_file_epoch[logger], 1);
 		if (next_epoch <= 0) 
 			break;
 
-		string path = "/f0/yxy/silo/";
+		string path;
+		if (logger == 0) 		path = "/f0/yxy/silo/";
+		else if (logger == 1)	path = "/f1/yxy/silo/";
+		else if (logger == 2)	path = "/f2/yxy/silo/";
+		else if (logger == 3)	path = "/data/yxy/silo/";
+		
+		//if (logger == 3) 
+		//	pthread_mutex_lock(_log_lock);
 		string bench = (WORKLOAD == YCSB)? "YCSB" : "TPCC";
-		path += "BD_log0_" + bench + ".log." + to_string(next_epoch);
-		int fd = open(path.c_str(), O_RDONLY);
+		path += "BD_log" + to_string(logger) + "_" + bench + ".log." + to_string(next_epoch);
+		int fd = open(path.c_str(), O_RDONLY | O_DIRECT);
 		uint32_t fsize = lseek(fd, 0, SEEK_END);
 		char * buffer = new char [fsize];
 		lseek(fd, 0, SEEK_SET);
 		uint32_t bytes = read(fd, buffer, fsize);
 		assert(bytes == fsize);
+		//if (logger == 3) 
+		//	pthread_mutex_unlock(_log_lock);
 		
+		INC_FLOAT_STATS(log_bytes, fsize);
 		// Format for batch logging 
 		// | checksum | size | TID | N | (table_id | primary_key | data_length | data) * N
 		uint32_t offset = 0;
@@ -619,7 +685,7 @@ txn_man::batch_recover()
 			
 			offset = start + size;
 		}
-		printf("Epoch %d done\n", next_epoch);
+		printf("logger = %d. Epoch %d done\n", logger, next_epoch);
 	}
 
 	// each worker thread picks a log file and process it.

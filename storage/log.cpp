@@ -40,6 +40,7 @@ LogManager::LogManager(uint32_t logger_id)
 			_filled_lsn[i] = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
 			*_filled_lsn[i] = 0;
 		}
+		//_curr_file_id = 0;
 	}
 	_flush_interval = LOG_FLUSH_INTERVAL * 1000; // in ns  
 	_last_flush_time = get_sys_clock();
@@ -83,7 +84,16 @@ LogManager::~LogManager()
 	if (!g_log_recover) { 
 		printf("Destructor. flush size=%ld (%ld to %ld)\n", (*_lsn) / 512 * 512 - *_persistent_lsn, 
 			*_persistent_lsn, (*_lsn) / 512 * 512);
+		uint64_t end_lsn = (*_lsn) / 512 * 512;
 		flush(*_persistent_lsn, (*_lsn) / 512 * 512);
+			
+		uint32_t bytes = write(_fd, &end_lsn, sizeof(uint64_t));
+	//	printf("logger=%d. ready_lsn=%ld\n", _logger_id, ready_lsn);
+		assert(bytes == sizeof(uint64_t));
+		fsync(_fd);
+
+		close(_fd);
+		close(_fd_data);
 	}
 #endif
 }
@@ -93,17 +103,53 @@ void LogManager::init(string log_file_name)
 	_file_name = log_file_name;
 	printf("log file:\t\t%s\n", log_file_name.c_str());
 	if (g_log_recover) {
-		_fd = open(log_file_name.c_str(), O_DIRECT | O_RDONLY);
+#if LOG_ALGORITHM != LOG_BATCH
+		string path = log_file_name + ".0";
+		_fd_data = open(path.c_str(), O_DIRECT | O_RDONLY);
 		assert(_fd != -1);
-	}
-	else {
-		cout << log_file_name << endl;
-	  #if LOG_ALGORITHM == LOG_BATCH
-		_fd = open(log_file_name.c_str(), O_TRUNC | O_WRONLY | O_CREAT, 0664);
-      #else
-		_fd = open(log_file_name.c_str(), O_DIRECT | O_TRUNC | O_WRONLY | O_CREAT, 0664);
+		if (g_log_recover) {
+			int _fd = open(log_file_name.c_str(), O_RDONLY);
+			assert(_fd != -1);
+			uint32_t fsize = lseek(_fd, 0, SEEK_END);
+			lseek(_fd, 0, SEEK_SET);
+			_num_chunks = fsize / sizeof(uint64_t);
+			_starting_lsns = new uint64_t [_num_chunks];
+			uint32_t size = read(_fd, _starting_lsns, fsize);
+//			for (uint32_t i = 0; i < _num_chunks; i ++)
+//				printf("_starting_lsns[%d] = %ld\n", 
+//					i, _starting_lsns[i]);
+			assert(size == fsize);
+			close(_fd);
+			_next_chunk = 0;
+			_file_size = fsize;
+		}
+		_mutex = new pthread_mutex_t;
+		pthread_mutex_init(_mutex, NULL);
+#endif
+	} else {
+		//cout << log_file_name << endl;
+		string name = _file_name;
+//	  #if LOG_ALGORITHM == LOG_BATCH
+//		_fd = open(name.c_str(), O_TRUNC | O_WRONLY | O_CREAT, 0664);
+//	  #else
+	    // for parallel logging. The metafile format.
+		//  | file_id | start_lsn | * num_of_log_files
+		_fd = open(name.c_str(), O_TRUNC | O_WRONLY | O_CREAT, 0664);
+	  #if LOG_ALGORITHM == LOG_PARALLEL
+		//_fd = open(name.c_str(), O_TRUNC | O_WRONLY | O_CREAT, 0664);
+		//uint32_t bytes = write(_fd, &_curr_file_id, sizeof(_curr_file_id));
+		// the start of the first segment. _lsn = 0 
+		assert(*_lsn  == 0);
+		uint32_t bytes = write(_fd, (uint64_t*)_lsn, sizeof(uint64_t));
+		assert(bytes == sizeof(uint64_t));
+		fsync(_fd);
 	  #endif
 		assert(_fd != -1);
+//	  #if LOG_ALGORITHM == LOG_PARALLEL
+		name = _file_name + ".0"; // + to_string(_curr_file_id);
+		_fd_data = open(name.c_str(), O_DIRECT | O_TRUNC | O_WRONLY | O_CREAT, 0664);
+		assert(_fd_data != -1);
+//	  #endif
 	}
 }
 
@@ -226,6 +272,7 @@ LogManager::tryFlush()
 		uint64_t size = *_lsns[buffer_id];
 		if (size % 512 != 0) 
 			size = size / 512 * 512 + 512;
+		assert(fd != 1 && fd != 0);
 		bytes = write(fd, _buffers[buffer_id], size);
 		M_ASSERT(bytes == size, "bytes=%d, planned=%ld, errno=%d, fd=%d, _file_name=%s\n", 
 			bytes, *_lsns[buffer_id], errno, fd, name.c_str());
@@ -263,14 +310,28 @@ LogManager::tryFlush()
 	assert(ready_lsn >= *_persistent_lsn);
 	// timeout or buffer full enough.
 	_last_flush_time = get_sys_clock();
-	ready_lsn -= ready_lsn % 512; 
+
+	//ready_lsn -= ready_lsn % 512; 
 	assert(*_persistent_lsn % 512 == 0);
 	
 	uint64_t start_lsn = *_persistent_lsn;
-	uint64_t end_lsn = ready_lsn;
+	uint64_t end_lsn = ready_lsn - ready_lsn % 512;
 	flush(start_lsn, end_lsn);
 	COMPILER_BARRIER
-	*_persistent_lsn = ready_lsn;
+	*_persistent_lsn = end_lsn;
+	uint32_t chunk_size = 10 * 1048576;// g_log_buffer_size 
+	if (end_lsn / chunk_size  > start_lsn / chunk_size ) {
+		//close(_fd_data);
+		//string name = _file_name + "." + to_string(++ _curr_file_id);
+		//uint32_t bytes = write(_fd, &_curr_file_id, sizeof(_curr_file_id));
+		uint32_t bytes = write(_fd, &ready_lsn, sizeof(ready_lsn));
+		printf("logger=%d. ready_lsn=%ld\n", _logger_id, ready_lsn);
+		assert(bytes == sizeof(ready_lsn));
+		fsync(_fd);
+
+		//_fd_data = open(name.c_str(), O_DIRECT | O_TRUNC | O_WRONLY | O_CREAT, 0664);
+		//assert(_fd_data != -1 && _fd_data != 0);
+	}
 	return end_lsn - start_lsn;
 #endif
 }
@@ -282,283 +343,26 @@ LogManager::flush(uint64_t start_lsn, uint64_t end_lsn)
 	if (start_lsn == end_lsn) return;
 	assert(end_lsn - start_lsn < g_log_buffer_size);
 	
+	assert(_fd_data != 1 && _fd_data != 0);
 	if (start_lsn / g_log_buffer_size < end_lsn / g_log_buffer_size) {
 		// flush in two steps.
 		uint32_t tail_size = g_log_buffer_size - start_lsn % g_log_buffer_size;
-		uint32_t bytes = write(_fd, _buffer + start_lsn % g_log_buffer_size, tail_size); 
+		uint32_t bytes = write(_fd_data, _buffer + start_lsn % g_log_buffer_size, tail_size); 
 		assert(bytes == tail_size);
-		bytes = write(_fd, _buffer, end_lsn % g_log_buffer_size); 
+		bytes = write(_fd_data, _buffer, end_lsn % g_log_buffer_size); 
 		assert(bytes == end_lsn % g_log_buffer_size);
 	} else { 
-		uint32_t bytes = write(_fd, (void *)(_buffer + start_lsn % g_log_buffer_size), end_lsn - start_lsn);
+		uint32_t bytes = write(_fd_data, (void *)(_buffer + start_lsn % g_log_buffer_size), end_lsn - start_lsn);
 		M_ASSERT(bytes == end_lsn - start_lsn, "bytes=%d, planned=%ld, errno=%d, _fd=%d\n", 
-			bytes, end_lsn - start_lsn, errno, _fd);
+			bytes, end_lsn - start_lsn, errno, _fd_data);
+		//printf("start_lsn = %ld, end_lsn = %ld\n", start_lsn, end_lsn);
+		//assert(*(uint32_t*)(_buffer + start_lsn % g_log_buffer_size) == 0xdead);
 	}
-	fsync(_fd);
-#endif
-}
-/*bool 
-LogManager::allocate_lsn(uint32_t size, uint64_t lsn)
-{
-	return ATOM_CAS(_lsn, lsn, lsn + size);
-}*/
-
-//#else 
-//
-//void 
-//LogManager::logTxn(char * log_entry, uint32_t size)
-//{
-//  pthread_mutex_lock(&lock);
-//  //uint64_t lsn = global_lsn;
-//  _lsn ++;
-//  uint32_t my_buff_index =  buff_index;
-//  buff_index ++;
-//
-//  //  cout << "Not flushing yet\n";
-//  if (buff_index >= g_buffer_size)
-//  {
-//      addToBuffer(my_buff_index, log_entry, size);
-//  #if LOG_PARALLEL_BUFFER_FILL
-//      while (count_busy > 1)
-//		PAUSE
-//  #endif
-//      flushLogBuffer();
-//      buff_index = 0;
-//      for (uint32_t i = 0; i < g_buffer_size; i ++) {
-//        delete buffer[i].data;
-//      }
-//  #if LOG_PARALLEL_BUFFER_FILL
-//      count_busy = g_buffer_size;
-//  #endif
-//      pthread_mutex_unlock(&lock);
-//  }
-//  else{
-//  #if LOG_PARALLEL_BUFFER_FILL
-//    pthread_mutex_unlock(&lock);
-//    addToBuffer(my_buff_index, log_entry, size);
-//    ATOM_SUB(count_busy, 1);
-//  #else 
-//    addToBuffer(my_buff_index, log_entry, size);
-//    pthread_mutex_unlock(&lock);
-//  #endif
-//  }
-//  return;
-//}
-//#endif
-
-///////////////////////////
-// RecoverState
-///////////////////////////
-RecoverState::RecoverState()
-{
-#if LOG_TYPE == LOG_DATA
-	table_ids = new uint32_t [MAX_ROW_PER_TXN];
-	keys = new uint64_t [MAX_ROW_PER_TXN];
-	lengths = new uint32_t [MAX_ROW_PER_TXN];
-	after_image = new char * [MAX_ROW_PER_TXN];
-#elif LOG_TYPE == LOG_COMMAND
-	cmd = new char [4096];
-#endif
-
-#if LOG_ALGORITHM == LOG_PARALLEL
-	_predecessor_info = new PredecessorInfo;
+	fsync(_fd_data);
 #endif
 }
 
-RecoverState::~RecoverState()
-{
-#if LOG_TYPE == LOG_DATA
-	delete table_ids;
-	delete keys;
-	delete lengths;
-	delete after_image;
-#elif LOG_TYPE == LOG_COMMAND
-  	delete cmd;
-#endif
-#if LOG_ALGORITHM == LOG_PARALLEL
-	delete _predecessor_info;
-#endif
 
-}
-
-void 
-RecoverState::clear()
-{
-#if LOG_ALGORITHM == LOG_PARALLEL
-	_predecessor_info->clear();
-#endif
-}
-
-/*
-/////////////////////////////
-// DiskBuffer
-/////////////////////////////
-DiskBuffer::DiskBuffer(string file_name)
-{
-	_file_name = file_name;
-	if (g_log_recover) 
-		g_log_buffer_size = (256UL << 20); // 16 MB
-	else 
-		g_log_buffer_size = (16UL << 20); // 16 MB
-	//g_log_buffer_size = (128UL << 20); // 16 MB
-	_block = (char *) _mm_malloc(g_log_buffer_size, 64);
-	//if (g_log_recover)
-	//_block_next = new char [g_log_buffer_size];
-//	_file = (fstream *) _mm_malloc(sizeof(fstream), 64);
-//	new(_file) fstream;
-	if (g_log_recover) {
-		_cur_offset = 0;
-		_max_size = 0;
-		_eof = false;
-		_fd = open(_file_name.c_str(), O_DIRECT | O_RDONLY);
-		assert(_fd != -1);
-		//_file->open(_file_name, ios::in | ios::binary);
-	}
-	else {
-		if (!g_no_flush) {
-			_fd = open(_file_name.c_str(), O_DIRECT | O_TRUNC | O_WRONLY);
-			assert(_fd != -1);
-			//_file->open(_file_name, ios::out | ios::binary | ios::trunc);
-		}
-	}
-}
-
-DiskBuffer::~DiskBuffer()
-{
-	if (!g_no_flush || g_log_recover)
-		close (_fd); //_file->close();
-}
-
-void
-DiskBuffer::writeBuffer(char * entry, uint64_t lsn, uint32_t size)
-{
-	assert( size == *(uint32_t *)entry || *(uint32_t *)entry == UINT32_MAX);
-	assert( size > 0 && size < 4096);
-	if (lsn / g_log_buffer_size < (lsn + size) / g_log_buffer_size)	{
-		// write in two steps 
-		uint32_t tail_size = g_log_buffer_size - lsn % g_log_buffer_size; 
-		memcpy(_block + lsn % g_log_buffer_size, entry, tail_size);
-		memcpy(_block, entry + tail_size, size - tail_size);
-		//printf("here lsn=%ld, size=%d\n", lsn, size);
-	} else {
-	uint64_t tt = get_sys_clock();
-	// TODO TODO. even with small txn count, most time is spent here???
-	// as txn count increases, the time spent here does not increase?
-	// XXX
-		
-		//INC_STATS(GET_THD_ID, debug8, lsn);
-		memcpy(_block + lsn % g_log_buffer_size, entry, size);
-		//memcpy(_block, entry, size);
-	INC_STATS(GET_THD_ID, debug7, get_sys_clock() - tt);
-		//memcpy(_block, entry, size);
-		//printf("size=%d\n", size);
-	}
-}
-
-void 
-DiskBuffer::flush(uint64_t start_lsn, uint64_t end_lsn)
-{
-	if (g_no_flush)
-		return;
-	if (start_lsn == end_lsn) 
-		return;
-	assert(end_lsn - start_lsn < g_log_buffer_size);
-	// XXX XXX
-//	uint64_t ptr = start_lsn;
-//	while (ptr < end_lsn) {
-//		uint32_t size = *(uint32_t *)(_block + ptr % g_log_buffer_size);
-//		M_ASSERT( size > 0, "size = %d\n", size);
-//		ptr += size;
-//	}
-	if (start_lsn / g_log_buffer_size < end_lsn / g_log_buffer_size) {
-		// flush in two steps.
-		uint32_t tail_size = g_log_buffer_size - start_lsn % g_log_buffer_size;
-		uint32_t bytes = write(_fd, _block + start_lsn % g_log_buffer_size, tail_size); 
-		assert(bytes == tail_size);
-		bytes = write(_fd, _block, end_lsn % g_log_buffer_size); 
-		assert(bytes == end_lsn % g_log_buffer_size);
-		//_file->write( _block + start_lsn % g_log_buffer_size, tail_size);
-		//_file->write( _block, end_lsn % g_log_buffer_size);
-	} else { 
-		//_file->write( _block + start_lsn % g_log_buffer_size, end_lsn - start_lsn);
-		uint32_t bytes = write(_fd, (void *)(_block + start_lsn % g_log_buffer_size), end_lsn - start_lsn);
-		M_ASSERT(bytes == end_lsn - start_lsn, "bytes=%d, planned=%ld, errno=%d, _fd=%d\n", 
-			bytes, end_lsn - start_lsn, errno, _fd);
-	}
-	//printf("[THD=%ld] %s flush %ld to %ld\n", GET_THD_ID, _file_name.c_str(), start_lsn, end_lsn);
-	//_file->flush();
-	fsync(_fd);
-	//assert(!_file->bad());
-	//_file->close();
-	//
-	//assert(!_file->bad());
-	//_file->open(_file_name, ios::out | ios::binary | ios::app);
-	//assert(!_file->bad());
-}
-
-void 
-DiskBuffer::add_tail(uint64_t lsn)
-{
-	assert(g_log_buffer_size - lsn >= 4);
-	uint32_t end = -2; 
-	memcpy(_block + lsn % g_log_buffer_size, &end, sizeof(uint32_t));
-}
-
-char *
-DiskBuffer::readBuffer() 
-{
-	assert(g_log_recover);
-	if (g_log_buffer_size - _cur_offset < 4096) {
-		uint64_t new_offset = _cur_offset % 512; 
-		memmove(_block + new_offset, _block + _cur_offset, _max_size - _cur_offset);
-		_max_size -= (_cur_offset - new_offset);
-		assert(_max_size % 512 == 0);
-		//_max_size -= _cur_offset;
-		_cur_offset = new_offset;
-		//cout << "swap" << endl;
-		//swap(_block, _block_next);
-	}
-	if (!_eof && _max_size <= 4096) {
-  		//_file->read( _block + _max_size, g_log_buffer_size - _max_size);
-		//int bytes = read(_fd, _block + _max_size, g_log_buffer_size - _max_size);
-		int bytes = g_log_buffer_size - _max_size;
-		bytes -= bytes % 512;
-		bytes = read(_fd, _block + _max_size, bytes);
-		if (errno > 0)
-			perror("read failed");
-		assert(bytes != -1);
-		//_max_size += _file->gcount(); 
-		_max_size += bytes;
-		_eof = (bytes == 0); 
-		//_file->eof();
-	}
-	if (_cur_offset <= _max_size) {
-		uint32_t size = *(uint32_t *)(_block + _cur_offset);
-		if (size == UINT32_MAX) 
-			size = 12;
-		else if (size == (uint32_t)-2)
-			return NULL;
-		M_ASSERT(size > 0 && size < 4096, "size=%d. _cur_offset=%ld, _max_size=%ld\n", 
-			size, _cur_offset, _max_size);
-		//uint64_t ts = *(uint64_t *)(_block + _cur_offset + sizeof(uint32_t));
-//		if (size != 12) { // && ts != (uint64_t)-1) {
-//			uint32_t entry_size = *(uint32_t *)(_block + _cur_offset + sizeof(uint32_t) + sizeof(uint64_t));
-//			M_ASSERT(entry_size > 0 && entry_size < 4096, "entry_size = %d. size=%d\n", entry_size, size);
-			//printf("entry_size = %d. size=%d, ts=%ld\n", entry_size, size, ts);
-//		}
-
-		assert (_max_size >= _cur_offset + size);
-		char * entry = _block + _cur_offset;
-		_cur_offset += size;
-		return entry;
-	} else {
-		printf("_cur_offset=%ld, _max_size=%ld\n", _cur_offset, _max_size);
-		assert(false);
-		//assert(_cur_offset == _max_size);
-		return NULL;
-	}
-}
-*/
 uint32_t 
 LogManager::tryReadLog()
 {
@@ -587,22 +391,20 @@ LogManager::tryReadLog()
 		// flush in two steps.
 		uint32_t tail_size = g_log_buffer_size - start_lsn % g_log_buffer_size;
 
-		bytes = read(_fd, _buffer + start_lsn % g_log_buffer_size, tail_size);
+		bytes = read(_fd_data, _buffer + start_lsn % g_log_buffer_size, tail_size);
 		if (bytes < tail_size) 
 			_eof = true; 
 		else {
-			bytes += read(_fd, _buffer, end_lsn % g_log_buffer_size);
+			bytes += read(_fd_data, _buffer, end_lsn % g_log_buffer_size);
 			if (bytes < end_lsn  - start_lsn)
 				_eof = true; 
 		}
 	} else { 
-		bytes = read(_fd, _buffer + start_lsn % g_log_buffer_size, end_lsn - start_lsn);
+		bytes = read(_fd_data, _buffer + start_lsn % g_log_buffer_size, end_lsn - start_lsn);
 		if (bytes < end_lsn - start_lsn) 
 			_eof = true;
 	}
 	end_lsn = start_lsn + bytes;
-	//printf("start_lsn=%ld, end_lsn=%ld, _eof=%d\n", start_lsn, end_lsn, _eof);
-	//fsync(_fd);
 	COMPILER_BARRIER
 	*_disk_lsn = end_lsn;
 	return bytes;
@@ -619,6 +421,61 @@ LogManager::get_next_log_entry(char * &entry)
 	uint64_t next_lsn;
 	uint32_t size;
 	char * mentry = entry;
+	uint64_t t1 = get_sys_clock();
+	do {
+		mentry = entry;
+		next_lsn = *_next_lsn;
+
+		// TODO. There is a werid bug: for the last block (512-bit) of the file, the data 
+		// is corrupted? the assertion in txn.cpp : 449 would fail.
+		// Right now, the hack to solve this bug:
+		//  	do not read the last few blocks.
+		uint32_t dead_tail = _eof? 2048 : 0;
+		if (UNLIKELY(next_lsn + sizeof(uint32_t) * 2 >= *_disk_lsn - dead_tail)) {
+			entry = NULL;
+			return -1;
+		}
+		// Assumption. 
+		// Each log record has the following format
+		//  | checksum (32 bit) | size (32 bit) | ...
+
+		//uint64_t t2 = get_sys_clock();
+		// handle the boundary case.
+		uint32_t size_offset = (next_lsn + sizeof(uint32_t)) % g_log_buffer_size;
+		uint32_t tail = g_log_buffer_size - size_offset;
+		//INC_FLOAT_STATS(time_debug7, get_sys_clock() - t2);
+		if (UNLIKELY(tail < sizeof(uint32_t))) {
+			memcpy(&size, _buffer + size_offset, tail);
+			memcpy((char *)&size + tail, _buffer, sizeof(uint32_t) - tail);
+		} else 
+			//memcpy(&size, _buffer + size_offset, sizeof(uint32_t));
+			size = *(uint32_t*) (_buffer + size_offset);
+		//INC_FLOAT_STATS(time_debug6, get_sys_clock() - t2);
+		if (UNLIKELY(next_lsn + size >= *_disk_lsn - dead_tail)) {
+			entry = NULL;
+			return -1;
+		}
+		//INC_INT_STATS(int_debug5, 1);
+	} while (!ATOM_CAS(*_next_lsn, next_lsn, next_lsn + size));
+	INC_FLOAT_STATS(time_debug5, get_sys_clock() - t1);
+	INC_INT_STATS(int_debug6, 1);
+		
+	if (next_lsn / g_log_buffer_size != (next_lsn + size) / g_log_buffer_size) {
+		// copy to entry in 2 steps
+		uint32_t tail = g_log_buffer_size - next_lsn % g_log_buffer_size;
+		memcpy(entry, _buffer + next_lsn % g_log_buffer_size, tail);
+		memcpy(entry + tail, _buffer, size - tail);
+	} else 
+		mentry = _buffer + (next_lsn % g_log_buffer_size);
+
+	entry = mentry;
+	return next_lsn;
+
+	///////////////////////////////
+/*	uint64_t next_lsn;
+	uint32_t size;
+	char * mentry = entry;
+	uint64_t t1 = get_sys_clock();
 	do {
 		mentry = entry;
 		next_lsn = *_next_lsn;
@@ -657,11 +514,70 @@ LogManager::get_next_log_entry(char * &entry)
 		} else 
 			mentry = _buffer + (next_lsn % g_log_buffer_size);
 	} while (!ATOM_CAS(*_next_lsn, next_lsn, next_lsn + size));
+	INC_FLOAT_STATS(time_debug5, get_sys_clock() - t1);
 	entry = mentry;
 	return next_lsn;
+*/
 #else
 	assert(false);
 	return 0;
+#endif
+}
+ 
+uint32_t
+LogManager::get_next_log_chunk(char * &chunk, uint64_t &size, uint64_t &base_lsn)
+{
+#if LOG_ALGORITHM == LOG_PARALLEL
+	// allocate the next chunk number. 
+	// grab a lock on the log file
+	// read sequentially the next chunk.
+	// release the lock.
+	pthread_mutex_lock(_mutex);
+	uint32_t chunk_num = _next_chunk;
+	if (chunk_num == _num_chunks - 1) {
+		pthread_mutex_unlock(_mutex);
+		return (uint32_t)-1;
+	}
+	_next_chunk ++;
+	uint64_t start_lsn = _starting_lsns[chunk_num];
+	uint64_t end_lsn = _starting_lsns[chunk_num + 1];
+	base_lsn = start_lsn;
+
+	uint64_t fstart = start_lsn / 512 * 512; 
+	uint64_t fend = end_lsn;
+	if (fend % 512 != 0)
+		fend = fend / 512 * 512 + 512; 
+	lseek(_fd_data, fstart, SEEK_SET);
+	
+//	printf("chunk_num=%d / %d, start_lsn=%ld, end_lsn=%ld, fstart=%ld, fend=%ld\n", 
+//		chunk_num, _num_chunks, start_lsn, end_lsn, fstart, fend);
+	chunk = new char [fend - fstart];
+	M_ASSERT(chunk, "start_lsn=%ld, end_lsn=%ld, fstart=%ld, fend=%ld\n", 
+		start_lsn, end_lsn, fstart, fend);
+	uint32_t sz = read(_fd_data, chunk, fend - fstart);
+	M_ASSERT(sz == fend - fstart, "sz=%d, fstart=%ld, fend=%ld", sz, fstart, fend);
+
+	chunk = chunk + start_lsn % 512;
+	pthread_mutex_unlock(_mutex);
+	size = end_lsn - start_lsn; 
+	return chunk_num;
+#else
+	assert(false);
+	return 0;
+#endif
+
+}
+	
+void
+LogManager::return_log_chunk(char * buffer, uint32_t chunk_num)
+{
+#if LOG_ALGORITHM == LOG_PARALLEL
+	uint64_t start_lsn = _starting_lsns[chunk_num];
+	//uint64_t end_lsn = _starting_lsns[chunk_num + 1];
+	char * chunk = buffer - start_lsn % 512;
+	delete chunk;
+#else
+	assert(false);
 #endif
 }
 

@@ -26,6 +26,9 @@ LoggingThread::run()
 	uint64_t total_log_data = 0;
 
 	if (g_log_recover) {
+  #if LOG_ALGORITHM == LOG_PARALLEL
+  		return FINISH;
+  #endif
 		//stats.init( _thd_id );
 		while (true) { //glob_manager->get_workload()->sim_done < g_thread_cnt) {
 			uint32_t bytes = logger->tryReadLog();

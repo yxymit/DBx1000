@@ -28,6 +28,8 @@
 #define COMPILER_BARRIER asm volatile("" ::: "memory");
 //#define PAUSE { __asm__ ( "pause;" ); }
 #define PAUSE __asm__( "pause;" );
+#define LIKELY(condition) __builtin_expect((condition), 1)
+#define UNLIKELY(condition) __builtin_expect((condition), 0)
 
 /************************************************/
 // ASSERT Helper

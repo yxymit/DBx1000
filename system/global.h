@@ -86,8 +86,7 @@ extern OptCC occ_man;
 extern LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
 extern LogManager ** log_manager;
-// for batch recovery  
-extern uint32_t * next_log_file_epoch;
+// for batch recovery 
 #elif LOG_ALGORITHM == LOG_PARALLEL
 extern LogManager ** log_manager;
 //#define ReadyQueue   
@@ -98,8 +97,12 @@ extern ParallelLogManager * log_manager;
 extern LogPendingTable * log_pending_table;
 */
 extern LogRecoverTable * log_recover_table;
+extern uint64_t * starting_lsn;
 //extern uint32_t num_threads_done;  
 #endif
+extern uint32_t ** next_log_file_epoch;
+
+
 extern FreeQueue ** free_queue_recover_state; 
 extern bool g_log_recover;
 extern uint32_t g_num_logger;

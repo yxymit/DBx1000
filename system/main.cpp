@@ -84,22 +84,59 @@ int main(int argc, char* argv[])
 		MALLOC_CONSTRUCTOR(LogRecoverTable, log_recover_table);
   #endif
 #endif
-#if LOG_ALGORITHM == LOG_BATCH
+	next_log_file_epoch = new uint32_t * [g_num_logger];
+	for (uint32_t i = 0; i < g_num_logger; i ++) {
+		next_log_file_epoch[i] = (uint32_t *) _mm_malloc(sizeof(uint32_t), 64);
+	}
+#if LOG_ALGORITHM == LOG_PARALLEL
+/*	if (g_log_recover) {
+		starting_lsn = new uint64_t [g_num_logger];
+		for (uint32_t i = 0; i < g_num_logger; i ++) {
+			string path;
+			if (i == 0) 		path = "/f0/yxy/";
+			else if (i == 1)	path = "/f1/yxy/";
+			else if (i == 2)	path = "/f2/yxy/";
+			else if (i == 3)	path = "/data/yxy/";
+			string type = (LOG_TYPE == LOG_DATA)? "D" : "C";
+			path += "P" + type + "_log" + to_string(i) + "_" + bench + ".log";
+			int fd = open(path.c_str(), O_RDONLY);
+			uint32_t fsize = lseek(fd, 0, SEEK_END);
+			lseek(fd, 0, SEEK_SET);
+			M_ASSERT(fsize % (sizeof(uint32_t) + sizeof(uint64_t)) == 0, "fsize=%d\n", fsize);
+			*next_log_file_epoch[i] = fsize / (sizeof(uint32_t) + sizeof(uint64_t));
+			char * buffer = new char [fsize];
+			int bytes = read(fd, buffer, fsize);
+			assert(bytes == (int)fsize);
+			uint32_t num_files = fsize /  (sizeof(uint32_t) + sizeof(uint64_t));
+			for (uint32_t i = 0; i <num_files; i ++) 
+				memcpy(&starting_lsn[i], 
+					   buffer + (sizeof(uint32_t) + sizeof(uint64_t)) * i + sizeof(uint32_t), 
+					   sizeof(uint64_t));
+			close(fd);
+		}
+	}
+	*/
+#elif LOG_ALGORITHM == LOG_BATCH
 	assert(LOG_TYPE == LOG_DATA);
 	if (g_log_recover) {
-		next_log_file_epoch = (uint32_t *) _mm_malloc(sizeof(uint32_t), 64);
-		string path = "/f0/yxy/silo/";
-		#if LOG_TYPE == LOG_DATA
-		path += "BD_log0_" + bench + ".log";
-		#else
-		path += "BC_log0_" + bench + ".log";
-		#endif
-		int fd = open(path.c_str(), O_RDONLY);
-		fd = open(path.c_str(), O_RDONLY);
-		int bytes = read(fd, next_log_file_epoch, sizeof(uint32_t));
-		printf("next_log_file_epoch=%d\n", *next_log_file_epoch);
-		assert(bytes == sizeof(uint32_t));
-		close(fd);
+		uint32_t min_epoch = (uint32_t)-1;
+		for (uint32_t i = 0; i < g_num_logger; i ++) {
+			string path;
+			if (i == 0) 		path = "/f0/yxy/silo/";
+			else if (i == 1)	path = "/f1/yxy/silo/";
+			else if (i == 2)	path = "/f2/yxy/silo/";
+			else if (i == 3)	path = "/data/yxy/silo/";
+			path += "BD_log" + to_string(i) + "_" + bench + ".log";
+			int fd = open(path.c_str(), O_RDONLY);
+			int bytes = read(fd, next_log_file_epoch[i], sizeof(uint32_t));
+			printf("next_log_file_epoch=%d\n", *next_log_file_epoch[i]);
+			if (*next_log_file_epoch[i] < min_epoch)
+				min_epoch = *next_log_file_epoch[i];
+			assert(bytes == sizeof(uint32_t));
+			close(fd);
+		}
+		for (uint32_t i = 0; i < g_num_logger; i ++) 
+			*next_log_file_epoch[i] = min_epoch;
 	}
 #endif
 
