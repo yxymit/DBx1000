@@ -10,6 +10,7 @@ matplotlib.rcParams['pdf.use14corefonts'] = True
 results = {}
 #suffixes = ['', '_1', '_2', '_3', '_4']
 results = get_all_results("results/") 
+results = get_all_results("results-oct27/") 
 
 def get_stats(tag, thd):
 	thr = 0
@@ -44,6 +45,7 @@ trials = ['']
 
 #thds = [4, 8] #, 16, 20, 24, 28, 32]
 thds = [4, 8, 16, 20, 24, 28, 32]
+thds = [4, 8, 16, 24, 32]
 
 num_loggers = [4]
 
@@ -68,43 +70,55 @@ for alg in algorithms:
 mapping = {
 	"PD": 'Parallel Data',
 }
-
+##########################3
 # logging performance 
+##########################3
 for bench in ['YCSB', 'TPCC']:
 	num_logger = 4
-	data = {}
-	err = {}
-	names = [ c[0:2] for c in configs ]
+	thr = {}
+	io = {}
+	lat = {}
+	#err = {}
+	names = configs
 	for i in range(0, len(configs)):
 		config = configs[i]
 		name = names[i]
-		data[name] = [0] * len(thds)
-		err[name] = [0] * len(thds)
+		thr[name] = [0] * len(thds)
+		io[name] = [0] * len(thds)
+		lat[name] = [0] * len(thds)
+		#err[name] = [0] * len(thds)
 		for n in range(0, len(thds)):
 			thd = thds[n]
 			try:
 				logger = num_logger
-				if config[0] == 'S' or config[0] == 'N':
-					logger = 1
+				if config[0] == 'S' or config[0] == 'N': logger = 1
 				vals = []
 				for trial in trials:
 					tag = '%s_%s/thd%d_L%d%s' % (config, bench, thd, logger, trial)
-					print tag
 					values = results[tag]
-					vals.append(values['num_commits'] / values['run_time'] * thd / 1000000.0)	
-				data[name][n], err[name][n] = avg_and_dev(vals)
-
-				#values['txn_cnt'] / values['run_time'] * thd / 1000000.0
+					thr[name][n] += values['num_commits'] / values['run_time'] * thd / 1000000.0 / len(trials)
+					io[name][n] += values['log_bytes'] / logger / (values['run_time'] / thd) * 1000 / len(trials)
+					if config == 'PD' and bench == 'YCSB' and thd == 16:
+						print values['log_bytes'], io 
+					lat[name][n] += 1.0 * values['latency'] / values['num_commits'] * 1000 * 1000 / len(trials)
+				#data[name][n], err[name][n] = avg_and_dev(vals)
 			except:
-				data[name][n] = 0
-				err[name][n] = 0
-	fname = 'thr_logging%s_%s' % (num_logger, bench)
-	#draw_line('thr_logging%s_%s' % (num_loggers, bench), data, [str(x) for x in thds], ncol=2, 
-	#	top=0.85, bbox=[0.82, 0.85])
-	print bench, data
-	draw_errorbar(fname, data, err, 
-		[str(x) for x in thds], bbox=[0.82, 0.9], ncol=2, 
-		top=0.80)
+				thr[name][n] = 0
+				io[name][n] = 0
+				lat[name][n] = 0
+				#err[name][n] = 0
+	thr_fname = 'thr_logging%s_%s' % (num_logger, bench)
+	io_fname = 'io_logging%s_%s' % (num_logger, bench)
+	lat_fname = 'lat_logging%s_%s' % (num_logger, bench)
+	#draw_errorbar(fname, data, err, 
+	draw_line(thr_fname, thr, 
+		[str(x) for x in thds], bbox=[0.82, 0.9], ncol=2, legend=False)
+	print io_fname, io
+	draw_line(io_fname, io, 
+		[str(x) for x in thds], bbox=[0.82, 0.9], ncol=2, legend=False)
+	draw_line(lat_fname, lat, 
+		[str(x) for x in thds], bbox=[0.82, 0.9], ncol=2, legend=False,
+		ylab = "Latency (us)")
 
 
 ################################
@@ -132,7 +146,6 @@ for bench in benchmarks:
 				vals = []
 				for trial in trials:
 					tag = '%s_%s_rec/thd%d_L%d%s' % (config, bench, thd, num_logger, trial)
-					print tag
 					values = results[tag]
 					if config[0] == 'S':
 						vals.append(values['num_commits'] / values['run_time'] / 1000000.0)	
@@ -144,7 +157,43 @@ for bench in benchmarks:
 			except:
 				data[name][n] = 0
 				err[name][n] = 0
-	print bench, data
+	#print bench, data
 	draw_errorbar('thr_rec_%s' % bench, data, err, 
 		[str(x) for x in thds], ncol=2,
 		bbox=[0.82, 0.9], top=0.80)
+
+
+# TPC-C sweep warehouse count. 
+num_loggers = 4
+bench = "TPCC"
+whs = [1, 4, 8, 16, 32]
+thd = 16
+configs = names = ["SD", "SC", "PD", "PC", "BD"]
+data = {}
+err = {}
+for i in range(0, len(configs)):
+	config = configs[i]
+	name = names[i]
+	data[name] = [0] * len(whs)
+	err[name] = [0] * len(whs)
+	if config[0] == 'S': 	num_logger = 1
+	else : 					num_logger = 4
+	for n in range(len(whs)):
+		try:
+			vals = []
+			for trial in trials:
+				tag = '%s_%s_wh%d_rec/thd%d_L%d%s' % (config, bench, whs[n], thd, num_logger, trial)
+				values = results[tag]
+				if config[0] == 'S':
+					vals.append(values['num_commits'] / values['run_time'] / 1000000.0)	
+				else:
+					vals.append(values['num_commits'] / (values['run_time'] / thd) / 1000000.0)	
+			data[name][n], err[name][n] = avg_and_dev(vals)
+			print tag, n, data[name][n]
+		except:
+			data[name][n] = 0
+			err[name][n] = 0
+print "wh sweep\n", data
+draw_errorbar('thr_rec_whsweep', data, err, 
+	whs, ncol=2,
+	bbox=[0.82, 0.9], top=0.80)

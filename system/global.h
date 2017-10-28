@@ -100,6 +100,7 @@ extern LogRecoverTable * log_recover_table;
 extern uint64_t * starting_lsn;
 //extern uint32_t num_threads_done;  
 #endif
+extern uint32_t g_epoch_period;
 extern uint32_t ** next_log_file_epoch;
 
 

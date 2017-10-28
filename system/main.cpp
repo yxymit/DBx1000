@@ -67,9 +67,6 @@ int main(int argc, char* argv[])
 			else if (i == 3)
 				dir = "/data/yxy/";
 		}
-	  #if LOG_ALGORITHM == LOG_BATCH
-	  	dir += "silo/";
-      #endif
 		log_manager[i] = (LogManager *) _mm_malloc(sizeof(LogManager), 64);
 		new(log_manager[i]) LogManager(i);
 		#if LOG_TYPE == LOG_DATA
@@ -118,14 +115,14 @@ int main(int argc, char* argv[])
 	*/
 #elif LOG_ALGORITHM == LOG_BATCH
 	assert(LOG_TYPE == LOG_DATA);
-	if (g_log_recover) {
+/*	if (g_log_recover) {
 		uint32_t min_epoch = (uint32_t)-1;
 		for (uint32_t i = 0; i < g_num_logger; i ++) {
 			string path;
-			if (i == 0) 		path = "/f0/yxy/silo/";
-			else if (i == 1)	path = "/f1/yxy/silo/";
-			else if (i == 2)	path = "/f2/yxy/silo/";
-			else if (i == 3)	path = "/data/yxy/silo/";
+			if (i == 0) 		path = "/f0/yxy/";
+			else if (i == 1)	path = "/f1/yxy/";
+			else if (i == 2)	path = "/f2/yxy/";
+			else if (i == 3)	path = "/data/yxy/";
 			path += "BD_log" + to_string(i) + "_" + bench + ".log";
 			int fd = open(path.c_str(), O_RDONLY);
 			int bytes = read(fd, next_log_file_epoch[i], sizeof(uint32_t));
@@ -137,7 +134,7 @@ int main(int argc, char* argv[])
 		}
 		for (uint32_t i = 0; i < g_num_logger; i ++) 
 			*next_log_file_epoch[i] = min_epoch;
-	}
+	}*/
 #endif
 
 	mem_allocator.init(g_part_cnt, MEM_SIZE / g_part_cnt); 

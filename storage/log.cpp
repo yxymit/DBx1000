@@ -40,12 +40,11 @@ LogManager::LogManager(uint32_t logger_id)
 			_filled_lsn[i] = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
 			*_filled_lsn[i] = 0;
 		}
-		//_curr_file_id = 0;
 	}
 	_flush_interval = LOG_FLUSH_INTERVAL * 1000; // in ns  
 	_last_flush_time = get_sys_clock();
 	// log buffer
-#if LOG_ALGORITHM == LOG_BATCH
+/*#if LOG_ALGORITHM == LOG_BATCH
 	// TODO. the number should be dynamic. 
 	// Right now, assuming buffer[i] will be flushed when buffer[i + _num_buffer] starts to fill. 
 	_num_buffers = 4;
@@ -60,18 +59,10 @@ LogManager::LogManager(uint32_t logger_id)
 		//}
 		_max_flushed_epoch = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
 		*_max_flushed_epoch = 0;
-		_lsns = new uint64_t * [_num_buffers];
 		//_buffer_state = new BufferState * [_num_buffers];
-		for (uint32_t i = 0; i < _num_buffers; i ++) {
-			_lsns[i] = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
-			*_lsns[i] = 0;			
-			//_buffer_state[i] = (BufferState *) _mm_malloc(sizeof(BufferState), 64);
-			//*_buffer_state[i] = BUF_FLUSHED;
-		}
 	}
-#else 
+#endif*/
 	_buffer = (char *) _mm_malloc(g_log_buffer_size, 64);
-#endif
 }
 
 LogManager::~LogManager()
@@ -89,7 +80,6 @@ LogManager::~LogManager()
 		flush(*_persistent_lsn, (*_lsn) / 512 * 512);
 			
 		uint32_t bytes = write(_fd, &end_lsn, sizeof(uint64_t));
-	//	printf("logger=%d. ready_lsn=%ld\n", _logger_id, ready_lsn);
 		assert(bytes == sizeof(uint64_t));
 		fsync(_fd);
 
@@ -106,7 +96,7 @@ void LogManager::init(string log_file_name)
 	_file_name = log_file_name;
 	printf("log file:\t\t%s\n", log_file_name.c_str());
 	if (g_log_recover) {
-#if LOG_ALGORITHM != LOG_BATCH
+//#if LOG_ALGORITHM != LOG_BATCH
 		string path = log_file_name + ".0";
 		_fd_data = open(path.c_str(), O_DIRECT | O_RDONLY);
 		assert(_fd != -1);
@@ -118,9 +108,13 @@ void LogManager::init(string log_file_name)
 			_num_chunks = fsize / sizeof(uint64_t);
 			_starting_lsns = new uint64_t [_num_chunks];
 			uint32_t size = read(_fd, _starting_lsns, fsize);
-//			for (uint32_t i = 0; i < _num_chunks; i ++)
-//				printf("_starting_lsns[%d] = %ld\n", 
-//					i, _starting_lsns[i]);
+			_chunk_size = 0;
+			for (uint32_t i = 0; i < _num_chunks; i ++) {
+				if (_starting_lsns[i+1] - _starting_lsns[i] > _chunk_size)
+					_chunk_size = _starting_lsns[i+1] - _starting_lsns[i];
+				printf("_starting_lsns[%d] = %ld\n", i, _starting_lsns[i]);
+			}
+			_chunk_size = _chunk_size / 512 * 512 + 1024;
 			assert(size == fsize);
 			close(_fd);
 			_next_chunk = 0;
@@ -128,17 +122,14 @@ void LogManager::init(string log_file_name)
 		}
 		_mutex = new pthread_mutex_t;
 		pthread_mutex_init(_mutex, NULL);
-#endif
+//#endif
 	} else {
 		//cout << log_file_name << endl;
 		string name = _file_name;
-//	  #if LOG_ALGORITHM == LOG_BATCH
-//		_fd = open(name.c_str(), O_TRUNC | O_WRONLY | O_CREAT, 0664);
-//	  #else
 	    // for parallel logging. The metafile format.
 		//  | file_id | start_lsn | * num_of_log_files
 		_fd = open(name.c_str(), O_TRUNC | O_WRONLY | O_CREAT, 0664);
-	  #if LOG_ALGORITHM == LOG_PARALLEL
+	 // #if LOG_ALGORITHM == LOG_PARALLEL
 		//_fd = open(name.c_str(), O_TRUNC | O_WRONLY | O_CREAT, 0664);
 		//uint32_t bytes = write(_fd, &_curr_file_id, sizeof(_curr_file_id));
 		// the start of the first segment. _lsn = 0 
@@ -146,7 +137,7 @@ void LogManager::init(string log_file_name)
 		uint32_t bytes = write(_fd, (uint64_t*)_lsn, sizeof(uint64_t));
 		assert(bytes == sizeof(uint64_t));
 		fsync(_fd);
-	  #endif
+	 // #endif
 		assert(_fd != -1);
 //	  #if LOG_ALGORITHM == LOG_PARALLEL
 		name = _file_name + ".0"; // + to_string(_curr_file_id);
@@ -156,25 +147,26 @@ void LogManager::init(string log_file_name)
 	}
 }
 
-#if LOG_ALGORITHM == LOG_BATCH
-uint64_t 
+//#if LOG_ALGORITHM == LOG_BATCH
+/*uint64_t 
 LogManager::logTxn(char * log_entry, uint32_t size, uint64_t epoch)
 {
 	uint32_t buffer_id = epoch % _num_buffers;
-	glob_manager->update_max_epoch(epoch); 
+	return logTxn(log_entry, size);
 	// waiting for the logging threads to flush the buffer. 
 	//printf("epoch = %ld\n", epoch);
-	if (epoch >= *_max_flushed_epoch + _num_buffers) {
-		return -1;
-	}
-	uint64_t lsn = ATOM_FETCH_ADD(*_lsns[buffer_id], size);
-	M_ASSERT(lsn + size < g_log_buffer_size, "Log buffers are too small\n");
-	memcpy(_buffers[buffer_id] + lsn, log_entry, size);
-  	return lsn;
+//	if (epoch >= *_max_flushed_epoch + _num_buffers) {
+//		return -1;
+//	}
+//	uint64_t lsn = ATOM_FETCH_ADD(*_lsns[buffer_id], size);
+//	M_ASSERT(lsn + size < g_log_buffer_size, "Log buffers are too small\n");
+//	memcpy(_buffers[buffer_id] + lsn, log_entry, size);
+//  	return lsn;
 }
-#else 
+*/
+//#else 
 uint64_t
-LogManager::logTxn(char * log_entry, uint32_t size)
+LogManager::logTxn(char * log_entry, uint32_t size, uint64_t epoch)
 {
 	// called by serial logging AND parallel command logging 
 	// The log is stored to the in memory cirular buffer
@@ -198,56 +190,22 @@ LogManager::logTxn(char * log_entry, uint32_t size)
 	//uint32_t size_entry = *(uint32_t*)(log_entry + sizeof(uint32_t));
 	//assert(size == size_entry && size > 0 && size <= MAX_LOG_ENTRY_SIZE);
 	/////////////////////
+  #if LOG_ALGORITHM == LOG_BATCH
+	glob_manager->update_epoch_lsn_mapping(epoch, lsn);
+  #endif
 	COMPILER_BARRIER
 	*_filled_lsn[GET_THD_ID] = lsn + size; 
   	return lsn;
 }
-#endif
+//#endif
 
-
-/*bool
-LogManager::logTxn(char * log_entry, uint32_t size, uint64_t lsn)
-{
-	// only called in parallel logging
-	//uint64_t tt = get_sys_clock();
-	_disk->writeBuffer(log_entry, lsn, size);
-	COMPILER_BARRIER
-	*_ready_lsn[GET_THD_ID] = lsn; 
-  	*_filled[GET_THD_ID] = true;
-	//INC_STATS(GET_THD_ID, debug6, 1000); //get_sys_clock() - tt);
-    return true;
-}
-
-uint64_t 
-LogManager::allocate_lsn(uint32_t size)
-{
-	// if the lsn is getting close to the persistent lsn, should wait for flush. 
-	// the safe margin is necessary here since otherwise the atomic add instruction 
-	// may increase lsn beyond the boundary. CAS can solve this problem but it is not 
-	// as efficient as atomic_add.
-	//uint64_t tt = get_sys_clock();
-  #if !LOG_RAM_DISK
-	while (*_lsn + size >= *_persistent_lsn + _disk->g_log_buffer_size - (1 << 20)) { 
-//		uint64_t tt = get_sys_clock();
-//		printf("[THD=%ld] size= %ld\n", GET_THD_ID, *_lsn - *_persistent_lsn);
-		PAUSE
-//		INC_STATS(GET_THD_ID, debug9, get_sys_clock() - tt);
-	}
-  #endif
-  	assert(*_filled[GET_THD_ID]);
-	//INC_STATS(GET_THD_ID, debug8, get_sys_clock() - tt);
-	//tt = get_sys_clock();
-  	*_filled[GET_THD_ID] = false;
-	COMPILER_BARRIER
-  	uint64_t lsn = ATOM_FETCH_ADD(*_lsn, size);
-	return lsn;
-}
-*/
 uint32_t
 LogManager::tryFlush() 
 {
 	// entries before ready_lsn can be flushed. 
+/*#if LOG_ALGORITHM == LOG_BATCH
 #if LOG_ALGORITHM == LOG_BATCH
+>>>>>>> 00428b990648204eb65918281cada6852f782743
 	// Epoch 1 is the first epoch.
 	uint64_t ready_epoch = glob_manager->get_ready_epoch();
 //	uint64_t ready_epoch = (uint64_t)-1;
@@ -292,13 +250,14 @@ LogManager::tryFlush()
 //		printf("flush epoch = %ld\n", epoch);
 	}
 	return bytes;
-#else 
+*/
+//#else 
 	if (g_no_flush)  {
 		uint32_t size = *_persistent_lsn - *_lsn;
 		*_persistent_lsn = *_lsn;
 		return size;
 	}
-
+	
 	uint64_t ready_lsn = *_lsn;
 	//printf("_lsn = %ld\n", *_lsn);
 	COMPILER_BARRIER
@@ -325,27 +284,20 @@ LogManager::tryFlush()
 	flush(start_lsn, end_lsn);
 	COMPILER_BARRIER
 	*_persistent_lsn = end_lsn;
-	uint32_t chunk_size = 10 * 1048576;// g_log_buffer_size 
+	glob_manager->update_persistent_epoch(_logger_id, end_lsn);
+	uint32_t chunk_size = 50 * 1048576;// g_log_buffer_size 
 	if (end_lsn / chunk_size  > start_lsn / chunk_size ) {
-		//close(_fd_data);
-		//string name = _file_name + "." + to_string(++ _curr_file_id);
-		//uint32_t bytes = write(_fd, &_curr_file_id, sizeof(_curr_file_id));
 		uint32_t bytes = write(_fd, &ready_lsn, sizeof(ready_lsn));
-		printf("logger=%d. ready_lsn=%ld\n", _logger_id, ready_lsn);
 		assert(bytes == sizeof(ready_lsn));
 		fsync(_fd);
-
-		//_fd_data = open(name.c_str(), O_DIRECT | O_TRUNC | O_WRONLY | O_CREAT, 0664);
-		//assert(_fd_data != -1 && _fd_data != 0);
 	}
 	return end_lsn - start_lsn;
-#endif
 }
 
 void 
 LogManager::flush(uint64_t start_lsn, uint64_t end_lsn)
 {
-#if LOG_ALGORITHM != LOG_BATCH
+//#if LOG_ALGORITHM != LOG_BATCH
 	if (start_lsn == end_lsn) return;
 	assert(end_lsn - start_lsn < g_log_buffer_size);
 	
@@ -365,14 +317,14 @@ LogManager::flush(uint64_t start_lsn, uint64_t end_lsn)
 		//assert(*(uint32_t*)(_buffer + start_lsn % g_log_buffer_size) == 0xdead);
 	}
 	fsync(_fd_data);
-#endif
+//#endif
 }
 
 
 uint32_t 
 LogManager::tryReadLog()
 {
-#if LOG_ALGORITHM != LOG_BATCH
+//#if LOG_ALGORITHM != LOG_BATCH
 	uint64_t gc_lsn = *_next_lsn;
 	COMPILER_BARRIER
 	for (uint32_t i = 0; i < g_thread_cnt; i++)
@@ -414,10 +366,10 @@ LogManager::tryReadLog()
 	COMPILER_BARRIER
 	*_disk_lsn = end_lsn;
 	return bytes;
-#else 
+/*#else 
 	assert(false);
 	return 0;
-#endif
+#endif*/
 }
 
 uint64_t 
@@ -533,18 +485,25 @@ LogManager::get_next_log_entry(char * &entry)
 uint32_t
 LogManager::get_next_log_chunk(char * &chunk, uint64_t &size, uint64_t &base_lsn)
 {
-#if LOG_ALGORITHM == LOG_PARALLEL
+#if LOG_ALGORITHM == LOG_PARALLEL || LOG_ALGORITHM == LOG_BATCH
 	// allocate the next chunk number. 
 	// grab a lock on the log file
 	// read sequentially the next chunk.
 	// release the lock.
-	pthread_mutex_lock(_mutex);
-	uint32_t chunk_num = _next_chunk;
-	if (chunk_num == _num_chunks - 1) {
+	chunk = new char [_chunk_size];
+	uint64_t tt = get_sys_clock();
+	if (_logger_id == 3)
+		pthread_mutex_lock(_mutex);
+	
+	INC_FLOAT_STATS(time_debug6, get_sys_clock() - tt);
+	//uint64_t tt = get_sys_clock();
+	
+	uint32_t chunk_num = ATOM_FETCH_ADD(_next_chunk, 1);
+	if (chunk_num >= _num_chunks - 1) {
 		pthread_mutex_unlock(_mutex);
+		delete chunk;
 		return (uint32_t)-1;
 	}
-	_next_chunk ++;
 	uint64_t start_lsn = _starting_lsns[chunk_num];
 	uint64_t end_lsn = _starting_lsns[chunk_num + 1];
 	base_lsn = start_lsn;
@@ -553,18 +512,27 @@ LogManager::get_next_log_chunk(char * &chunk, uint64_t &size, uint64_t &base_lsn
 	uint64_t fend = end_lsn;
 	if (fend % 512 != 0)
 		fend = fend / 512 * 512 + 512; 
-	lseek(_fd_data, fstart, SEEK_SET);
+	assert(fend - fstart < _chunk_size);
+
+	string path = _file_name + ".0";
+	int fd = open(path.c_str(), O_DIRECT | O_RDONLY);
+	lseek(fd, fstart, SEEK_SET);
 	
 //	printf("chunk_num=%d / %d, start_lsn=%ld, end_lsn=%ld, fstart=%ld, fend=%ld\n", 
 //		chunk_num, _num_chunks, start_lsn, end_lsn, fstart, fend);
-	chunk = new char [fend - fstart];
+	
 	M_ASSERT(chunk, "start_lsn=%ld, end_lsn=%ld, fstart=%ld, fend=%ld\n", 
 		start_lsn, end_lsn, fstart, fend);
-	uint32_t sz = read(_fd_data, chunk, fend - fstart);
-	M_ASSERT(sz == fend - fstart, "sz=%d, fstart=%ld, fend=%ld", sz, fstart, fend);
+	uint32_t sz = read(fd, chunk, fend - fstart);
+	// TODO. don't know why it can be off by 512 bytes
+	M_ASSERT(sz == fend - fstart || sz == fend - fstart - 512, 
+		"chunk_num=%d. sz=%d, fstart=%ld, fend=%ld, fend-fstart=%ld", 
+		chunk_num, sz, fstart, fend, fend-fstart);
 
 	chunk = chunk + start_lsn % 512;
-	pthread_mutex_unlock(_mutex);
+	INC_FLOAT_STATS(time_debug7, get_sys_clock() - tt);
+	if (_logger_id == 3)
+		pthread_mutex_unlock(_mutex);
 	size = end_lsn - start_lsn; 
 	return chunk_num;
 #else
@@ -577,14 +545,10 @@ LogManager::get_next_log_chunk(char * &chunk, uint64_t &size, uint64_t &base_lsn
 void
 LogManager::return_log_chunk(char * buffer, uint32_t chunk_num)
 {
-#if LOG_ALGORITHM == LOG_PARALLEL
 	uint64_t start_lsn = _starting_lsns[chunk_num];
 	//uint64_t end_lsn = _starting_lsns[chunk_num + 1];
 	char * chunk = buffer - start_lsn % 512;
 	delete chunk;
-#else
-	assert(false);
-#endif
 }
 
 void 

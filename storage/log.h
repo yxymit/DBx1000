@@ -30,10 +30,10 @@ public:
 	////////////////////////////	
 public:
 	void init(string log_file_name);
-	uint64_t logTxn(char * log_entry, uint32_t size);
+	//uint64_t logTxn(char * log_entry, uint32_t size);
 	
 	// for LOG_ALGORITHM == LOG_BATCH
-	uint64_t logTxn(char * log_entry, uint32_t size, uint64_t epoch);
+	uint64_t logTxn(char * log_entry, uint32_t size, uint64_t epoch = 0);
 	
 	// called by logging thread. 
 	// return value: bytes flushed to disk
@@ -72,30 +72,31 @@ private:
 private:
 #if LOG_ALGORITHM == LOG_BATCH
 public:
-	uint64_t get_max_flushed_epoch() {
-		return *_max_flushed_epoch;
-	}
+//	uint64_t get_max_flushed_epoch() {
+//		return *_max_flushed_epoch;
+//	}
 private:
-	enum BufferState {BUF_WAIT_FOR_FLUSH, BUF_FLUSHED};
+//	enum BufferState {BUF_WAIT_FOR_FLUSH, BUF_FLUSHED};
 	// one buffer for each epoch.
-	uint32_t 			_num_buffers;
-	char ** 			_buffers;
-	BufferState ** 		_buffer_state;
+//	uint32_t 			_num_buffers;
+//	char ** 			_buffers;
+//	BufferState ** 		_buffer_state;
 	// the maximum epoch number seen by each worker thread.
 	// the logs for an epoch E can be flushed when E is smaller than all entries in _max_epochs 
 	//volatile uint64_t **			_max_epochs;
-	uint64_t * 			_max_flushed_epoch; 
+//	uint64_t * 			_max_flushed_epoch; 
+#endif
 	// log_tail for each buffer.
-	uint64_t ** 		_lsns;
-#else 
+	//uint64_t ** 		_lsns;
+//#else 
 	char * 				_buffer;		// circular buffer to store unflushed data.
 	//uint32_t  			_curr_file_id;
 		
 	uint64_t * 			_starting_lsns;
 	uint64_t 			_file_size;
 	uint32_t 			_num_chunks;
-	uint32_t  			_next_chunk;
-#endif
+	volatile uint32_t  	_next_chunk;
+	uint32_t 			_chunk_size;
 	pthread_mutex_t * 	_mutex;
 	
 	string 				_file_name;

@@ -34,16 +34,28 @@ void Manager::init() {
 	}
 
 	_all_txns = new txn_man * [g_thread_cnt];
-	for (UInt32 i = 0; i < g_thread_cnt; i++) {
+	for (uint32_t i = 0; i < g_thread_cnt; i++) {
 		*all_ts[i] = 0; //UINT64_MAX;
 		_all_txns[i] = NULL;
 	}
-	for (UInt32 i = 0; i < BUCKET_CNT; i++)
+	for (uint32_t i = 0; i < BUCKET_CNT; i++)
 		pthread_mutex_init( &mutexes[i], NULL );
 	pthread_mutex_init( &ts_mutex, NULL );
 	// initialize log_pending_map
 	// unorderedmap<uint64_t, * pred_entry> _log_pending_map = {};
 	//_log_pending_table = new LogPendingTable;
+	_persistent_epoch = new volatile uint64_t * [g_num_logger];
+	for (uint32_t i = 0; i < g_num_logger; i++) 
+		_persistent_epoch[i] = (volatile uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
+	_epoch_mapping = new uint64_t * [g_thread_cnt];
+	_active_epoch = new uint64_t [g_thread_cnt];
+	for (uint32_t i = 0; i < g_thread_cnt; i++) {
+		// TODO.  assume we never more than 1M epoches.  
+		uint32_t max_epoch = 1024;
+		_active_epoch[i] = 0;
+		_epoch_mapping[i] = new uint64_t [max_epoch];
+		memset(_epoch_mapping[i], -1, sizeof(uint64_t) * max_epoch);
+	}
 }
 
 uint64_t 
@@ -89,7 +101,7 @@ ts_t Manager::get_min_ts(uint64_t tid) {
 	if (tid == 0 && now - last_time > MIN_TS_INTVL)
 	{ 
 		ts_t min = UINT64_MAX;
-    	for (UInt32 i = 0; i < g_thread_cnt; i++) 
+    	for (uint32_t i = 0; i < g_thread_cnt; i++) 
 	    	if (*all_ts[i] < min)
     	    	min = *all_ts[i];
 		if (min > _min_ts)
@@ -149,11 +161,13 @@ void Manager::release_row(row_t * row) {
 void
 Manager::update_epoch()
 {
+#if LOG_ALGORITHM == LOG_BATCH
 	ts_t time = get_sys_clock();
-	if (time - *_last_epoch_update_time > EPOCH_PERIOD * 1000 * 1000) {
+	if (time - *_last_epoch_update_time > g_epoch_period * 1000 * 1000) {
 		*_epoch = *_epoch + 1;
 		*_last_epoch_update_time = time;
 	}
+#endif
 }
 
 uint64_t
@@ -245,4 +259,37 @@ Manager::get_ready_epoch()
 		return ready_epoch - 1;
 	else 
 		return 0;
+}
+
+void	
+Manager::update_epoch_lsn_mapping(uint64_t epoch, uint64_t lsn)
+{
+	//assert(epoch[logger] == _active_epoch[logger] || epoch[logger] == _active_epoch[logger] + 1);
+	uint32_t thd = GET_THD_ID;
+	while (epoch > _active_epoch[thd]) {
+		_epoch_mapping[thd][_active_epoch[thd] ++] = lsn;
+//		printf("update_epoch_lsn_mapping.  epoch=%ld. active_epoch[%d] = %ld  => lsn=%ld\n", 
+//			 epoch, thd, _active_epoch[thd], lsn);
+	}
+}
+
+void 
+Manager::update_persistent_epoch(uint32_t logger, uint64_t lsn)
+{
+	bool done = false;
+	while (!done) {
+//		printf("logger=%d. flush lsn = %ld\n", logger, lsn);
+		for (uint32_t i = 0; i < g_thread_cnt; i++) {
+			if (i % g_num_logger != logger) continue; 
+			uint64_t l = _epoch_mapping[i][ *_persistent_epoch[logger] + 1 ];
+			if (l == (uint64_t)-1 || (l != (uint64_t)-1 && l > lsn)) {
+				done = true;
+//				printf("!!!!!! l=%ld lsn=%ld. persistent_epoch=%ld\n", l, lsn, *_persistent_epoch[logger]);
+				break;
+			}
+		}
+//		printf("done = %d\n", done);
+		if (!done)
+			(*_persistent_epoch[logger]) ++;
+	}
 }

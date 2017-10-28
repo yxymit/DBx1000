@@ -92,7 +92,7 @@
 #define PRE_ABORT					true
 #define ATOMIC_WORD					true 
 // [SILO]
-#define EPOCH_PERIOD				40 // ms
+#define EPOCH_PERIOD				5 // ms
 // [HSTORE]
 // when set to true, hstore will not access the global timestamp.
 // This is fine for single partition transactions. 

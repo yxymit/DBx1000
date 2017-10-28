@@ -113,8 +113,8 @@ void Stats::output(std::ostream * os)
 		double total = 0;
 		for (uint32_t tid = 0; tid < _total_thread_cnt; tid ++) 
 			total += _stats[tid]->_float_stats[i];
-		if (i == STAT_latency)
-			total /= total_num_commits;
+		//if (i == STAT_latency)
+		//	total /= total_num_commits;
 		string suffix = "";
 		out << "    " << setw(30) << left << statsFloatName[i] + suffix + ':' << total / BILLION;
 		out << " (";

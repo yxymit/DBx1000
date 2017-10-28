@@ -110,11 +110,13 @@ ycsb_txn_man::recover_txn(char * log_entry, uint64_t tid)
 		itemid_t * m_item = index_read(_wl->the_index, key, 0);
 		row_t * row = ((row_t *)m_item->location);
 	#if LOG_ALGORITHM == LOG_BATCH
+		row->manager->lock();
 		uint64_t cur_tid = row->manager->get_tid();
 		if (tid > cur_tid) { 
 			row->set_data(data, data_length);
 			row->manager->set_tid(tid);
 		}
+		row->manager->release();
 	#else
 		row->set_data(data, data_length);
 	#endif
