@@ -34,12 +34,13 @@ OptCC occ_man;
 #if LOG_ALGORITHM == LOG_SERIAL
 LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
-LogManager ** log_manager; 
+LogManager ** log_manager;
 #elif LOG_ALGORITHM == LOG_PARALLEL
 LogManager ** log_manager; 
 LogRecoverTable * log_recover_table;
 uint64_t * starting_lsn;
 #endif
+uint32_t g_epoch_period = EPOCH_PERIOD;
 uint32_t ** next_log_file_epoch;
 
 FreeQueue ** free_queue_recover_state; 

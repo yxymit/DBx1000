@@ -175,12 +175,12 @@ protected:
 	//RecoverState * recover_state) { assert(false); }
 	uint32_t 		_log_entry_size;
 	char * 			_log_entry;
-
+public:
+	void 			try_commit_txn();	
 private:
 	uint32_t 		get_log_entry_size();
 	// log entry stored in _log_entry_size, and _log_entry.
 	void 			create_log_entry();
-	
 #if LOG_ALGORITHM == LOG_PARALLEL
 	uint32_t _num_raw_preds; 
 	uint32_t _num_waw_preds; 
@@ -225,7 +225,7 @@ private:
 	void 			parallel_recover();
 #elif LOG_ALGORITHM == LOG_BATCH
 	void 			batch_recover();
-	//static pthread_mutex_t * _log_lock;
+	static pthread_mutex_t * _log_lock;
 #endif
 public:
 	uint64_t		last_writer;

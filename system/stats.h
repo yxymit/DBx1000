@@ -22,6 +22,11 @@ enum StatsFloat {
 	STAT_time_phase1_2,
 	STAT_time_phase2,
 	STAT_time_phase3,
+	
+	STAT_time_phase1_1_raw,
+	STAT_time_phase1_2_raw,
+	STAT_time_phase2_raw,
+	STAT_time_phase3_raw,
 
 	// debug stats
 	STAT_time_debug1,
@@ -34,6 +39,8 @@ enum StatsFloat {
 	STAT_time_debug8,
 	STAT_time_debug9,
 	STAT_time_debug10,
+	STAT_time_debug11,
+	STAT_time_debug12,
 
 	NUM_FLOAT_STATS
 };
@@ -45,6 +52,7 @@ enum StatsInt {
 	STAT_num_aborts_logging,
 	STAT_num_log_records,
 
+	STAT_num_latency_count,
 	// For Log Recovery
 	STAT_num_raw_edges,
 	STAT_num_waw_edges,
@@ -136,6 +144,11 @@ public:
 		"time_phase1_2",
 		"time_phase2",
 		"time_phase3",
+		
+		"time_phase1_1_raw",
+		"time_phase1_2_raw",
+		"time_phase2_raw",
+		"time_phase3_raw",
 
 		// debug
 		"time_debug1",
@@ -148,6 +161,8 @@ public:
 		"time_debug8",
 		"time_debug9",
 		"time_debug10",
+		"time_debug11",
+		"time_debug12",
 	};
 
 	std::string statsIntName[NUM_INT_STATS] = {
@@ -156,6 +171,8 @@ public:
 		// For logging
 		"num_aborts_logging",
 		"num_log_records",
+		
+		"num_latency_count",
 
 		// For Log Recovery
 		"num_raw_edges",

@@ -192,10 +192,18 @@ RC thread_t::run() {
 		if (warmup_finish && txn_cnt >= g_max_txns_per_thread) {
 			assert(txn_cnt == g_max_txns_per_thread);
 	        ATOM_ADD_FETCH(_wl->sim_done, 1);
+			while (_wl->sim_done != g_thread_cnt) {
+				m_txn->try_commit_txn();
+				usleep(10);
+			}
 			return FINISH;
 	    }
 	    if (_wl->sim_done > 0) {
 	        ATOM_ADD_FETCH(_wl->sim_done, 1);
+			while (_wl->sim_done != g_thread_cnt) {
+				m_txn->try_commit_txn();
+				usleep(10);
+			}
    		    return FINISH;
    		}
 	}

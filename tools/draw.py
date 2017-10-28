@@ -17,7 +17,12 @@ linestyles = ['-', '--', ':']
 
 # TPCC color
 colors = ["#ed954a", "#59cb86", "#ffc63e", "#dc6555", "#444444", "#60BD68"]
-
+colors = ["#ed954a", "#59cb86", "#ffc63e", "#dc6555", "#444444",
+    "#60BD68", # green
+    "#DED2A2", #
+    "#3c99fc", # darker blue
+    "#A3FFF5", # light blue
+    "#FFC7FB", "#31655F", "#E16E6B"]
 # 1000 core paper palette
 #colors = ['#4D4D4D', '#5DA5DA', '#FAA43A', '#60BD68', '#F17CB0', 
 #		  '#B2912F', '#B276B2', '#DECF3F', '#F15854']
@@ -28,16 +33,15 @@ markers = ['o', '^', 'x', 'D']
 #lineconfig['TICTOC'] = "ls='%s', lw=3, color='%s', marker='%s', ms=6" % ('-', colors[8], 'o')
 #lineconfig['SILO'] = "ls='%s', lw=3, color='%s', marker='%s', ms=6" % ('--', colors[2], markers[3])
 
-lineconfig['DL_DETECT'] = "ls='%s', lw=4, color='%s', marker='%s', ms=8, markeredgewidth=2" % (':', colors[4], 'x')
-lineconfig['NO_WAIT'] = "ls='%s', lw=3, color='%s', marker='%s', ms=6" % ('-', colors[3], '^')
-lineconfig['TICTOC'] = "ls='%s', lw=3, color='%s', marker='%s', ms=6" % ('-', colors[2], 'o')
-lineconfig['SILO'] = "ls='%s', lw=3, color='%s', marker='%s', ms=6" % ('--', colors[0], 'D')
-lineconfig['TS_ALLOC'] = "ls='%s', lw=3, color='%s', marker='%s', ms=8, markeredgewidth=2" % ('--', colors[1], '+')
-lineconfig['HEKATON'] = "ls='%s', lw=3, color='%s', marker='%s', ms=8, markeredgewidth=2" % ('--', colors[1], '+')
+lineconfig['SD'] = "ls='%s', lw=2, color='%s', marker='%s', ms=4, markeredgewidth=2" % (':', colors[4], 'x')
+lineconfig['SC'] = "ls='%s', lw=2, color='%s', marker='%s', ms=3" % ('-', colors[3], '^')
+lineconfig['PC'] = "ls='%s', lw=2, color='%s', marker='%s', ms=3" % ('-', colors[2], 'o')
+lineconfig['PD'] = "ls='%s', lw=2, color='%s', marker='%s', ms=3" % ('--', colors[0], 'D')
+lineconfig['NO'] = "ls='%s', lw=2, color='%s', marker='%s', ms=5, markeredgewidth=1.2" % ('--', colors[1], '+')
+lineconfig['BD'] = "ls='%s', lw=2, color='%s', marker='%s', ms=5" % ('--', colors[7], '*')
 #lineconfig['DTA'] = "ls='%s', lw=3, color='%s', marker='%s', ms=8, markeredgewidth=2" % ('--', colors[1], '+')
 
 
-lineconfig['DTA'] = "ls='%s', lw=3, color='%s', marker='%s', ms=6" % ('--', colors[3], 'D')
 lineconfig['TICTOC_RR'] = "ls='%s', lw=3, color='%s', marker='%s', ms=6" % ('-', colors[4], '^')
 
 ccs = ['SILO', 'No Opts', 'NoWait', 'NoWait + PreAbort', 'All Opts']
@@ -51,8 +55,8 @@ def draw_line(fname, data, xlabels,
 		bbox=(0.9,0.9), ncol=1, 
 		ylab='Throughput (Million txn/s)', logscale=False, 
 		ylimit=0, xlimit=None, xlab='Thread Count',
-		legend=True, linenames = None, figsize=(5, 2.5), vline=None, 
-		top=None, bottom=0.18, left=0.2, right=0.95) :
+		legend=True, linenames = None, figsize=(4, 3), vline=None, 
+		top=0.99, bottom=0.15, left=0.15, right=0.96) :
 	fig = figure(figsize=figsize)
 	thr = [0] * len(xlabels)
 	lines = [0] * len(data)

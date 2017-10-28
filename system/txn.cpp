@@ -18,7 +18,10 @@
 #include "manager.h"
 #include <fcntl.h>
 
-//pthread_mutex_t * txn_man::_log_lock;
+
+#if LOG_ALGORITHM == LOG_BATCH
+pthread_mutex_t * txn_man::_log_lock;
+#endif
 
 void txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	this->h_thd = h_thd;
@@ -140,7 +143,8 @@ RC txn_man::cleanup(RC in_rc)
 #if LOG_ALGORITHM != LOG_NO
 	if (rc == RCOK)
 	{
-        if (wr_cnt > 0) {
+//		if (wr_cnt > 0) {
+	    {
 			uint64_t before_log_time = get_sys_clock();
 			//uint32_t size = _log_entry_size;
 			assert(_log_entry_size != 0);
@@ -149,7 +153,9 @@ RC txn_man::cleanup(RC in_rc)
 			//  _cur_tid: LSN for the log record of the current txn 
   			uint64_t max_lsn = max(_max_lsn, _cur_tid);
 			if (max_lsn <= log_manager->get_persistent_lsn()) {
+				INC_INT_STATS(num_latency_count, 1);
 				INC_FLOAT_STATS(latency, get_sys_clock() - _txn_start_time);
+//				printf("latency= %ld\n", get_sys_clock() - _txn_start_time);
 			} else {
 				queue<TxnState> * state_queue = _txn_state_queue[GET_THD_ID];
 				TxnState state;
@@ -157,19 +163,6 @@ RC txn_man::cleanup(RC in_rc)
 				state.start_time = _txn_start_time;
 				state.wait_start_time = get_sys_clock();
 				state_queue->push(state);
-				bool success = true;
-				while (!state_queue->empty() && success) 
-				{
-					TxnState state = state_queue->front();
-					if (state.max_lsn > log_manager->get_persistent_lsn()) { 
-						success = false;
-						break;
-					}
-					if (success) {
-						INC_FLOAT_STATS(latency, get_sys_clock() - state.start_time);
-						state_queue->pop();
-					}
-				}
 			}
   #elif LOG_ALGORITHM == LOG_PARALLEL
 			bool success = true;
@@ -201,6 +194,7 @@ RC txn_man::cleanup(RC in_rc)
 				} 		
 			}
 			if (success) { 
+				INC_INT_STATS(num_latency_count, 1);
 				INC_FLOAT_STATS(latency, get_sys_clock() - _txn_start_time);
 			} else {
 				queue<TxnState> * state_queue = _txn_state_queue[GET_THD_ID];
@@ -226,35 +220,22 @@ RC txn_man::cleanup(RC in_rc)
 					if (lsn > state.preds[logger_id])
 						state.preds[logger_id] = lsn;
 				} 
-				
 				state.start_time = _txn_start_time;
 				//memcpy(state.preds, _preds, sizeof(uint64_t) * g_num_logger);
 				state.wait_start_time = get_sys_clock();
 				state_queue->push(state);
-				bool success = true;
-				while (!state_queue->empty() && success) 
-				{
-					TxnState state = state_queue->front();
-					for (uint32_t i=0; i < g_num_logger; i++)  {
-						if (state.preds[i] > log_manager[i]->get_persistent_lsn()) { 
-							success = false;
-							break;
-						}
-					}
-					if (success) {
-						INC_FLOAT_STATS(latency, get_sys_clock() - state.start_time);
-						state_queue->pop();
-					}
-				}
 			}
   #elif LOG_ALGORITHM == LOG_BATCH
   			uint64_t flushed_epoch = (uint64_t)-1;
+
 			for (uint32_t i = 0; i < g_num_logger; i ++) {
-				uint64_t max_epoch = log_manager[i]->get_max_flushed_epoch();
+				uint64_t max_epoch = glob_manager->get_persistent_epoch(i);
 				if (max_epoch < flushed_epoch)
 					flushed_epoch = max_epoch; 
 			}
+			//printf("flushed_epoch= %ld\n", flushed_epoch);
 			if (_epoch <= flushed_epoch) {
+				INC_INT_STATS(num_latency_count, 1);
 				INC_FLOAT_STATS(latency, get_sys_clock() - _txn_start_time);
 			} else {
 				queue<TxnState> * state_queue = _txn_state_queue[GET_THD_ID];
@@ -263,27 +244,15 @@ RC txn_man::cleanup(RC in_rc)
 				state.start_time = _txn_start_time;
 				state.wait_start_time = get_sys_clock();
 				state_queue->push(state);
-				bool success = true;
-				while (!state_queue->empty() && success) 
-				{
-					TxnState state = state_queue->front();
-					if (state.epoch > flushed_epoch) { 
-						success = false;
-						break;
-					}
-					if (success) {
-						INC_FLOAT_STATS(latency, get_sys_clock() - state.start_time);
-						state_queue->pop();
-					}
-				}
 			}
-
   #endif
 			uint64_t after_log_time = get_sys_clock();
 			INC_FLOAT_STATS(time_log, after_log_time - before_log_time);
 		}
 	}
+	try_commit_txn();
 #else // LOG_ALGORITHM == LOG_NO
+	INC_INT_STATS(num_latency_count, 1);
 	INC_FLOAT_STATS(latency, get_sys_clock() - _txn_start_time);
 #endif
 	_log_entry_size = 0;
@@ -301,6 +270,70 @@ RC txn_man::cleanup(RC in_rc)
 #endif
 	return rc;
 }
+
+void 			
+txn_man::try_commit_txn()
+{
+#if LOG_ALGORITHM == LOG_SERIAL
+	bool success = true;
+	queue<TxnState> * state_queue = _txn_state_queue[GET_THD_ID];
+	while (!state_queue->empty() && success) 
+	{
+		TxnState state = state_queue->front();
+		if (state.max_lsn > log_manager->get_persistent_lsn()) { 
+			success = false;
+			break;
+		}
+		if (success) {
+			uint64_t lat = get_sys_clock() - state.start_time;
+			INC_FLOAT_STATS(latency, lat);
+			INC_INT_STATS(num_latency_count, 1);
+			state_queue->pop();
+		}
+	}
+#elif LOG_ALGORITHM == LOG_PARALLEL
+	bool success = true;
+	queue<TxnState> * state_queue = _txn_state_queue[GET_THD_ID];
+	while (!state_queue->empty() && success) 
+	{
+		TxnState state = state_queue->front();
+		for (uint32_t i=0; i < g_num_logger; i++)  {
+			if (state.preds[i] > log_manager[i]->get_persistent_lsn()) { 
+				success = false;
+				break;
+			}
+		}
+		if (success) {
+			INC_INT_STATS(num_latency_count, 1);
+			INC_FLOAT_STATS(latency, get_sys_clock() - state.start_time);
+			state_queue->pop();
+		}
+	}
+#elif LOG_ALGORITHM == LOG_BATCH
+  	uint64_t flushed_epoch = (uint64_t)-1;
+	for (uint32_t i = 0; i < g_num_logger; i ++) {
+		uint64_t max_epoch = glob_manager->get_persistent_epoch(i);
+		if (max_epoch < flushed_epoch)
+			flushed_epoch = max_epoch; 
+	}
+	bool success = true;
+	queue<TxnState> * state_queue = _txn_state_queue[GET_THD_ID];
+	while (!state_queue->empty() && success) 
+	{
+		TxnState state = state_queue->front();
+		if (state.epoch > flushed_epoch) { 
+			success = false;
+			break;
+		}
+		if (success) {
+			INC_INT_STATS(num_latency_count, 1);
+			INC_FLOAT_STATS(latency, get_sys_clock() - state.start_time);
+			state_queue->pop();
+		}
+	}
+#endif
+}
+
 
 RC txn_man::get_row(row_t * row, access_t type, char * &data) {
 	// NOTE. 
@@ -492,7 +525,10 @@ txn_man::parallel_recover() {
 		char * buffer = NULL;
 		uint64_t file_size = 0;
 		uint64_t base_lsn = 0;
+		uint64_t tt = get_sys_clock();
 		uint32_t chunk_num = log_manager[logger]->get_next_log_chunk(buffer, file_size, base_lsn);
+		INC_FLOAT_STATS(time_debug1, get_sys_clock() - tt);
+		INC_FLOAT_STATS(log_bytes, file_size);
 		if (chunk_num == (uint32_t)-1) 
 			break;
 	
@@ -501,6 +537,7 @@ txn_man::parallel_recover() {
 		uint32_t offset = 0;
 		uint32_t count = 0;
 		uint64_t lsn = base_lsn;
+		tt = get_sys_clock();
 		while (offset < file_size) {
 			// read entries from buffer
 			uint32_t checksum;
@@ -516,8 +553,6 @@ txn_man::parallel_recover() {
 				break;
 			M_ASSERT(size > 0 && size <= MAX_LOG_ENTRY_SIZE, "size=%d\n", size);
 			uint64_t tid = ((uint64_t)logger << 48) | lsn;
-//			printf("chunk_num=%d, base_lsn=%ld, lsn=%ld, tid= %ld\n", 
-//				chunk_num, base_lsn, lsn, tid);
 			log_recover_table->addTxn(tid, buffer + start);
 		
 			COMPILER_BARRIER
@@ -529,50 +564,13 @@ txn_man::parallel_recover() {
 			M_ASSERT(offset <= file_size, "offset=%d, file_size=%ld\n", offset, file_size);
 			count ++;
 		}
+		INC_FLOAT_STATS(time_debug2, get_sys_clock() - tt);
 		log_manager[logger]->return_log_chunk(buffer, chunk_num);
-		printf("Log file %d done. Count=%d\n", chunk_num, count);
+		//printf("Log file %d done. Count=%d\n", chunk_num, count);
 	}
 
-/*
-	uint32_t logger_id = GET_THD_ID % g_num_logger;	
-	char default_entry[MAX_LOG_ENTRY_SIZE]; 
-	uint64_t count = 0;
-	while (true) {
-		char * entry = default_entry;
-		uint64_t t1 = get_sys_clock();
-		uint64_t lsn = log_manager[logger_id]->get_next_log_entry(entry);
-		INC_FLOAT_STATS(time_debug1, get_sys_clock() - t1);
-		//INC_FLOAT_STATS(time_debug1, get_sys_clock() - t1);
-		if (entry == NULL) {
-			if (log_manager[logger_id]->iseof()) {
-				lsn = log_manager[logger_id]->get_next_log_entry(entry);
-				if (entry == NULL)
-					break;
-			}
-			else { 
-				PAUSE
-				INC_FLOAT_STATS(time_debug10, get_sys_clock() - t1);
-				continue;
-			}
-		}
-		INC_FLOAT_STATS(time_debug2, get_sys_clock() - t1);
-		//printf("get some data please\n");
-		uint64_t tid = ((uint64_t)logger_id << 48) | lsn;
+	INC_FLOAT_STATS(time_phase1_1_raw, get_sys_clock() - tt);
 
-		uint32_t size = *(uint32_t*)(entry + sizeof(uint32_t));
-		M_ASSERT(size > 0 && size <= MAX_LOG_ENTRY_SIZE, "size=%d\n", size);
-
-		uint64_t t2 = get_sys_clock();
-		log_recover_table->addTxn(tid, entry);
-		INC_FLOAT_STATS(time_debug8, get_sys_clock() - t2);
-		INC_INT_STATS(int_debug3, 1);
-		
-		COMPILER_BARRIER
-		log_manager[logger_id]->set_gc_lsn(lsn);
-		count ++;
-		INC_FLOAT_STATS(time_debug3, get_sys_clock() - t1);
-	}
-*/	
 	pthread_barrier_wait(&worker_bar);
 	INC_FLOAT_STATS(time_phase1_1, get_sys_clock() - tt);
 	tt = get_sys_clock();
@@ -581,6 +579,7 @@ txn_man::parallel_recover() {
 	// Phase 1.2. add in the successor info to the graph.
 	log_recover_table->buildSucc();
 	
+	INC_FLOAT_STATS(time_phase1_2_raw, get_sys_clock() - tt);
 	pthread_barrier_wait(&worker_bar);
 	INC_FLOAT_STATS(time_phase1_2, get_sys_clock() - tt);
 	tt = get_sys_clock();
@@ -590,6 +589,7 @@ txn_man::parallel_recover() {
 	// Phase 2. Infer WAR edges.   
 	log_recover_table->buildWARSucc(); 
 	
+	INC_FLOAT_STATS(time_phase2_raw, get_sys_clock() - tt);
 	pthread_barrier_wait(&worker_bar);
 	INC_FLOAT_STATS(time_phase2, get_sys_clock() - tt);
 	tt = get_sys_clock();
@@ -604,28 +604,39 @@ txn_man::parallel_recover() {
 	uint64_t last_idle_time = 0; //get_sys_clock();
 	while (true) { 
 		char * log_entry = NULL;
+		uint64_t tt = get_sys_clock();
 		uint64_t tid = log_recover_table->get_txn(log_entry);		
+		INC_FLOAT_STATS(time_debug9, get_sys_clock() - tt);
 		if (log_entry) {
 			if (vote_done) {
 		        ATOM_SUB_FETCH(GET_WORKLOAD->sim_done, 1);
 				vote_done = false;
 			}
 			last_idle_time = 0;
+			uint64_t t1 = get_sys_clock();
             recover_txn(log_entry);
+			INC_FLOAT_STATS(time_debug8, get_sys_clock() - t1);
+
 			log_recover_table->remove_txn(tid);
 			INC_INT_STATS(num_commits, 1);
+			INC_FLOAT_STATS(time_debug11, get_sys_clock() - t1);
 		} else { //if (log_recover_table->is_recover_done()) {
 			if (last_idle_time == 0)
 				last_idle_time = get_sys_clock();
 			PAUSE
-			if (!vote_done && get_sys_clock() - last_idle_time > 100 * 1000) {
+			if (!vote_done && get_sys_clock() - last_idle_time > 1000 * 1000) {
 				vote_done = true;
 		       	ATOM_ADD_FETCH(GET_WORKLOAD->sim_done, 1);
 			}
 			if (GET_WORKLOAD->sim_done == g_thread_cnt)
 				break;
+			INC_INT_STATS(int_debug2, 1);
 		}
+		INC_FLOAT_STATS(time_debug10, get_sys_clock() - tt);
 	}
+
+	INC_FLOAT_STATS(time_phase3_raw, get_sys_clock() - tt);
+	pthread_barrier_wait(&worker_bar);
 	INC_FLOAT_STATS(time_phase3, get_sys_clock() - tt);
 }
 #elif LOG_ALGORITHM == LOG_BATCH
@@ -636,7 +647,55 @@ txn_man::batch_recover()
 //		_log_lock = new pthread_mutex_t;
 //		pthread_mutex_init(_log_lock, NULL);
 //	}
-//	pthread_barrier_wait(&worker_bar);
+	pthread_barrier_wait(&worker_bar);
+	
+	uint64_t tt = get_sys_clock();
+	uint32_t logger = GET_THD_ID % g_num_logger;
+	while (true) {
+		char * buffer = NULL;
+		uint64_t file_size = 0;
+		uint64_t base_lsn = 0;
+		uint64_t tt = get_sys_clock();
+		uint32_t chunk_num = log_manager[logger]->get_next_log_chunk(buffer, file_size, base_lsn);
+		INC_FLOAT_STATS(time_debug1, get_sys_clock() - tt);
+		INC_FLOAT_STATS(log_bytes, file_size);
+		if (chunk_num == (uint32_t)-1) 
+			break;
+	
+		// Format of log record 
+		// | checksum | size | ... 
+		uint32_t offset = 0;
+		tt = get_sys_clock();
+		while (offset < file_size) {
+			// read entries from buffer
+			uint32_t checksum;
+			uint32_t size; 
+			uint64_t tid;
+			uint32_t start = offset;
+			UNPACK(buffer, checksum, offset);
+			UNPACK(buffer, size, offset);
+			UNPACK(buffer, tid, offset);
+			if (checksum != 0xdead) {
+				//printf("checksum=%x, offset=%d, fsize=%d\n", checksum, offset, fsize);
+				break;
+			}
+			
+			recover_txn(buffer + offset);
+			INC_INT_STATS(num_commits, 1);
+			
+			offset = start + size;
+		}
+		INC_FLOAT_STATS(time_debug2, get_sys_clock() - tt);
+		log_manager[logger]->return_log_chunk(buffer, chunk_num);
+	}
+	INC_FLOAT_STATS(time_phase1_1_raw, get_sys_clock() - tt);
+	pthread_barrier_wait(&worker_bar);
+
+
+
+/*
+	///////////////////////////////////
+	uint64_t tt = get_sys_clock();
 	uint32_t logger = GET_THD_ID % g_num_logger;
 	while (true) {
 		int32_t next_epoch = ATOM_FETCH_SUB(*next_log_file_epoch[logger], 1);
@@ -651,16 +710,19 @@ txn_man::batch_recover()
 		
 		//if (logger == 3) 
 		//	pthread_mutex_lock(_log_lock);
+
 		string bench = (WORKLOAD == YCSB)? "YCSB" : "TPCC";
 		path += "BD_log" + to_string(logger) + "_" + bench + ".log." + to_string(next_epoch);
+		if (logger == 3)
+			pthread_mutex_lock(_log_lock);
 		int fd = open(path.c_str(), O_RDONLY | O_DIRECT);
 		uint32_t fsize = lseek(fd, 0, SEEK_END);
 		char * buffer = new char [fsize];
 		lseek(fd, 0, SEEK_SET);
 		uint32_t bytes = read(fd, buffer, fsize);
 		assert(bytes == fsize);
-		//if (logger == 3) 
-		//	pthread_mutex_unlock(_log_lock);
+		if (logger == 3) 
+			pthread_mutex_unlock(_log_lock);
 		
 		INC_FLOAT_STATS(log_bytes, fsize);
 		// Format for batch logging 
@@ -685,13 +747,17 @@ txn_man::batch_recover()
 			
 			offset = start + size;
 		}
-		printf("logger = %d. Epoch %d done\n", logger, next_epoch);
+		//printf("logger = %d. Epoch %d done\n", logger, next_epoch);
 	}
+
+	INC_FLOAT_STATS(time_phase1_1_raw, get_sys_clock() - tt);
+	pthread_barrier_wait(&worker_bar);
 
 	// each worker thread picks a log file and process it.
 	//  
 	//	 read from log file to buffer.
 	//   process in arbitrary TID order.
+	*/
 }
 #endif
 

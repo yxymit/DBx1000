@@ -115,7 +115,6 @@ __thread LogRecoverTable::TxnNode * LogRecoverTable::next_node;
 LogRecoverTable::TxnPool::TxnPool()
 {
 	_num_pools = g_num_logger;
-	_num_pools = g_thread_cnt;
 	_pools = new boost::lockfree::queue< TxnNode * > * [_num_pools];
 	for (uint32_t i = 0; i < _num_pools; i ++) {
 		_pools[i] = (boost::lockfree::queue< TxnNode * > *) 
@@ -140,7 +139,7 @@ LogRecoverTable::TxnPool::get_txn(char * & log_entry)
 	bool success = _pools[ GET_THD_ID % _num_pools]->pop(node);
 	if (success) {
 		log_entry = node->log_entry;
-		assert(*(uint32_t*)log_entry <= MAX_ROW_PER_TXN);
+		//assert(*(uint32_t*)log_entry <= MAX_ROW_PER_TXN);
 		return node->tid;
 	} else {
 		log_entry = NULL;
@@ -453,11 +452,6 @@ LogRecoverTable::remove_txn(uint64_t tid)
 	TxnNode * node = _buckets[bid].find_txn(tid);
 	assert(node);
 	// wake up RAW successors
-/*	printf("%ld. write set = ", tid);
-	for (uint32_t i = 0; i < node->num_waw_pred; i ++) 
-		printf("%ld, ", node->waw_pred_key[i]);
-	printf("\n");
-*/
 	for (uint32_t i = 0; i < node->num_raw_succ; i ++) {
 //		printf("N%ld RAW wakes up N%ld\n", tid, node->raw_succ[i]);
 		wakeup_succ( node->raw_succ[i] );
