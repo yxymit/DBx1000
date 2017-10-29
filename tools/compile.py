@@ -42,16 +42,16 @@ def insert_his(alg, workload='YCSB', log_type='LOG_DATA', recovery='false',
 	#jobs[name]["MAX_TXN_PER_THREAD"] = max_txn
 
 jobs = {}
-benchmarks = ['TPCC']
 benchmarks = ['YCSB']
+benchmarks = ['TPCC']
 benchmarks = ['YCSB', 'TPCC']
 for bench in benchmarks:
-	insert_his('serial', bench, 'LOG_DATA')
-	insert_his('serial', bench, 'LOG_COMMAND')
+	#insert_his('serial', bench, 'LOG_DATA')
+	#insert_his('serial', bench, 'LOG_COMMAND')
 	insert_his('parallel', bench, 'LOG_DATA')
 	insert_his('parallel', bench, 'LOG_COMMAND')
 	insert_his('batch', bench, 'LOG_DATA')
-	insert_his('no', bench)
+	#insert_his('no', bench)
 	
 for (jobname, v) in jobs.iteritems():
 	os.system("cp "+ dbms_cfg[0] +' ' + dbms_cfg[1])

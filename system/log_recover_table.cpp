@@ -19,15 +19,15 @@ LogRecoverTable::get_new_node(uint64_t tid) {
 	//uint64_t tt = get_sys_clock();
 	if (bucket->first.tid == (uint64_t)-1) { 
 		node = &bucket->first;
-		INC_INT_STATS(int_debug1, 1);
+//		INC_INT_STATS(int_debug1, 1);
 		//INC_FLOAT_STATS(time_debug8, get_sys_clock() - tt);
 	} else {
 		if (*_next_free_node_idx[GET_THD_ID] < _num_free_nodes_per_thread) {	
 			node = &_free_nodes[GET_THD_ID][*_next_free_node_idx[GET_THD_ID]];
 			(*_next_free_node_idx[GET_THD_ID]) ++;
-			INC_INT_STATS(int_debug4, 1);
+//			INC_INT_STATS(int_debug4, 1);
 		} else {
-			INC_INT_STATS(int_debug2, 1);
+//			INC_INT_STATS(int_debug2, 1);
 			node = new TxnNode();
 		}
 		node->next = bucket->first.next;
@@ -115,6 +115,7 @@ __thread LogRecoverTable::TxnNode * LogRecoverTable::next_node;
 LogRecoverTable::TxnPool::TxnPool()
 {
 	_num_pools = g_num_logger;
+	_num_pools = g_num_pools; //num_logger;
 	_pools = new boost::lockfree::queue< TxnNode * > * [_num_pools];
 	for (uint32_t i = 0; i < _num_pools; i ++) {
 		_pools[i] = (boost::lockfree::queue< TxnNode * > *) 
@@ -130,7 +131,7 @@ LogRecoverTable::TxnPool::add(TxnNode * node)
 	_pools[pool_id]->push( node);
 }
 
-uint64_t //char *
+void * //uint64_t //char *
 LogRecoverTable::TxnPool::get_txn(char * & log_entry)
 {
 	//char * log_entry = NULL;
@@ -140,10 +141,10 @@ LogRecoverTable::TxnPool::get_txn(char * & log_entry)
 	if (success) {
 		log_entry = node->log_entry;
 		//assert(*(uint32_t*)log_entry <= MAX_ROW_PER_TXN);
-		return node->tid;
+		return (void *)node; //->tid;
 	} else {
 		log_entry = NULL;
-		return -1;
+		return NULL;
 	}
 }
 
@@ -164,7 +165,7 @@ LogRecoverTable::TxnPool::get_size()
 	for (uint32_t i = 0; i < _num_pools; i ++)
 		while (!_pools[i]->empty()) {
 			_pools[i]->pop(node);
-			printf("node->tid=%ld\n", node->tid);
+			//printf("node->tid=%ld\n", node->tid);
 			count ++;
 		}
 	return count;
@@ -233,13 +234,15 @@ LogRecoverTable::addTxn(uint64_t tid, char * log_entry)
 	uint64_t bid = hash64(tid) % _num_buckets;
 	while (!ATOM_CAS(_buckets[bid].latch, false, true))
 		PAUSE;
-	
-	//tt = get_sys_clock();
-
+		
 	TxnNode * node = _buckets[bid].find_txn(tid);
 	//INC_FLOAT_STATS(time_debug4, get_sys_clock() - tt);
-	assert (node == NULL) ;
-	node = get_new_node(tid);
+	if (node == NULL)
+		node = get_new_node(tid);
+
+	COMPILER_BARRIER
+	_buckets[bid].latch = false;
+	
 	uint32_t size = 0;
 	uint32_t offset = sizeof(uint32_t);	
 	UNPACK(log_entry, size, offset);
@@ -256,23 +259,64 @@ LogRecoverTable::addTxn(uint64_t tid, char * log_entry)
 	UNPACK_SIZE(log_entry, node->waw_pred_key, sizeof(uint64_t) * node->num_waw_pred, offset);
 	UNPACK_SIZE(log_entry, node->waw_pred_table, sizeof(uint32_t) * node->num_waw_pred, offset);
 	#endif
-	//INC_FLOAT_STATS(time_debug6, get_sys_clock() - tt);
 
-	//node->log_entry = (char *) malloc(size - offset);
-	
 	assert(size > 0 && size <= MAX_LOG_ENTRY_SIZE);
 	memcpy(node->log_entry, log_entry + offset, size - offset);
-	
-//	node->pred_size = node->num_raw_pred + node->num_waw_pred;	
-//	if (node->num_raw_pred == 0 && node->num_waw_pred == 0)
-//		_ready_txns->add(node);
-	
-//	uint64_t b = hash64(tid) % _num_buckets;
-//	TxnNode * n = _buckets[b].find_txn(tid);
-//	M_ASSERT(n && n == node, "b=%ld, bid=%ld, tid=%ld\n", b, bid, tid);
 
-	//printf("TID=%#lx insert to bucket %ld\n", tid, bid);
-	_buckets[bid].latch = false;
+	// update the RAW successor list 
+	node->pred_size = 0;
+	for (uint32_t i = 0; i < node->num_raw_pred; i ++) {
+		uint64_t pred_tid = node->raw_pred[i];
+		uint64_t pred_bid = hash64(pred_tid) % _num_buckets;
+		if (pred_tid == (uint64_t)-1)
+			continue;
+		
+		while (!ATOM_CAS(_buckets[pred_bid].latch, false, true))
+			PAUSE;
+		TxnNode * pred_node = _buckets[ pred_bid ].find_txn(pred_tid);
+		if (!pred_node) 
+			pred_node = get_new_node(pred_tid);
+		uint32_t id = pred_node->num_raw_succ;
+		pred_node->num_raw_succ ++;
+		COMPILER_BARRIER
+		_buckets[pred_bid].latch = false;
+
+		node->pred_size ++;
+		//uint32_t id = ATOM_FETCH_ADD(pred_node->num_raw_succ, 1);
+		M_ASSERT(id < MAX_ROW_PER_TXN, "node->tid=%ld, pred_node->tid=%ld", 
+				node->tid, pred_node->tid);
+		pred_node->raw_succ[id] = node; 
+		INC_INT_STATS(num_raw_edges, 1);
+	}
+	// update the WAW successor list 
+	for (uint32_t i = 0; i < node->num_waw_pred; i ++) {
+		uint64_t pred_tid = node->waw_pred[i];
+		uint64_t pred_bid = hash64(pred_tid) % _num_buckets;
+		if (pred_tid == (uint64_t)-1)
+			continue;
+		while (!ATOM_CAS(_buckets[pred_bid].latch, false, true))
+			PAUSE;
+		TxnNode * pred_node = _buckets[ pred_bid ].find_txn(pred_tid);
+		if (!pred_node) 
+			pred_node = get_new_node(pred_tid);
+		uint32_t id = pred_node->num_waw_succ;
+		pred_node->num_waw_succ ++;
+		COMPILER_BARRIER
+		_buckets[pred_bid].latch = false;
+
+		node->pred_size ++;
+		//uint32_t id = ATOM_FETCH_ADD(pred_node->num_waw_succ, 1);
+		assert(id < MAX_ROW_PER_TXN);
+		pred_node->waw_succ[id] = node; 
+		INC_INT_STATS(num_waw_edges, 1);
+
+		// DEBUG. detect the number of duplicate edges.
+		//for (uint32_t k = 0; k < id; k ++)
+		//	if (pred_node->waw_succ[k] == node)
+		//		INC_INT_STATS(int_debug3, 1);
+	}
+	if (node->pred_size == 0)
+		_ready_txns->add(node);
 }
 
 
@@ -281,7 +325,7 @@ LogRecoverTable::buildSucc()
 {
 	uint64_t start_bid = _num_buckets * GET_THD_ID / g_thread_cnt; 	
 	uint64_t end_bid = _num_buckets * (GET_THD_ID + 1) / g_thread_cnt; 
-	uint64_t tt = get_sys_clock();
+	//uint64_t tt = get_sys_clock();
 	for (uint64_t bid = start_bid; bid < end_bid; bid ++) {
 		TxnNode * node = &_buckets[bid].first;
 		while (node && node->tid != (uint64_t)-1) {
@@ -297,17 +341,21 @@ LogRecoverTable::buildSucc()
 				if (pred_node) {
 					node->pred_size ++;
 					uint32_t id = ATOM_FETCH_ADD(pred_node->num_raw_succ, 1);
-					if (id >= MAX_ROW_PER_TXN) {
-						for (uint32_t i = 0; i < MAX_ROW_PER_TXN; i ++)
-							printf("pred_node->raw_succ[%d] = %ld\n", 
-								i, pred_node->raw_succ[i]);
-					}
+//					if (id >= MAX_ROW_PER_TXN) {
+//						for (uint32_t i = 0; i < MAX_ROW_PER_TXN; i ++)
+//							printf("pred_node->raw_succ[%d] = %ld\n", 
+//								i, pred_node->raw_succ[i]);
+//					}
 					M_ASSERT(id < MAX_ROW_PER_TXN, "node->tid=%ld, pred_node->tid=%ld", 
 						node->tid, pred_node->tid);
-					pred_node->raw_succ[id] = node->tid; 
+					pred_node->raw_succ[id] = node; 
 					INC_INT_STATS(num_raw_edges, 1);
 					//printf("raw from N%ld to N%ld\n", pred_tid, node->tid);
-				}
+				} 
+				//else {
+				//	INC_INT_STATS(int_debug8, 1);
+			//		printf("RAW pred = %ld\n", pred_tid);
+				//}
 			}
 			// update the WAW successor list 
 			for (uint32_t i = 0; i < node->num_waw_pred; i ++) {
@@ -319,12 +367,20 @@ LogRecoverTable::buildSucc()
 					node->pred_size ++;
 					uint32_t id = ATOM_FETCH_ADD(pred_node->num_waw_succ, 1);
 					assert(id < MAX_ROW_PER_TXN);
-					pred_node->waw_succ[id] = node->tid; 
+					pred_node->waw_succ[id] = node; 
 					INC_INT_STATS(num_waw_edges, 1);
-					//printf("waw from N%ld to N%ld\n", pred_tid, node->tid);
-				}
+
+					// DEBUG. detect the number of duplicate edges.
+//					for (uint32_t k = 0; k < id; k ++)
+//						if (pred_node->waw_succ[k] == node)
+//							INC_INT_STATS(int_debug3, 1);
+				} 
+				//else {
+				//	INC_INT_STATS(int_debug9, 1);
+			//		printf("WAW pred = %ld\n", pred_tid);
+				//}
 			}
-			//INC_FLOAT_STATS(time_debug6, get_sys_clock() - t1);
+
 			if (node->pred_size == 0)
 				_ready_txns->add(node);
 			node = node->next;
@@ -332,7 +388,6 @@ LogRecoverTable::buildSucc()
 		}
 		//printf("Done %ld/%ld\n", bid - start_bid, end_bid - start_bid);
 	}
-	INC_FLOAT_STATS(time_debug4, get_sys_clock() - tt);
 }
 
 void 
@@ -349,12 +404,15 @@ LogRecoverTable::buildWARSucc()
 			// update the RAW successor list 
 			for (uint32_t i = 0; i < node->num_raw_succ; i ++) {
 				for (uint32_t j = 0; j < node->num_waw_succ; j ++) {
-					uint64_t raw_succ_tid = node->raw_succ[i];
-					uint64_t waw_succ_tid = node->waw_succ[j];
-					if (raw_succ_tid == waw_succ_tid) continue;
+					//uint64_t raw_succ_tid = node->raw_succ[i];
+					//uint64_t waw_succ_tid = node->waw_succ[j];
+					//if (raw_succ_tid == waw_succ_tid) continue;
 					//printf("war edge from %ld to %ld\n", raw_succ_tid, waw_succ_tid);	
-					TxnNode * raw_node = _buckets[ hash64(raw_succ_tid) % _num_buckets ].find_txn(raw_succ_tid);
-					TxnNode * waw_node = _buckets[ hash64(waw_succ_tid) % _num_buckets ].find_txn(waw_succ_tid);
+					TxnNode * raw_node = node->raw_succ[i];
+					//_buckets[ hash64(raw_succ_tid) % _num_buckets ].find_txn(raw_succ_tid);
+					TxnNode * waw_node = node->waw_succ[j]; 
+					if (raw_node == waw_node) continue;
+					//_buckets[ hash64(waw_succ_tid) % _num_buckets ].find_txn(waw_succ_tid);
 					if (raw_node && waw_node) {
 						// the waw_node WAW depends on the raw_node if a same key exists in
 						// 1. node->waw_pred_key 
@@ -379,11 +437,12 @@ LogRecoverTable::buildWARSucc()
 									// insert the WAR dependency. 
 									uint32_t id = ATOM_FETCH_ADD(raw_node->num_war_succ, 1);
 									assert(id < MAX_ROW_PER_TXN);
-									raw_node->war_succ[id] = waw_succ_tid;
+									raw_node->war_succ[id] = waw_node;
 									ATOM_ADD(waw_node->pred_size, 1);
 									INC_INT_STATS(num_war_edges, 1);
 									num ++;
 									// XXX XXX
+									// DEBUG
 									//M_ASSERT(raw_succ_tid < waw_succ_tid, "raw_succ_tid=%ld, waw_succ_tid=%ld\n", raw_succ_tid, waw_succ_tid);
 									/*if (raw_succ_tid > waw_succ_tid) {
 										printf("node->tid=%ld, raw_succ_tid=%ld, waw_succ_tid=%ld\n", node->tid, raw_node->tid, waw_succ_tid);
@@ -425,64 +484,78 @@ LogRecoverTable::buildWARSucc()
 #endif
 }
 
-uint64_t 
+void * 
 LogRecoverTable::get_txn(char * &log_entry) {
-//	COMPILER_BARRIER
-//	*_recover_done[GET_THD_ID] = false;
 	COMPILER_BARRIER
-	uint64_t tid = _ready_txns->get_txn(log_entry);
-//	COMPILER_BARRIER
+	void * node = _ready_txns->get_txn(log_entry);
 	if (!log_entry)
 		*_recover_done[GET_THD_ID] = true;
-	// DEBUG
-	//////////////////////////////
-//	uint64_t bid = hash64(tid) % _num_buckets;
-//	TxnNode * n = _buckets[bid].find_txn(tid);
-//	M_ASSERT(n, "bid=%ld, tid=%ld\n", bid, tid);
-	//////////////////////////////
-	return tid;
+	return node;
 }
 
-
 void 
-LogRecoverTable::remove_txn(uint64_t tid)
+LogRecoverTable::remove_txn(void * n, char * &log_entry, void * &next)
 {
+	TxnNode * node = (TxnNode *) n;
 	// update all the successors for this transaction (tid) 
-	uint64_t bid = hash64(tid) % _num_buckets;
-	TxnNode * node = _buckets[bid].find_txn(tid);
+	//uint64_t bid = hash64(tid) % _num_buckets;
+	//TxnNode * node = _buckets[bid].find_txn(tid);
+	log_entry = NULL;
+	TxnNode * next_node = NULL;
+//	TxnNode * raw_next_node = NULL;
+//	TxnNode * waw_next_node = NULL;
 	assert(node);
+	//uint64_t tt = get_sys_clock();
 	// wake up RAW successors
 	for (uint32_t i = 0; i < node->num_raw_succ; i ++) {
-//		printf("N%ld RAW wakes up N%ld\n", tid, node->raw_succ[i]);
-		wakeup_succ( node->raw_succ[i] );
+		wakeup_succ( node->raw_succ[i], next_node );
 	}
+	//INC_FLOAT_STATS(time_debug3, get_sys_clock() - tt);
 	// wake up WAW successors
 	for (uint32_t i = 0; i < node->num_waw_succ; i ++) {
-//		printf("N%ld WAW wakes up N%ld.\n", tid, node->waw_succ[i]);
-		wakeup_succ( node->waw_succ[i] );
+		wakeup_succ( node->waw_succ[i], next_node );
 	}
+	//INC_FLOAT_STATS(time_debug4, get_sys_clock() - tt);
 #if TRACK_WAR_DEPENDENCY
 	// wake up WAR successors
 	for (uint32_t i = 0; i < node->num_war_succ; i ++) {
-//		printf("N%ld WAR wakes up N%ld.\n", tid, node->war_succ[i]);
-		wakeup_succ( node->war_succ[i] );
+		wakeup_succ( node->war_succ[i], next_node );
 	}
+	//INC_FLOAT_STATS(time_debug5, get_sys_clock() - tt);
 #endif
+	if (next_node) {
+		next = (void *)next_node;
+		log_entry = next_node->log_entry;
+	}
 	COMPILER_BARRIER
 	node->recovered = true;
-	//printf("bean here?\n");
 }
 
 void 
-LogRecoverTable::wakeup_succ(uint64_t tid)
+LogRecoverTable::wakeup_succ(TxnNode * node, TxnNode * &next_node)
 {
-	TxnNode * node = _buckets[hash64(tid) % _num_buckets].find_txn(tid);
-	assert(node);
-	uint32_t num_pred = ATOM_SUB_FETCH(node->pred_size, 1);
-//	printf("tid= %ld; num_pred=%d\n", tid, num_pred);
-	assert(num_pred != (uint32_t)-1);
-	if (num_pred == 0)
-		_ready_txns->add( node ); 
+//	uint64_t tt = get_sys_clock();
+//	TxnNode * node = _buckets[hash64(tid) % _num_buckets].find_txn(tid);
+//	INC_FLOAT_STATS(time_debug13, get_sys_clock() - tt);
+//	assert(node);
+	if (node->pred_size == 1 || ATOM_SUB_FETCH(node->pred_size, 1) == 0) {
+	//	assert(num_pred != (uint32_t)-1);
+		//INC_FLOAT_STATS(time_debug13, get_sys_clock() - tt);
+	//	if (num_pred == 0) {
+  #if NEXT_TXN_OPT 
+		if (next_node == NULL) {
+			next_node = node;
+//			INC_INT_STATS(int_debug5, 1);
+		}
+		else 
+  #endif
+		{
+			_ready_txns->add( node ); 
+//			INC_INT_STATS(int_debug6, 1);
+		}
+//		INC_FLOAT_STATS(time_debug14, get_sys_clock() - tt);
+	}
+//	INC_FLOAT_STATS(time_debug15, get_sys_clock() - tt);
 }
 
 bool

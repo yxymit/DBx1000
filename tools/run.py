@@ -39,7 +39,9 @@ algorithms = ['S'] # serial and parallel
 algorithms = ['B'] # serial and parallel
 algorithms = ['B', 'P', 'S'] # serial and parallel
 algorithms = ['P'] # serial and parallel
-algorithms = ['NO', 'S', 'P', 'B'] # serial and parallel
+#algorithms = ['NO', 'S', 'P', 'B'] # serial and parallel
+algorithms = ['NO', 'P', 'B'] # serial and parallel
+algorithms = ['P', 'B'] # serial and parallel
 
 types = ['D'] 	# data logging and command logging
 types = ['C'] 	# data logging and command logging
@@ -100,6 +102,7 @@ for config in configs:
 #########################
 
 """
+"""
 ##########################
 # Logging Performance 
 ##########################
@@ -115,12 +118,13 @@ for trial in trials:
 			else : # YCSB
 				app_flags['REQ_PER_QUERY'] = 2
 				app_flags['READ_PERC'] = 0.5
-			app_flags['MAX_TXNS_PER_THREAD'] = 400000 if config[1] == 'D' else 1000000
+			app_flags['MAX_TXNS_PER_THREAD'] = 1000000 #400000 if config[1] == 'D' else 1000000
 			app_flags['THREAD_CNT'] = thd
 			app_flags['NUM_LOGGER'] = logger
 			app_flags['LOG_NO_FLUSH'] = 0
 			output_dir = "results/%s/thd%d_L%s%s" % (config, thd, logger, trial)
 			add_dbms_job(app_flags, executable, output_dir)
+"""
 """
 # Batch logging with different epoch length
 for trial in trials: 
@@ -140,6 +144,8 @@ for trial in trials:
 		output_dir = "results/%s/thd%d_L%s_E%d%s" % (config, thd, logger, epoch, trial)
 		add_dbms_job(app_flags, executable, output_dir)
 """
+
+
 ##########################
 # Generate Log Files 
 ##########################
@@ -153,7 +159,7 @@ for config in configs:
 	else : # YCSB
 		app_flags['REQ_PER_QUERY'] = 2
 		app_flags['READ_PERC'] = 0.5
-	app_flags['MAX_TXNS_PER_THREAD'] = 500000 if config[1] == 'C' else 500000
+	app_flags['MAX_TXNS_PER_THREAD'] = 1000000 #if config[1] == 'C' else 500000
 	app_flags['THREAD_CNT'] = thd
 	app_flags['NUM_LOGGER'] = logger
 	app_flags['LOG_NO_FLUSH'] = 0
@@ -176,6 +182,9 @@ for trial in trials:
 				for thd in thds: 
 					if bench == 'TPCC':
 						app_flags['NUM_WH'] = 16
+						app_flags['LOG_PARALLEL_REC_NUM_POOLS'] = 4
+					else:
+						app_flags['LOG_PARALLEL_REC_NUM_POOLS'] = thd
 					app_flags['THREAD_CNT'] = thd
 					app_flags['LOG_RECOVER'] = 1
 					app_flags['NUM_LOGGER'] = logger

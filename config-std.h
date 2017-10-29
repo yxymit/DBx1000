@@ -110,7 +110,7 @@
 #define LOG_RECOVER 				false
 #define LOG_BATCH_TIME				10 // in ms
 #define LOG_GARBAGE_COLLECT 		false
-#define LOG_BUFFER_SIZE				(1048576 * 400)	// in bytes
+#define LOG_BUFFER_SIZE				(1048576 * 50)	// in bytes
 // For LOG_PARALLEL
 #define LOG_PARALLEL_BUFFER_FILL	false 
 #define NUM_LOGGER					4 
@@ -118,6 +118,8 @@
 #define MAX_LOG_ENTRY_SIZE			8192 // in Bytes
 #define LOG_FLUSH_INTERVAL   		5000 // in us.
 #define TRACK_WAR_DEPENDENCY		true // necessary only for logical or command logging.  
+#define LOG_PARALLEL_REC_NUM_POOLS  THREAD_CNT 
+#define NEXT_TXN_OPT				true
 /***********************************************/
 // Benchmark
 /***********************************************/

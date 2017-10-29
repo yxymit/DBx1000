@@ -15,6 +15,7 @@ args_mapping = {
 	"LOG_RECOVER" 		: "-Lr",
 	"LOG_PARALLEL_NUM_BUCKETS" : "-Lk",
 	"EPOCH_PERIOD" 		: "-Le",
+	"LOG_PARALLEL_REC_NUM_POOLS" 		: "-Lp",
 	# YCSB
 	"READ_PERC"			: "-r",
 	"ZIPF_THETA" 		: "-z",

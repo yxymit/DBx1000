@@ -35,12 +35,12 @@ public:
 		uint32_t num_raw_pred;
 		uint32_t num_waw_pred;
 
-		uint64_t raw_succ[MAX_ROW_PER_TXN];
-		uint64_t waw_succ[MAX_ROW_PER_TXN];
+		TxnNode * raw_succ[MAX_ROW_PER_TXN];
+		TxnNode * waw_succ[MAX_ROW_PER_TXN];
 		uint32_t num_raw_succ;
 		uint32_t num_waw_succ;
 	#if TRACK_WAR_DEPENDENCY
-		uint64_t war_succ[MAX_ROW_PER_TXN];
+		TxnNode * war_succ[MAX_ROW_PER_TXN];
 		uint32_t num_war_succ;
 		
 		uint64_t raw_pred_key[MAX_ROW_PER_TXN];
@@ -76,7 +76,7 @@ public:
         // format: modify_lock (1 bit) | semaphore (63 bits)
         //volatile uint64_t   _lock_word;
         
-		bool latch;
+		volatile bool latch;
         TxnNode first;
     };
 	
@@ -89,8 +89,8 @@ public:
 		uint32_t get_size();
 		//void add(uint64_t tid, char * log_entry);
 		void add(TxnNode * node);
-		// return value: log_entry
-		uint64_t get_txn(char * &log_entry);
+		// return value: (void *)TxnNode 
+		void * get_txn(char * &log_entry);
 	private:
 		uint32_t _num_pools;
 		//boost::lockfree::queue< pair<uint64_t, char *> > * _pools;
@@ -100,11 +100,11 @@ public:
 	void addTxn(uint64_t tid, char * log_entry);
 	void buildSucc(); 
 	void buildWARSucc();
-	uint64_t get_txn(char * &log_entry);
+	void * get_txn(char * &log_entry);
 	//{
 	//	return _ready_txns->get_txn(log_entry);
 	//}
-	void remove_txn(uint64_t tid);
+	void remove_txn(void * n, char * &log_entry, void * &next);
 	bool is_recover_done();
 	void check_all_recovered();
 	//////////////////////////////////////
@@ -148,7 +148,7 @@ private:
 	bool ** 			_recover_done;	
 	
 	TxnNode * 			get_new_node(uint64_t tid);
-	void 				wakeup_succ(uint64_t tid);
+	void 				wakeup_succ(TxnNode * node, TxnNode * &next_node);
 
 	uint32_t 			_num_free_nodes_per_thread;
 	TxnNode ** 			_free_nodes; 

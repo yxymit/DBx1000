@@ -41,6 +41,9 @@ enum StatsFloat {
 	STAT_time_debug10,
 	STAT_time_debug11,
 	STAT_time_debug12,
+	STAT_time_debug13,
+	STAT_time_debug14,
+	STAT_time_debug15,
 
 	NUM_FLOAT_STATS
 };
@@ -64,7 +67,10 @@ enum StatsInt {
 	STAT_int_debug4,
 	STAT_int_debug5,
 	STAT_int_debug6,
-
+	STAT_int_debug7,
+	STAT_int_debug8,
+	STAT_int_debug9,
+	STAT_int_debug10,
 	NUM_INT_STATS
 };
 
@@ -163,6 +169,9 @@ public:
 		"time_debug10",
 		"time_debug11",
 		"time_debug12",
+		"time_debug13",
+		"time_debug14",
+		"time_debug15",
 	};
 
 	std::string statsIntName[NUM_INT_STATS] = {
@@ -185,6 +194,10 @@ public:
 		"int_debug4",
 		"int_debug5",
 		"int_debug6",
+		"int_debug7",
+		"int_debug8",
+		"int_debug9",
+		"int_debug10",
 	};
 private:
 	uint32_t _total_thread_cnt;
