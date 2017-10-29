@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
 	if (strncmp(hostname, "draco", 5) == 0)
 		dir = "/data/scratch/yxy/DBx1000-taurus/";
 	else
-		dir = ".";
+		dir = "./";
   	
 #if LOG_ALGORITHM == LOG_SERIAL
 	if (strncmp(hostname, "istc", 4) == 0) 
@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 	log_manager = new LogManager * [g_num_logger];
 	string type = (LOG_ALGORITHM == LOG_PARALLEL)? "P" : "B";
 	for (uint32_t i = 0; i < g_num_logger; i ++) {
-		if (strncmp(hostname, "istc", 4) == 0) {
+		if (strncmp(hostname, "istc3", 5) == 0) {
 			if (i == 0)
 				dir = "/f0/yxy/";
 			else if (i == 1)
@@ -162,6 +162,7 @@ int main(int argc, char* argv[])
 	m_wl->init();
 	printf("workload initialized!\n");
 	glob_manager->set_workload(m_wl);
+	assert(GET_WORKLOAD->sim_done == 0);
 
 	uint64_t thd_cnt = g_thread_cnt;
 	pthread_t p_thds[thd_cnt - 1];

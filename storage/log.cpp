@@ -72,7 +72,8 @@ LogManager::~LogManager()
 		_disk->flush(*_lsn);
 	delete _disk;
 #else 
-	if (!g_log_recover) { 
+	if (!g_log_recover && !g_no_flush) {
+		return;
 		printf("Destructor. flush size=%ld (%ld to %ld)\n", (*_lsn) / 512 * 512 - *_persistent_lsn, 
 			*_persistent_lsn, (*_lsn) / 512 * 512);
 		uint64_t end_lsn = (*_lsn) / 512 * 512;
@@ -90,6 +91,8 @@ LogManager::~LogManager()
 
 void LogManager::init(string log_file_name)
 {
+	if (g_no_flush)
+		return;
 	_file_name = log_file_name;
 	printf("log file:\t\t%s\n", log_file_name.c_str());
 	if (g_log_recover) {
@@ -200,12 +203,9 @@ uint32_t
 LogManager::tryFlush() 
 {
 	// entries before ready_lsn can be flushed. 
-	if (g_no_flush)  {
-		uint32_t size = *_persistent_lsn - *_lsn;
-		*_persistent_lsn = *_lsn;
-		return size;
-	}
 /*#if LOG_ALGORITHM == LOG_BATCH
+#if LOG_ALGORITHM == LOG_BATCH
+>>>>>>> 00428b990648204eb65918281cada6852f782743
 	// Epoch 1 is the first epoch.
 	uint64_t ready_epoch = glob_manager->get_ready_epoch();
 //	uint64_t ready_epoch = (uint64_t)-1;
@@ -222,25 +222,27 @@ LogManager::tryFlush()
 	while (*_max_flushed_epoch < ready_epoch) {
 		// flush max_flushed_epoch + 1
 		uint64_t epoch = *_max_flushed_epoch;
-		string name = _file_name + "." + to_string(epoch);
-		int fd = open(name.c_str(), O_DIRECT | O_TRUNC | O_WRONLY | O_CREAT, 0664);
-		uint32_t buffer_id = epoch % _num_buffers;
-		uint64_t size = *_lsns[buffer_id];
-		if (size % 512 != 0) 
-			size = size / 512 * 512 + 512;
-		assert(fd != 1 && fd != 0);
-		bytes = write(fd, _buffers[buffer_id], size);
-		M_ASSERT(bytes == size, "bytes=%d, planned=%ld, errno=%d, fd=%d, _file_name=%s\n", 
-			bytes, *_lsns[buffer_id], errno, fd, name.c_str());
-		//printf("bytes=%d, planned=%ld, errno=%d, _fd=%d, _file_name=%s\n", 
-		//	bytes, *_lsns[buffer_id], errno, _fd, name.c_str());
-		fsync(fd);
-		close(fd);
+		if (!g_no_flush) {
+			string name = _file_name + "." + to_string(epoch);
+			int fd = open(name.c_str(), O_DIRECT | O_TRUNC | O_WRONLY | O_CREAT, 0664);
+			uint32_t buffer_id = epoch % _num_buffers;
+			uint64_t size = *_lsns[buffer_id];
+			if (size % 512 != 0) 
+				size = size / 512 * 512 + 512;
+			assert(fd != 1 && fd != 0);
+			bytes = write(fd, _buffers[buffer_id], size);
+			M_ASSERT(bytes == size, "bytes=%d, planned=%ld, errno=%d, fd=%d, _file_name=%s\n", 
+				bytes, *_lsns[buffer_id], errno, fd, name.c_str());
+			//printf("bytes=%d, planned=%ld, errno=%d, _fd=%d, _file_name=%s\n", 
+			//	bytes, *_lsns[buffer_id], errno, _fd, name.c_str());
+			fsync(fd);
+			close(fd);
 
-		lseek(_fd, 0, SEEK_SET);  
-		int b = write(_fd, &epoch, sizeof(epoch));
-		M_ASSERT(b == sizeof(epoch), "b=%d, size=%ld\n", b, sizeof(epoch));
-		fsync(_fd);
+			lseek(_fd, 0, SEEK_SET);  
+			int b = write(_fd, &epoch, sizeof(epoch));
+			M_ASSERT(b == sizeof(epoch), "b=%d, size=%ld\n", b, sizeof(epoch));
+			fsync(_fd);
+		}
 		
 		*_lsns[buffer_id]= 0;
 		(*_max_flushed_epoch) ++;
@@ -250,6 +252,12 @@ LogManager::tryFlush()
 	return bytes;
 */
 //#else 
+	if (g_no_flush)  {
+		uint32_t size = *_persistent_lsn - *_lsn;
+		*_persistent_lsn = *_lsn;
+		return size;
+	}
+	
 	uint64_t ready_lsn = *_lsn;
 	//printf("_lsn = %ld\n", *_lsn);
 	COMPILER_BARRIER
