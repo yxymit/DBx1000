@@ -62,13 +62,12 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 							row_t::get_value(_wl->the_table->get_schema(), i, data);
 					}
                 } else {
-					for (uint32_t i = 0; i < _wl->the_table->get_schema()->get_field_cnt(); i++) { 
-						char * value = row_t::get_value(_wl->the_table->get_schema(), i, data);
-						//for (uint32_t j = 0; j < _wl->the_table->get_schema()->get_field_size(i); j ++) 
-						//	value[j] = value[j] + 1;
-						value[0] = value[0] + 1;
-						row_t::set_value(_wl->the_table->get_schema(), i, data, value);
-					}
+                    assert(req->rtype == WR);
+//					for (int fid = 0; fid < schema->get_field_cnt(); fid++) {
+						int fid = 0;
+						char * data = row_local->get_data();
+						*(uint64_t *)(&data[fid * 10]) = 0;
+//					}
                 } 
             }
 			iteration ++;
