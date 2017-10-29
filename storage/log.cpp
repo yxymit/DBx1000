@@ -487,7 +487,7 @@ LogManager::get_next_log_chunk(char * &chunk, uint64_t &size, uint64_t &base_lsn
 	if (_logger_id == 3)
 		pthread_mutex_lock(_mutex);
 	
-	INC_FLOAT_STATS(time_debug6, get_sys_clock() - tt);
+	//INC_FLOAT_STATS(time_debug6, get_sys_clock() - tt);
 	//uint64_t tt = get_sys_clock();
 	
 	uint32_t chunk_num = ATOM_FETCH_ADD(_next_chunk, 1);

@@ -535,45 +535,46 @@ txn_man::parallel_recover() {
 		// Format of log record 
 		// | checksum | size | ... 
 		uint32_t offset = 0;
-		uint32_t count = 0;
 		uint64_t lsn = base_lsn;
 		tt = get_sys_clock();
 		while (offset < file_size) {
 			// read entries from buffer
 			uint32_t checksum;
-			uint32_t size; 
+			uint32_t size = 0; 
 			uint32_t start = offset;
-			if (offset + sizeof(uint32_t) * 2 >= file_size)
+			if (UNLIKELY(start + sizeof(uint32_t) * 2 >= file_size)) {
+//				printf("[1] logger=%d. chunknum=%d LSN=%ld. offset=%d, size=%d, file_size=%ld\n", 
+//					logger, chunk_num, lsn, offset, size, file_size);
 				break;
+			}
 			UNPACK(buffer, checksum, offset);
 			UNPACK(buffer, size, offset);
-			if (offset + size > file_size)
+			if (UNLIKELY(start + size > file_size)) {
+//				printf("[2] logger=%d. chunk=%d LSN=%ld. offset=%d, size=%d, file_size=%ld\n", 
+//					logger, chunk_num, lsn, offset, size, file_size);
 				break;
-			if (checksum != 0xdead) 
+			}
+			if (UNLIKELY(checksum != 0xdead)) { 
+//				printf("logger=%d. chunk=%d LSN=%ld. txn lost\n", logger, chunk_num, lsn);
 				break;
+			}
 			M_ASSERT(size > 0 && size <= MAX_LOG_ENTRY_SIZE, "size=%d\n", size);
 			uint64_t tid = ((uint64_t)logger << 48) | lsn;
 			log_recover_table->addTxn(tid, buffer + start);
 		
-			COMPILER_BARRIER
-			//log_manager[logger_id]->set_gc_lsn(lsn);
-			//count ++;
-			//INC_FLOAT_STATS(time_debug3, get_sys_clock() - t1);
+			//COMPILER_BARRIER
 			offset = start + size;
 			lsn += size; 
 			M_ASSERT(offset <= file_size, "offset=%d, file_size=%ld\n", offset, file_size);
-			count ++;
 		}
 		INC_FLOAT_STATS(time_debug2, get_sys_clock() - tt);
 		log_manager[logger]->return_log_chunk(buffer, chunk_num);
-		//printf("Log file %d done. Count=%d\n", chunk_num, count);
 	}
 
 	INC_FLOAT_STATS(time_phase1_1_raw, get_sys_clock() - tt);
-
 	pthread_barrier_wait(&worker_bar);
 	INC_FLOAT_STATS(time_phase1_1, get_sys_clock() - tt);
-	tt = get_sys_clock();
+/*	tt = get_sys_clock();
 	if (GET_THD_ID == 0)
 		printf("Phase 1.2 starts\n");
 	// Phase 1.2. add in the successor info to the graph.
@@ -582,6 +583,7 @@ txn_man::parallel_recover() {
 	INC_FLOAT_STATS(time_phase1_2_raw, get_sys_clock() - tt);
 	pthread_barrier_wait(&worker_bar);
 	INC_FLOAT_STATS(time_phase1_2, get_sys_clock() - tt);
+*/
 	tt = get_sys_clock();
 	
 	if (GET_THD_ID == 0)
@@ -604,35 +606,42 @@ txn_man::parallel_recover() {
 	uint64_t last_idle_time = 0; //get_sys_clock();
 	while (true) { 
 		char * log_entry = NULL;
-		uint64_t tt = get_sys_clock();
-		uint64_t tid = log_recover_table->get_txn(log_entry);		
-		INC_FLOAT_STATS(time_debug9, get_sys_clock() - tt);
+		//uint64_t tt = get_sys_clock();
+		void * node = log_recover_table->get_txn(log_entry);		
+		//INC_FLOAT_STATS(time_debug8, get_sys_clock() - tt);
+		//tt = get_sys_clock();
 		if (log_entry) {
 			if (vote_done) {
 		        ATOM_SUB_FETCH(GET_WORKLOAD->sim_done, 1);
 				vote_done = false;
 			}
 			last_idle_time = 0;
-			uint64_t t1 = get_sys_clock();
-            recover_txn(log_entry);
-			INC_FLOAT_STATS(time_debug8, get_sys_clock() - t1);
-
-			log_recover_table->remove_txn(tid);
-			INC_INT_STATS(num_commits, 1);
-			INC_FLOAT_STATS(time_debug11, get_sys_clock() - t1);
+			do {	
+            	recover_txn(log_entry);
+				void * next = NULL;
+				log_entry = NULL;
+				log_recover_table->remove_txn(node, log_entry, next);
+				node = next;
+				INC_INT_STATS(num_commits, 1);
+//				if (log_entry)
+//					INC_INT_STATS(int_debug8, 1);
+			} while (log_entry);
+//			INC_FLOAT_STATS(time_debug9, get_sys_clock() - tt);
 		} else { //if (log_recover_table->is_recover_done()) {
 			if (last_idle_time == 0)
 				last_idle_time = get_sys_clock();
 			PAUSE
-			if (!vote_done && get_sys_clock() - last_idle_time > 1000 * 1000) {
+			if (!vote_done && get_sys_clock() - last_idle_time > 1 * 1000 * 1000) {
 				vote_done = true;
 		       	ATOM_ADD_FETCH(GET_WORKLOAD->sim_done, 1);
+//				INC_INT_STATS(int_debug7, 1);
 			}
 			if (GET_WORKLOAD->sim_done == g_thread_cnt)
 				break;
-			INC_INT_STATS(int_debug2, 1);
+//			INC_INT_STATS(int_debug2, 1);
+//			INC_FLOAT_STATS(time_debug10, get_sys_clock() - tt);
 		}
-		INC_FLOAT_STATS(time_debug10, get_sys_clock() - tt);
+//		INC_FLOAT_STATS(time_debug11, get_sys_clock() - tt);
 	}
 
 	INC_FLOAT_STATS(time_phase3_raw, get_sys_clock() - tt);

@@ -10,7 +10,7 @@ matplotlib.rcParams['pdf.use14corefonts'] = True
 results = {}
 #suffixes = ['', '_1', '_2', '_3', '_4']
 results = get_all_results("results/") 
-results = get_all_results("results-oct27/") 
+#results = get_all_results("results-oct27/") 
 
 def get_stats(tag, thd):
 	thr = 0
@@ -100,7 +100,7 @@ for bench in ['YCSB', 'TPCC']:
 					io[name][n] += values['log_bytes'] / logger / (values['run_time'] / thd) * 1000 / len(trials)
 					if config == 'PD' and bench == 'YCSB' and thd == 16:
 						print values['log_bytes'], io 
-					lat[name][n] += 1.0 * values['latency'] / values['num_commits'] * 1000 * 1000 / len(trials)
+					lat[name][n] += 1.0 * values['latency'] / values['num_commits'] * 1000 / len(trials)
 				#data[name][n], err[name][n] = avg_and_dev(vals)
 			except:
 				thr[name][n] = 0
@@ -113,12 +113,11 @@ for bench in ['YCSB', 'TPCC']:
 	#draw_errorbar(fname, data, err, 
 	draw_line(thr_fname, thr, 
 		[str(x) for x in thds], bbox=[0.82, 0.9], ncol=2, legend=False)
-	print io_fname, io
-	draw_line(io_fname, io, 
-		[str(x) for x in thds], bbox=[0.82, 0.9], ncol=2, legend=False)
 	draw_line(lat_fname, lat, 
 		[str(x) for x in thds], bbox=[0.82, 0.9], ncol=2, legend=False,
 		ylab = "Latency (us)")
+	draw_line(io_fname, io, 
+		[str(x) for x in thds], bbox=[0.82, 0.9], ncol=2, legend=False)
 
 
 ################################
@@ -149,18 +148,16 @@ for bench in benchmarks:
 					values = results[tag]
 					if config[0] == 'S':
 						vals.append(values['num_commits'] / values['run_time'] / 1000000.0)	
-						#vals.append(1.0 / values['run_time'] / 1000000.0)	
 					else:
 						vals.append(values['num_commits'] / (values['run_time'] / thd) / 1000000.0)	
-						#vals.append(1.0 / (values['run_time'] / thd) / 1000000.0)	
 				data[name][n], err[name][n] = avg_and_dev(vals)
 			except:
 				data[name][n] = 0
 				err[name][n] = 0
 	#print bench, data
-	draw_errorbar('thr_rec_%s' % bench, data, err, 
+	draw_line('thr_rec_%s' % bench, data,  
 		[str(x) for x in thds], ncol=2,
-		bbox=[0.82, 0.9], top=0.80)
+		top=0.80)
 
 
 # TPC-C sweep warehouse count. 

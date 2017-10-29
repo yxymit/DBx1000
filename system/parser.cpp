@@ -30,6 +30,7 @@ void print_usage() {
 	printf("\t-LfINT      ; LOG_NO_FLUSH\n");
 	printf("\t-LkINT      ; LOG_PARALLEL_NUM_BUCKETS\n");
 	printf("\t-LeINT      ; EPOCH_PERIOD\n");
+	printf("\t-LpINT      ; LOG_PARALLEL_REC_NUM_POOLS\n");
 		
 	printf("  [YCSB]:\n");
 	printf("\t-cINT       ; PART_PER_TXN\n");
@@ -131,6 +132,8 @@ void parser(int argc, char * argv[]) {
 				g_log_parallel_num_buckets = atoi( &argv[i][3] );
 			else if (argv[i][2] == 'e') 
 				g_epoch_period = atoi( &argv[i][3] );
+			else if (argv[i][2] == 'p') 
+				g_num_pools = atoi( &argv[i][3] );
 		}
 		else if (argv[i][1] == 'o') {
 			i++;

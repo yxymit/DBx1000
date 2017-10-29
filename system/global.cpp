@@ -42,6 +42,7 @@ uint64_t * starting_lsn;
 #endif
 uint32_t g_epoch_period = EPOCH_PERIOD;
 uint32_t ** next_log_file_epoch;
+uint32_t g_num_pools = LOG_PARALLEL_REC_NUM_POOLS;
 
 FreeQueue ** free_queue_recover_state; 
 bool g_log_recover = LOG_RECOVER;
