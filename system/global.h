@@ -103,6 +103,7 @@ extern uint64_t * starting_lsn;
 extern uint32_t g_epoch_period;
 extern uint32_t ** next_log_file_epoch;
 extern uint32_t g_num_pools;
+extern uint32_t g_log_chunk_size;
 
 extern FreeQueue ** free_queue_recover_state; 
 extern bool g_log_recover;

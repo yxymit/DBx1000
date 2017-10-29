@@ -119,6 +119,7 @@
 #define LOG_FLUSH_INTERVAL   		5000 // in us.
 #define TRACK_WAR_DEPENDENCY		true // necessary only for logical or command logging.  
 #define LOG_PARALLEL_REC_NUM_POOLS  THREAD_CNT 
+#define LOG_CHUNK_SIZE  			(1048576 * 5)
 #define NEXT_TXN_OPT				true
 /***********************************************/
 // Benchmark

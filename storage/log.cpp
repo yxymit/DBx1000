@@ -277,7 +277,7 @@ LogManager::tryFlush()
 	COMPILER_BARRIER
 	*_persistent_lsn = end_lsn;
 	glob_manager->update_persistent_epoch(_logger_id, end_lsn);
-	uint32_t chunk_size = 50 * 1048576;// g_log_buffer_size 
+	uint32_t chunk_size = g_log_chunk_size;// g_log_buffer_size 
 	if (end_lsn / chunk_size  > start_lsn / chunk_size ) {
 		uint32_t bytes = write(_fd, &ready_lsn, sizeof(ready_lsn));
 		assert(bytes == sizeof(ready_lsn));
