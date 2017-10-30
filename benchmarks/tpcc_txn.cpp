@@ -694,6 +694,7 @@ tpcc_txn_man::get_cmd_log_entry()
 void
 tpcc_txn_man::recover_txn(char * log_entry, uint64_t tid)
 {
+	uint64_t tt = get_sys_clock();
 #if LOG_TYPE == LOG_DATA
 	// Format 
 	// 	| N | (table_id | primary_key | data_length | data) * N
@@ -761,6 +762,7 @@ tpcc_txn_man::recover_txn(char * log_entry, uint64_t tid)
 		assert(false);
 	run_txn(_query);
 #endif
+	INC_FLOAT_STATS(time_recover_txn, get_sys_clock() - tt);
 }
 
 void 

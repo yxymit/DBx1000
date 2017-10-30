@@ -492,7 +492,7 @@ txn_man::serial_recover() {
 					break;
 			}
 			else { 
-				usleep(50);
+				PAUSE //usleep(50);
 				continue;
 			}
 		}
@@ -527,7 +527,7 @@ txn_man::parallel_recover() {
 		uint64_t base_lsn = 0;
 		uint64_t tt = get_sys_clock();
 		uint32_t chunk_num = log_manager[logger]->get_next_log_chunk(buffer, file_size, base_lsn);
-		INC_FLOAT_STATS(time_debug1, get_sys_clock() - tt);
+		INC_FLOAT_STATS(time_io, get_sys_clock() - tt);
 		INC_FLOAT_STATS(log_bytes, file_size);
 		if (chunk_num == (uint32_t)-1) 
 			break;
@@ -567,7 +567,7 @@ txn_man::parallel_recover() {
 			lsn += size; 
 			M_ASSERT(offset <= file_size, "offset=%d, file_size=%ld\n", offset, file_size);
 		}
-		INC_FLOAT_STATS(time_debug2, get_sys_clock() - tt);
+		INC_FLOAT_STATS(time_phase1_add_graph, get_sys_clock() - tt);
 		log_manager[logger]->return_log_chunk(buffer, chunk_num);
 	}
 
@@ -606,27 +606,21 @@ txn_man::parallel_recover() {
 	uint64_t last_idle_time = 0; //get_sys_clock();
 	while (true) { 
 		char * log_entry = NULL;
-		//uint64_t tt = get_sys_clock();
 		void * node = log_recover_table->get_txn(log_entry);		
-		//INC_FLOAT_STATS(time_debug8, get_sys_clock() - tt);
-		//tt = get_sys_clock();
 		if (log_entry) {
 			if (vote_done) {
 		        ATOM_SUB_FETCH(GET_WORKLOAD->sim_done, 1);
 				vote_done = false;
 			}
 			last_idle_time = 0;
-			do {	
+			do {
             	recover_txn(log_entry);
 				void * next = NULL;
 				log_entry = NULL;
 				log_recover_table->remove_txn(node, log_entry, next);
 				node = next;
 				INC_INT_STATS(num_commits, 1);
-//				if (log_entry)
-//					INC_INT_STATS(int_debug8, 1);
 			} while (log_entry);
-//			INC_FLOAT_STATS(time_debug9, get_sys_clock() - tt);
 		} else { //if (log_recover_table->is_recover_done()) {
 			if (last_idle_time == 0)
 				last_idle_time = get_sys_clock();
@@ -634,14 +628,10 @@ txn_man::parallel_recover() {
 			if (!vote_done && get_sys_clock() - last_idle_time > 1 * 1000 * 1000) {
 				vote_done = true;
 		       	ATOM_ADD_FETCH(GET_WORKLOAD->sim_done, 1);
-//				INC_INT_STATS(int_debug7, 1);
 			}
 			if (GET_WORKLOAD->sim_done == g_thread_cnt)
 				break;
-//			INC_INT_STATS(int_debug2, 1);
-//			INC_FLOAT_STATS(time_debug10, get_sys_clock() - tt);
 		}
-//		INC_FLOAT_STATS(time_debug11, get_sys_clock() - tt);
 	}
 
 	INC_FLOAT_STATS(time_phase3_raw, get_sys_clock() - tt);
@@ -670,7 +660,7 @@ txn_man::batch_recover()
 		INC_FLOAT_STATS(log_bytes, file_size);
 		if (chunk_num == (uint32_t)-1) 
 			break;
-	
+		assert(buffer);
 		// Format of log record 
 		// | checksum | size | ... 
 		uint32_t offset = 0;

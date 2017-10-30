@@ -107,7 +107,7 @@ void Stats::output(std::ostream * os)
 	//assert(total_num_commits > 0);
 	out << "=Worker Thread=" << endl;
 	out << "    " << setw(30) << left << "Throughput:"
-		<< BILLION * total_num_commits / total_run_time * _total_thread_cnt << endl;
+		<< BILLION * total_num_commits / total_run_time * g_thread_cnt << endl;
 	// print floating point stats
 	for	(uint32_t i = 0; i < NUM_FLOAT_STATS; i++) {
 		double total = 0;

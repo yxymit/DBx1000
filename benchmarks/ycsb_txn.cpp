@@ -87,6 +87,7 @@ final:
 void 
 ycsb_txn_man::recover_txn(char * log_entry, uint64_t tid)
 {
+	uint64_t tt = get_sys_clock();
 #if LOG_TYPE == LOG_DATA
 	// Format 
 	// | N | (table_id | primary_key | data_length | data) * N
@@ -178,6 +179,7 @@ ycsb_txn_man::recover_txn(char * log_entry, uint64_t tid)
 #else
 	assert(false);
 #endif
+	INC_FLOAT_STATS(time_recover_txn, get_sys_clock() - tt);
 }
 
 void 

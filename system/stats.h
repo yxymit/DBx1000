@@ -9,6 +9,8 @@ enum StatsFloat {
 	STAT_time_log,
 	
 	STAT_time_io,
+	STAT_time_phase1_add_graph,
+	STAT_time_recover_txn,
 	STAT_log_bytes,
 	STAT_log_dep_size,
 	STAT_log_total_size,
@@ -137,6 +139,8 @@ public:
 		"time_log",
 		
 		"time_io",
+		"time_phase1_add_graph",
+		"time_recover_txn",
 		"log_bytes",
 		"log_dep_size",
 		"log_total_size",

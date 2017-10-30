@@ -192,26 +192,16 @@ RC thread_t::run() {
 			//stats.clear( get_thd_id() );
 			return FINISH;
 		}
-
-		if (warmup_finish && txn_cnt >= g_max_txns_per_thread) {
-			assert(txn_cnt == g_max_txns_per_thread);
-	        ATOM_ADD_FETCH(_wl->sim_done, 1);
-	        printf("sim_done = %d\n", _wl->sim_done);
-			while (_wl->sim_done != g_thread_cnt) {
+		if ((warmup_finish && txn_cnt >= g_max_txns_per_thread) || _wl->sim_done > 0) {
+			ATOM_ADD_FETCH(_wl->sim_done, 1);
+			uint64_t terminate_time = get_sys_clock(); 
+			printf("sim_done = %d\n", _wl->sim_done);
+			while (_wl->sim_done != g_thread_cnt && get_sys_clock() - terminate_time < 1000 * 1000) {
 				m_txn->try_commit_txn();
 				usleep(10);
 			}
 			return FINISH;
 	    }
-	    if (_wl->sim_done > 0) {
-	        ATOM_ADD_FETCH(_wl->sim_done, 1);
-	        printf("sim_done = %d\n", _wl->sim_done);
-			while (_wl->sim_done != g_thread_cnt) {
-				m_txn->try_commit_txn();
-				usleep(10);
-			}
-   		    return FINISH;
-   		}
 	}
 	assert(false);
 }
