@@ -230,18 +230,20 @@ LogRecoverTable::addTxn(uint64_t tid, char * log_entry)
 	//   | num_raw_preds | TID * num_raw_preds 
 	//   | num_waw_preds | TID * num_waw_preds
 
-	//uint64_t tt = get_sys_clock();
+//	uint64_t tt = get_sys_clock();
 	uint64_t bid = hash64(tid) % _num_buckets;
 	while (!ATOM_CAS(_buckets[bid].latch, false, true))
 		PAUSE;
 		
 	TxnNode * node = _buckets[bid].find_txn(tid);
-	//INC_FLOAT_STATS(time_debug4, get_sys_clock() - tt);
+//	INC_FLOAT_STATS(time_debug4, get_sys_clock() - tt);
 	if (node == NULL)
 		node = get_new_node(tid);
+//	INC_FLOAT_STATS(time_debug9, get_sys_clock() - tt);
 
 	COMPILER_BARRIER
 	_buckets[bid].latch = false;
+//	INC_FLOAT_STATS(time_debug10, get_sys_clock() - tt);
 	
 	uint32_t size = 0;
 	uint32_t offset = sizeof(uint32_t);	
@@ -263,6 +265,7 @@ LogRecoverTable::addTxn(uint64_t tid, char * log_entry)
 	assert(size > 0 && size <= MAX_LOG_ENTRY_SIZE);
 	memcpy(node->log_entry, log_entry + offset, size - offset);
 
+//	INC_FLOAT_STATS(time_debug5, get_sys_clock() - tt);
 	// update the RAW successor list 
 	node->pred_size = 0;
 	for (uint32_t i = 0; i < node->num_raw_pred; i ++) {
@@ -288,6 +291,7 @@ LogRecoverTable::addTxn(uint64_t tid, char * log_entry)
 		pred_node->raw_succ[id] = node; 
 		INC_INT_STATS(num_raw_edges, 1);
 	}
+//	INC_FLOAT_STATS(time_debug6, get_sys_clock() - tt);
 	// update the WAW successor list 
 	for (uint32_t i = 0; i < node->num_waw_pred; i ++) {
 		uint64_t pred_tid = node->waw_pred[i];
@@ -315,8 +319,10 @@ LogRecoverTable::addTxn(uint64_t tid, char * log_entry)
 		//	if (pred_node->waw_succ[k] == node)
 		//		INC_INT_STATS(int_debug3, 1);
 	}
+//	INC_FLOAT_STATS(time_debug7, get_sys_clock() - tt);
 	if (node->pred_size == 0)
 		_ready_txns->add(node);
+//	INC_FLOAT_STATS(time_debug8, get_sys_clock() - tt);
 }
 
 

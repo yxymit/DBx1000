@@ -22,7 +22,7 @@ LoggingThread::run()
 	uint32_t logger_id = GET_THD_ID % g_num_logger;
 	logger = log_manager[logger_id];
   #endif
-	uint64_t starttime = get_sys_clock(); 
+	//uint64_t starttime = get_sys_clock(); 
 	uint64_t total_log_data = 0;
 
 	if (g_log_recover) {
@@ -51,7 +51,7 @@ LoggingThread::run()
 				glob_manager->update_epoch();	
 		}
 	}
-	INC_FLOAT_STATS(time_io, get_sys_clock() - starttime);
+	//INC_FLOAT_STATS(time_io, get_sys_clock() - starttime);
 	INC_FLOAT_STATS(log_bytes, total_log_data);
 	return FINISH;
 }

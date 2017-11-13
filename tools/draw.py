@@ -53,10 +53,10 @@ lineconfig['All Opts'] = "ls='%s', lw=3, color='%s', marker='%s', ms=8, markered
 # data[linename][x index] 
 def draw_line(fname, data, xlabels, 
 		bbox=(0.9,0.9), ncol=1, 
-		ylab='Throughput (Million txn/s)', logscale=False, 
-		ylimit=0, xlimit=None, xlab='Thread Count',
-		legend=True, linenames = None, figsize=(4, 3), vline=None, 
-		top=0.99, bottom=0.15, left=0.15, right=0.96) :
+		ylab='Throughput (Million Txn/s)', logscale=False, 
+		ylimit=None, xlimit=[2, 35], xlab='Number of Worker Threads',
+		legend=True, linenames = None, figsize=(5, 2.5), vline=None, 
+		top=0.99, bottom=0.18, left=0.12, right=0.99) :
 	fig = figure(figsize=figsize)
 	thr = [0] * len(xlabels)
 	lines = [0] * len(data)
@@ -83,7 +83,7 @@ def draw_line(fname, data, xlabels,
 		else :
 			exec "lines[n], = plot(intlab, data[key], %s)" % style
 		n += 1
-	if ylimit != 0:
+	if ylimit != None:
 		ylim(ylimit)
 	if xlimit != None:
 		xlim(xlimit)
@@ -249,59 +249,12 @@ def draw_bar(filename, data, label, names=None, dots=None,
 	savefig('figs/' + filename + '.pdf') #, bbox_inches='tight')
 	return bars
 
-"""
-# data[barname][stackname] = [values the stack] * number_of_groups 
-def draw_stack(data, result, figname='stack_graph', xlabels=None, figsize=(8, 3)) :
-	fig = figure(figsize=figsize)
-	time_man = [0] * len(data)
-	time_wait = [0] * len(data)
-	time_index = [0] * len(data)
-	time_ts = [0] * len(data)
-	time_abort = [0] * len(data)
-	time_all = [0] * len(data)
-	ind = range(0, len(data))
-	if xlabels == None:
-		keys = data.keys()
-	else :
-		keys = xlabels
-	n = 0
-	for i in range(0, len(data)) :
-		max_thr = 0
-		for suffix in ['', '_1', '_2', '_3', '_4'] :
-			fname = data[ keys[i] ]
-			if fname in result[suffix] and \
-				(result[suffix][fname]['txn_cnt'] / result[suffix][fname]['run_time'] > max_thr):
-				max_thr = result[suffix][fname]['txn_cnt'] / result[suffix][fname]['run_time']
-				time_man[n] = (float(result[suffix][fname]['time_man']) +\
-					 	  	  float(result[suffix][fname]['time_index'])) / result[suffix][fname]['txn_cnt']
-				time_abort[n] = float(result[suffix][fname]['time_abort']) / result[suffix][fname]['txn_cnt']
-				time_all[n] = float(result[suffix][fname]['run_time']) / result[suffix][fname]['txn_cnt']
-		n += 1
-	norm = time_all[0]
-	ylabel("Norm. Runtime")
-	for i in range(0, n):
-		time_man[i] /= norm 
-		time_abort[i] /= norm 
-		time_all[i] /= norm 
-	xticks([x+0.4 for x in ind], keys, rotation=18, ha='center', size=11)
-	p1 = plt.bar(ind, time_man, color='#e8d174')
-	bottom = time_man
-	p2 = plt.bar(ind, time_abort, color='#e39e54', hatch='\\\\', bottom=bottom)
-	bottom = [a + b for a,b in zip(bottom, time_abort)]
-	time_work = [a - b for a,b in zip(time_all, bottom)]
-	p3 = plt.bar(ind, time_work, color='#9ed670', hatch='/', bottom=bottom)
-	legend((p3, p2, p1),\
-		('Useful Work', 'Abort', 'Manager'),\
-		 bbox_to_anchor = [1, 1.35], prop={'size':11}, ncol=3)
-	subplots_adjust(bottom=0.22, left=0.13, right=0.95, top=0.8)
-	savefig('figs/' + figname + '.pdf') #, bbox_inches='tight')
-"""
 
 # data[barname][stackname] = [values the stack] * number_of_groups 
-def draw_stack(data, groupnames, stacknames, barnames, 
-            figname='stack_graph', figsize=(20,4),
+def draw_stack(figname, data, groupnames, stacknames, barnames, 
+            figsize=(20,4),
             ylab='Norm. Network Traffic',
-            bottom=0.2, left=0.1, right=0.98, top=None, 
+            bottom=0.07, left=0.1, right=0.98, top=None, 
             ncol=1, bbox=[0.67,1.1], bg=False) :
    colors = [
       "color='#409D48', hatch='//'",
@@ -318,8 +271,10 @@ def draw_stack(data, groupnames, stacknames, barnames,
    stacks = [0] * nstack
    width = 1.0 / 1.618 / nbar
    
-   xlim([-0.382, ngroup])   
-   xticks([x + 0.618/2 for x in ind], groupnames, rotation=30, size=20)
+   xlim([-0.382, ngroup])  
+
+   groupnames = ['SiloR' if x == 'BD' else x for x in groupnames]
+   xticks([x + 0.618/2 for x in ind], groupnames, rotation=0, size=20)
    ylabel(ylab, fontsize='20')
    yticks(fontsize='20')
 
@@ -341,13 +296,15 @@ def draw_stack(data, groupnames, stacknames, barnames,
                width=%f,bottom=bot, %s)" % (width, colors[sid])
             bot = [a + b for a,b in zip(bot, data[barname][stackname])]
       ind = [x + width for x in ind]
-   legend([x[0] for x in stacks], stacknames, bbox_to_anchor = bbox, prop={'size':20}, ncol=ncol)
+   legend([x[0] for x in stacks], stacknames, bbox_to_anchor = bbox, prop={'size':18}, ncol=ncol)
    subplots_adjust(left=left, bottom=bottom, right=right, top=top)
    savefig('figs/' + figname + '.pdf')
    return axes   
 
 
-def draw_legend(fname='legend', linenames = ['DL_DETECT', 'HEKATON', 'NO_WAIT', 'SILO', 'TICTOC'], figsize=[11.1, 0.5], bbox=[1.01, 1.18], ncol=5):
+def draw_legend(fname='legend', linenames = ['NO', 'SD', 'SC', 'PD', 'PC', 'BD'], 
+	figsize=[12, 0.4], bbox=[1.005, 1.18], ncol=6):
+
 	fig = figure(figsize=figsize)
 	lines = [0] * len(linenames)
 	for n in range(0, len(linenames)):
@@ -359,8 +316,16 @@ def draw_legend(fname='legend', linenames = ['DL_DETECT', 'HEKATON', 'NO_WAIT', 
  	axes.get_yaxis().set_ticks([])
  	axes.get_xaxis().set_ticks([])
 	#legend_names = [x.replace('TICTOC', 'TICTOC') for x in linenames]
-	legend_names = linenames #[x.replace('_', '\_') for x in linenames]
-	leg = fig.legend(lines, legend_names, prop={'size':18}, ncol=ncol, bbox_to_anchor=bbox)
+	name_mapping = {
+		'NO': 'No Logging',
+		'SD': 'Serial Data',
+		'SC': 'Serial Command',
+		'PD': 'Parallel Data',
+		'PC': 'Parallel Command',
+		'BD': 'SiloR',
+	}
+	legend_names = [name_mapping[x] for x in linenames] #[x.replace('_', '\_') for x in linenames]
+	leg = fig.legend(lines, legend_names, prop={'size':14}, ncol=ncol, bbox_to_anchor=bbox)
 	leg.get_frame().set_linewidth(2)
 	savefig('figs/' + fname +'.pdf')#, bbox_inches='tight')
 	close(fig)

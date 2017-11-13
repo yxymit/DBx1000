@@ -155,7 +155,6 @@ RC txn_man::cleanup(RC in_rc)
 			if (max_lsn <= log_manager->get_persistent_lsn()) {
 				INC_INT_STATS(num_latency_count, 1);
 				INC_FLOAT_STATS(latency, get_sys_clock() - _txn_start_time);
-//				printf("latency= %ld\n", get_sys_clock() - _txn_start_time);
 			} else {
 				queue<TxnState> * state_queue = _txn_state_queue[GET_THD_ID];
 				TxnState state;
@@ -484,6 +483,7 @@ txn_man::serial_recover() {
 	uint32_t count = 0;
 	while (true) {
 		char * entry = default_entry;
+		uint64_t tt = get_sys_clock();
 		uint64_t lsn = log_manager->get_next_log_entry(entry);
 		if (entry == NULL) {
 			if (log_manager->iseof()) {
@@ -493,9 +493,11 @@ txn_man::serial_recover() {
 			}
 			else { 
 				PAUSE //usleep(50);
+				INC_FLOAT_STATS(time_io, get_sys_clock() - tt);
 				continue;
 			}
 		}
+		INC_FLOAT_STATS(time_io, get_sys_clock() - tt);
 		// Format for serial logging
 		// | checksum | size | ... |
 		assert(*(uint32_t*)entry == 0xdead);
@@ -505,8 +507,6 @@ txn_man::serial_recover() {
 		log_manager->set_gc_lsn(lsn);
 		INC_INT_STATS(num_commits, 1);
 		count ++;
-//		if (count % 1000 == 0)
-//			printf("count = %d\n", count);
 	}
 }
 
@@ -656,7 +656,8 @@ txn_man::batch_recover()
 		uint64_t base_lsn = 0;
 		uint64_t tt = get_sys_clock();
 		uint32_t chunk_num = log_manager[logger]->get_next_log_chunk(buffer, file_size, base_lsn);
-		INC_FLOAT_STATS(time_debug1, get_sys_clock() - tt);
+		INC_FLOAT_STATS(time_io, get_sys_clock() - tt);
+		//INC_FLOAT_STATS(time_debug1, get_sys_clock() - tt);
 		INC_FLOAT_STATS(log_bytes, file_size);
 		if (chunk_num == (uint32_t)-1) 
 			break;

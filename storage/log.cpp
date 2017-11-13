@@ -401,7 +401,6 @@ LogManager::get_next_log_entry(char * &entry)
 		// handle the boundary case.
 		uint32_t size_offset = (next_lsn + sizeof(uint32_t)) % g_log_buffer_size;
 		uint32_t tail = g_log_buffer_size - size_offset;
-		//INC_FLOAT_STATS(time_debug7, get_sys_clock() - t2);
 		if (UNLIKELY(tail < sizeof(uint32_t))) {
 			memcpy(&size, _buffer + size_offset, tail);
 			memcpy((char *)&size + tail, _buffer, sizeof(uint32_t) - tail);
@@ -491,7 +490,6 @@ LogManager::get_next_log_chunk(char * &chunk, uint64_t &size, uint64_t &base_lsn
 	// read sequentially the next chunk.
 	// release the lock.
 	chunk = new char [_chunk_size];
-	uint64_t tt = get_sys_clock();
 	if (_logger_id == 3)
 		pthread_mutex_lock(_mutex);
 	
@@ -530,7 +528,6 @@ LogManager::get_next_log_chunk(char * &chunk, uint64_t &size, uint64_t &base_lsn
 		chunk_num, sz, fstart, fend, fend-fstart);
 
 	chunk = chunk + start_lsn % 512;
-	INC_FLOAT_STATS(time_debug7, get_sys_clock() - tt);
 	if (_logger_id == 3)
 		pthread_mutex_unlock(_mutex);
 	size = end_lsn - start_lsn; 
