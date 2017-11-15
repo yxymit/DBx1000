@@ -124,7 +124,7 @@ private:
 	uint64_t		_part_id;
 	uint64_t 		_row_id;
 
-#if LOG_ALGORITHM == LOG_PARALLEL && LOG_TYPE == LOG_COMMAND && LOG_RECOVER
+/*#if LOG_ALGORITHM == LOG_PARALLEL && LOG_TYPE == LOG_COMMAND && LOG_RECOVER
 	// for paralle command recovery, should use multi-versioning.
 	struct Version {
 		uint64_t txn_id; // the writer's txn_id
@@ -137,5 +137,5 @@ private:
 	uint64_t 		_min_ts; // the oldest version timestamp of the tuple
 	uint32_t		_gc_time;
 #endif
-
+*/
 };

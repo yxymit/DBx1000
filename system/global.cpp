@@ -25,12 +25,6 @@ Plock part_lock_man;
 OptCC occ_man;
 
 // Logging
-//#if LOG_ALGORITHM == LOG_SERIAL
-//boost::lockfree::spsc_queue<RecoverState *, boost::lockfree::capacity<1000>> ** txns_ready_for_recovery;
-//RSQueue ** rs_queue; 
-//#else
-//boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
-//#endif
 #if LOG_ALGORITHM == LOG_SERIAL
 LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH

@@ -72,39 +72,23 @@ extern Query_queue * query_queue;
 extern Plock part_lock_man;
 extern OptCC occ_man;
 
-//#define DispatchQueue QueueType(DispatchJob, 100)
-//#define GCQueue QueueType(GCJob, 100)
-
 // Logging
-//extern boost::lockfree::spsc_queue<RecoverState *> ** txns_from_log;
-//extern boost::lockfree::spsc_queue<void *> ** txns_for_gc;
 #if LOG_ALGORITHM == LOG_SERIAL
-//extern boost::lockfree::spsc_queue<RecoverState *, boost::lockfree::capacity<1000>> ** txns_ready_for_recovery;
-//#define RSQueue boost::lockfree::spsc_queue<RecoverState *, boost::lockfree::capacity<1000>>
-//extern RSQueue ** rs_queue; 
-//extern SerialLogManager * log_manager;
 extern LogManager * log_manager;
 #elif LOG_ALGORITHM == LOG_BATCH
 extern LogManager ** log_manager;
 // for batch recovery 
 #elif LOG_ALGORITHM == LOG_PARALLEL
 extern LogManager ** log_manager;
-//#define ReadyQueue   
-/*extern boost::lockfree::queue<RecoverState *> ** txns_ready_for_recovery;
-extern DispatchQueue ** dispatch_queue;
-extern GCQueue ** gc_queue;
-extern ParallelLogManager * log_manager; 
-extern LogPendingTable * log_pending_table;
-*/
 extern LogRecoverTable * log_recover_table;
 extern uint64_t * starting_lsn;
-//extern uint32_t num_threads_done;  
 #endif
 extern uint32_t g_epoch_period;
 extern uint32_t ** next_log_file_epoch;
 extern uint32_t g_num_pools;
 extern uint32_t g_log_chunk_size;
 
+extern uint32_t g_log_buffer_size;
 extern FreeQueue ** free_queue_recover_state; 
 extern bool g_log_recover;
 extern uint32_t g_num_logger;
@@ -172,8 +156,6 @@ extern bool g_wh_update;
 extern UInt32 g_max_items;
 extern UInt32 g_cust_per_dist;
 
-// Logging
-extern UInt32  g_log_buffer_size;
 
 enum RC { RCOK, Commit, Abort, WAIT, ERROR, FINISH};
 enum DepType { RAW, WAW, WAR };
