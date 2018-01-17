@@ -11,17 +11,13 @@ txn_man::validate_silo()
 	// lock write tuples in the primary key order.
 	int write_set[wr_cnt];
 	int cur_wr_idx = 0;
-#if ISOLATION_LEVEL != REPEATABLE_READ
 	int read_set[row_cnt - wr_cnt];
 	int cur_rd_idx = 0;
-#endif
 	for (int rid = 0; rid < row_cnt; rid ++) {
 		if (accesses[rid]->type == WR)
 			write_set[cur_wr_idx ++] = rid;
-#if ISOLATION_LEVEL != REPEATABLE_READ
 		else 
 			read_set[cur_rd_idx ++] = rid;
-#endif
 	}
 
 	// bubble sort the write_set, in primary key order 
@@ -48,7 +44,6 @@ txn_man::validate_silo()
 				goto final;
 			}	
 		}	
-#if ISOLATION_LEVEL != REPEATABLE_READ
 		for (int i = 0; i < row_cnt - wr_cnt; i ++) {
 			Access * access = accesses[ read_set[i] ];
 			if (access->orig_row->manager->get_tid() != accesses[read_set[i]]->tid) {
@@ -56,7 +51,6 @@ txn_man::validate_silo()
 				goto final;
 			}
 		}
-#endif
 	}
 
 	// lock all rows in the write set.
@@ -89,7 +83,6 @@ txn_man::validate_silo()
 							goto final;
 						}	
 					}	
-#if ISOLATION_LEVEL != REPEATABLE_READ
 					for (int i = 0; i < row_cnt - wr_cnt; i ++) {
 						Access * access = accesses[ read_set[i] ];
 						if (access->orig_row->manager->get_tid() != accesses[read_set[i]]->tid) {
@@ -97,7 +90,6 @@ txn_man::validate_silo()
 							goto final;
 						}
 					}
-#endif
 				}
 				usleep(1);
 			}
@@ -115,7 +107,6 @@ txn_man::validate_silo()
 	}
 
 	// validate rows in the read set
-#if ISOLATION_LEVEL != REPEATABLE_READ
 	// for repeatable_read, no need to validate the read set.
 	for (int i = 0; i < row_cnt - wr_cnt; i ++) {
 		Access * access = accesses[ read_set[i] ];
@@ -127,7 +118,6 @@ txn_man::validate_silo()
 		if (access->tid > max_tid)
 			max_tid = access->tid;
 	}
-#endif
 	// validate rows in the write set
 	for (int i = 0; i < wr_cnt; i++) {
 		Access * access = accesses[ write_set[i] ];

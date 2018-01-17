@@ -10,18 +10,14 @@ txn_man::validate_tictoc()
 {
 	RC rc = RCOK;
 	int write_set[wr_cnt];
-#if ISOLATION_LEVEL != REPEATABLE_READ
 	int read_set[row_cnt - wr_cnt];
 	int cur_rd_idx = 0;
-#endif
 	int cur_wr_idx = 0;
 	for (int rid = 0; rid < row_cnt; rid ++) {
 		if (accesses[rid]->type == WR)
 			write_set[cur_wr_idx ++] = rid;
-#if ISOLATION_LEVEL != REPEATABLE_READ
 		else 
 			read_set[cur_rd_idx ++] = rid;
-#endif
 	}
 #if WR_VALIDATION_SEPARATE 
 	// bubble sort the write_set, in primary key order 
@@ -63,7 +59,7 @@ txn_man::validate_tictoc()
 		else if (access->type == WR && access->rts + 1 > commit_wts)
 			commit_wts = access->rts + 1;
 	}
-#if ISOLATION_LEVEL == SERIALIZABLE
+#if ISOLATION_LEVEL == SERIALIZABLE || ISOLATION_LEVEL == REPEATABLE_READ
 	if (commit_rts > commit_wts)
 		commit_wts = commit_rts;
 	else 
@@ -82,7 +78,7 @@ txn_man::validate_tictoc()
 				goto final;
 			}
 		}
-#if ISOLATION_LEVEL == SERIALIZABLE
+#if ISOLATION_LEVEL == SERIALIZABLE || ISOLATION_LEVEL == REPEATABLE_READ
 		for (int i = 0; i < row_cnt - wr_cnt; i++) {
 			row_t * row = accesses[ read_set[i] ]->orig_row;
 			bool lock;
@@ -131,7 +127,7 @@ txn_man::validate_tictoc()
 							goto final;
 						}
 					}
-			#if ISOLATION_LEVEL == SERIALIZABLE
+			#if ISOLATION_LEVEL == SERIALIZABLE || ISOLATION_LEVEL == REPEATABLE_READ
 					for (int i = 0; i < row_cnt - wr_cnt; i++) {
 						Access * access = accesses[ read_set[i] ];
 						bool lock;
@@ -174,7 +170,7 @@ txn_man::validate_tictoc()
 	assert (num_locks == wr_cnt);
 	// Validate the read set.
 	for (int i = 0; i < row_cnt - wr_cnt; i ++) {
-    #if ISOLATION_LEVEL == SERIALIZABLE
+	#if ISOLATION_LEVEL == SERIALIZABLE || ISOLATION_LEVEL == REPEATABLE_READ
 		Access * access = accesses[ read_set[i] ];
 		if ( access->rts < commit_wts ) {
 			bool success = access->orig_row->manager->try_renew(access->wts, commit_wts, access->rts, get_thd_id());
@@ -182,9 +178,6 @@ txn_man::validate_tictoc()
 		Access * access = accesses[ read_set[i] ];
 		if ( access->rts < commit_rts ) {
 			bool success = access->orig_row->manager->try_renew(access->wts, commit_rts, access->rts, get_thd_id());
-	#elif ISOLATION_LEVEL == REPEATABLE_READ
-		{
-			bool success = true;
     #endif
 			if (!success) {
 				rc = Abort;
