@@ -499,13 +499,13 @@ RC index_btree::insert_into_parent(
 		parent->keys[insert_idx] = key;
 		parent->pointers[insert_idx + 1] = right;
 		return RCOK;
-	}
+     }
 
 	/* Harder case:  split a node in order 
 	 * to preserve the B+ tree properties.
 	 */
 	
-	return split_nl_insert(params, parent, insert_idx, key, right);
+     return split_nl_insert(params, parent, insert_idx, key, right);
 //	return RCOK;
 }
 
