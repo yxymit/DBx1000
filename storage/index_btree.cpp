@@ -380,24 +380,24 @@ RC index_btree::find_leaf(glob_param params, idx_key_t key, idx_acc_t access_typ
 
 RC index_btree::insert_into_leaf(glob_param params, bt_node * leaf, idx_key_t key, itemid_t * item) {
 	UInt32 i, insertion_point;
-    insertion_point = 0;
+	insertion_point = 0;
 	int idx = leaf_has_key(leaf, key);	
 	if (idx >= 0) {
 		item->next = (itemid_t *)leaf->pointers[idx];
 		leaf->pointers[idx] = (void *) item;
 		return RCOK;
 	}
-    while (insertion_point < leaf->num_keys && leaf->keys[insertion_point] < key)
-        insertion_point++;
+	while (insertion_point < leaf->num_keys && leaf->keys[insertion_point] < key)
+		insertion_point++;
 	for (i = leaf->num_keys; i > insertion_point; i--) {
-        leaf->keys[i] = leaf->keys[i - 1];
-        leaf->pointers[i] = leaf->pointers[i - 1];
-    }
-    leaf->keys[insertion_point] = key;
-    leaf->pointers[insertion_point] = (void *)item;
-    leaf->num_keys++;
+		leaf->keys[i] = leaf->keys[i - 1];
+		leaf->pointers[i] = leaf->pointers[i - 1];
+	}
+	leaf->keys[insertion_point] = key;
+	leaf->pointers[insertion_point] = (void *)item;
+	leaf->num_keys++;
 	M_ASSERT( (leaf->num_keys < order), "too many keys in leaf" );
-    return RCOK;
+	return RCOK;
 }
 
 RC index_btree::split_lf_insert(glob_param params, bt_node * leaf, idx_key_t key, itemid_t * item) {
@@ -486,10 +486,10 @@ RC index_btree::insert_into_parent(
     if (parent == NULL)
         return insert_into_new_root(params, left, key, right);
     
-	UInt32 insert_idx = 0;
-	while (parent->keys[insert_idx] < key && insert_idx < parent->num_keys)
-		insert_idx ++;
-	// the parent has enough space, just insert into it
+    UInt32 insert_idx = 0;
+    while (parent->keys[insert_idx] < key && insert_idx < parent->num_keys)
+        insert_idx ++;
+    // the parent has enough space, just insert into it
     if (parent->num_keys < order - 1) {
 		for (UInt32 i = parent->num_keys-1; i >= insert_idx; i--) {
 			parent->keys[i + 1] = parent->keys[i];
@@ -499,13 +499,13 @@ RC index_btree::insert_into_parent(
 		parent->keys[insert_idx] = key;
 		parent->pointers[insert_idx + 1] = right;
 		return RCOK;
-	}
+     }
 
     /* Harder case:  split a node in order 
      * to preserve the B+ tree properties.
      */
 	
-	return split_nl_insert(params, parent, insert_idx, key, right);
+     return split_nl_insert(params, parent, insert_idx, key, right);
 //	return RCOK;
 }
 
