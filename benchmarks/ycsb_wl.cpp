@@ -21,14 +21,7 @@ int ycsb_wl::next_tid;
 RC ycsb_wl::init() {
 	workload::init();
 	next_tid = 0;
-	char * cpath = getenv("GRAPHITE_HOME");
-	string path;
-	if (cpath == NULL) 
-		path = "./benchmarks/YCSB_schema.txt";
-	else { 
-		path = string(cpath);
-		path += "/tests/apps/dbms/YCSB_schema.txt";
-	}
+	string path = "./benchmarks/YCSB_schema.txt";
 	init_schema( path );
 	
 	init_table_parallel();
