@@ -91,7 +91,7 @@ txn_man::validate_silo()
 						}
 					}
 				}
-				usleep(1);
+                PAUSE
 			}
 		}
 	} else {

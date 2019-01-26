@@ -145,7 +145,7 @@ txn_man::validate_tictoc()
 					}
 			#endif
 				}
-				usleep(1);
+				PAUSE 
 			}
 		}
 	} 

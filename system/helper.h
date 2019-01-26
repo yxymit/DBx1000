@@ -24,8 +24,8 @@
 	__sync_sub_and_fetch(&(dest), value)
 
 #define COMPILER_BARRIER asm volatile("" ::: "memory");
-//#define PAUSE { __asm__ ( "pause;" ); }
-#define PAUSE usleep(1);
+#define PAUSE { __asm__ ( "pause;" ); }
+//#define PAUSE usleep(1);
 
 /************************************************/
 // ASSERT Helper
