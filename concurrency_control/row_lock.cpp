@@ -83,7 +83,7 @@ RC Row_lock::lock_get(lock_t type, txn_man * txn, uint64_t* &txnids, int &txncnt
 		} else if (CC_ALG == WAIT_DIE) {
             ///////////////////////////////////////////////////////////
             //  - T is the txn currently running
-			//	IF T.ts > ts of all owners
+			//	IF T.ts < ts of all owners
 			//		T can wait
             //  ELSE
             //      T should abort
