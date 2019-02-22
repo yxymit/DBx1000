@@ -129,6 +129,37 @@ TsReqEntry * Row_ts::debuffer_req( TsType type, txn_man * txn, ts_t ts ) {
 	return return_queue;
 }
 
+TsReqEntry * Row_ts::debuffer_req( TsType type, TsReqEntry * txn_req) {
+	TsReqEntry ** queue;
+	TsReqEntry * return_queue = NULL;
+	switch (type) {
+		case P_REQ : queue = &prereq; break;
+		default: assert(false);
+	}
+
+	TsReqEntry * req = *queue;
+	TsReqEntry * prev_req = NULL;
+	if (txn_req != NULL) {
+		while (req != NULL && req->ts != txn_req->ts) {		
+			prev_req = req;
+			req = req->next;
+		}
+		assert(req != NULL);
+		if (prev_req != NULL)
+			prev_req->next = req->next;
+		else {
+			assert( req == *queue );
+			*queue = req->next;
+		}
+		preq_len --;
+		req->next = return_queue;
+		return_queue = req;
+	} else {
+		assert(false);
+	}
+	return return_queue;
+}
+
 ts_t Row_ts::cal_min(TsType type) {
 	// update the min_pts
 	TsReqEntry * queue;
@@ -245,10 +276,8 @@ void Row_ts::update_buffer() {
 		assert(new_min_pts >= min_pts);
 		if (new_min_pts > min_pts)
 			min_pts = new_min_pts;
-		else break; // min_pts is not updated.
 		// debuffer readreq. ready_read can be a list
 		TsReqEntry * ready_read = debuffer_req(R_REQ, min_pts);
-		if (ready_read == NULL) break;
 		// for each debuffered readreq, perform read.
 		TsReqEntry * req = ready_read;
 		while (req != NULL) {			
@@ -264,7 +293,6 @@ void Row_ts::update_buffer() {
 		ts_t new_min_rts = cal_min(R_REQ);
 		if (new_min_rts > min_rts)
 			min_rts = new_min_rts;
-		else break;
 		// debuffer writereq
 		TsReqEntry * ready_write = debuffer_req(W_REQ, min_rts);
 		if (ready_write == NULL) break;
@@ -272,7 +300,7 @@ void Row_ts::update_buffer() {
 		TsReqEntry * young_req = NULL;
 		req = ready_write;
 		while (req != NULL) {
-			TsReqEntry * tmp_req = debuffer_req(P_REQ, req->txn);
+			TsReqEntry * tmp_req = debuffer_req(P_REQ, req);
 			assert(tmp_req != NULL);
 			return_req_entry(tmp_req);
 			if (req->ts < young_ts) {
