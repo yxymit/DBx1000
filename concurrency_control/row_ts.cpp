@@ -241,10 +241,11 @@ RC Row_ts::access(txn_man * txn, TsType type, row_t * row) {
 			buffer_req(W_REQ, txn, row);
             goto final;
 		} else { 
-			// the write is output. 
-			_row->copy(row);
-			if (wts < ts)
+			// the write is output when ts is youngest one. 
+			if (wts < ts){
+				_row->copy(row);
 				wts = ts;
+			}
 			// debuffer the P_REQ
 			TsReqEntry * req = debuffer_req(P_REQ, txn);
 			assert(req != NULL);
