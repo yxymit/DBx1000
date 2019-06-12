@@ -1,16 +1,20 @@
 cmake_minimum_required(VERSION 2.8)
 project(Dbx1000)
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "-g ${CMAKE_CXX_FLAGS}")
-SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR})
+SET (CMAKE_C_COMPILER "gcc")
+SET (CMAKE_CXX_COMPILER "g++")
+SET (CMAKE_CXX_FLAGS "-std=c++11 -Wno-deprecated-declarations" CACHE INTERNAL "compiler options" FORCE)
+SET (CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE INTERNAL "compiler options" FORCE)
+SET (CMAKE_CXX_FLAGS_RELEASE "-O3" CACHE INTERNAL "compiler options" FORCE)
 
-add_definitions(-D NOGRAPHITE=1)
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR} ./benchmarks/ ./concurrency_control/ ./storage/ ./system/)
-
+add_definitions(-DNOGRAPHITE=1)
+# include header files
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/benchmarks/ ${PROJECT_SOURCE_DIR}/concurrency_control/ ${PROJECT_SOURCE_DIR}/storage/ ${PROJECT_SOURCE_DIR}/system/)
+# lib files
+#LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/libs)
 find_package(Threads)
 
-file(GLOB_RECURSE SOURCE_FILES benchmarks/*.cpp concurrency_control/*.cpp storage/*.cpp system/*.cpp config.cpp)
+file(GLOB_RECURSE SRC_FILES benchmarks/*.cpp concurrency_control/*.cpp storage/*.cpp system/*.cpp config.cpp)
 
-add_executable(rundb ${SOURCE_FILES})
-target_link_libraries(rundb ${CMAKE_THREAD_LIBS_INIT})
+add_executable(rundb ${SRC_FILES})
+target_link_libraries(rundb libpthread.so libjemalloc.so)
