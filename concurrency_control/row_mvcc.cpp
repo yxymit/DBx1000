@@ -18,6 +18,7 @@ void Row_mvcc::init(row_t * row) {
 	for (uint32_t i = 0; i < _his_len; i++) {
 		_requests[i].valid = false;
 		_write_history[i].valid = false;
+		_write_history[i].reserved = false;
 		_write_history[i].row = NULL;
 	}
 	_latest_row = _row;
