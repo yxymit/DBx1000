@@ -80,7 +80,7 @@ RC thread_t::run() {
 					if (m_query == NULL && _abort_buffer_empty_slots == 0) {
 						assert(trial == 0);
 						M_ASSERT(min_ready_time >= curr_time, "min_ready_time=%ld, curr_time=%ld\n", min_ready_time, curr_time);
-						usleep(min_ready_time - curr_time);
+						usleep((min_ready_time - curr_time) / 1000);
 					}
 					else if (m_query == NULL) {
 						m_query = query_queue->get_next_query( _thd_id );
