@@ -1,4 +1,4 @@
-<img src="logo/dbx1000.svg" alt="DBx1000 Logo" height="400">
+<img src="logo/dbx1000.svg" alt="DBx1000 Logo" width="50%">
 
 -----------------
 
