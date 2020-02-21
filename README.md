@@ -1,5 +1,6 @@
-DBx1000
-=======
+<img src="logo/dbx1000.svg" alt="DBx1000 Logo" width="75%">
+
+-----------------
 
 DBx1000 is a single node OLTP database management system (DBMS). The goal of DBx1000 is to make DBMS scalable on future 1000-core processors. We implemented all the seven classic concurrency control schemes in DBx1000. They exhibit different scalability properties under different workloads. 
 
