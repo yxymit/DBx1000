@@ -64,7 +64,7 @@ void mem_alloc::init_thread_arena() {
 	for (UInt32 i = 0; i < buf_cnt; i++) {
 		_arenas[i] = new Arena[SizeNum];
 		for (int n = 0; n < SizeNum; n++) {
-			assert(sizeof(Arena) == 128);
+			//assert(sizeof(Arena) == 128);
 			_arenas[i][n].init(i, BlockSizes[n]);
 		}
 	}
@@ -151,9 +151,11 @@ void * mem_alloc::alloc(uint64_t size, uint64_t part_id) {
 		int arena_id = get_arena_id();
 		int size_id = get_size_id(size);
 		ptr = _arenas[arena_id][size_id].alloc();
+		return ptr;
 	} else {
 		ptr = malloc(size);
 	}
+	//assert(false);
 	return ptr;
 }
 

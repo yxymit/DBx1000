@@ -1,3 +1,6 @@
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
 #include "tpcc.h"
 #include "tpcc_query.h"
 #include "tpcc_helper.h"
@@ -11,31 +14,47 @@
 #include "tpcc_const.h"
 #include "manager.h"
 #include "row_silo.h"
+#include <inttypes.h>
 
 void tpcc_txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	txn_man::init(h_thd, h_wl, thd_id);
 	_wl = (tpcc_wl *) h_wl;
 }
 
-RC tpcc_txn_man::run_txn(base_query * query) {
+RC tpcc_txn_man::run_txn(base_query * query, bool rec) {
 	_query = (tpcc_query *) query;
 	RC rc = RCOK;
 //	cout << _query->type << endl;
+	uint64_t starttime = get_sys_clock();
 	switch (_query->type) {
 		case TPCC_PAYMENT :
-			rc = run_payment(_query); 
+			rc = run_payment(_query);
+			COMPILER_BARRIER 
+			INC_INT_STATS(time_debug11, get_sys_clock() - starttime);
 			break;
 		case TPCC_NEW_ORDER :
 			rc = run_new_order(_query); 
+			COMPILER_BARRIER
+			INC_INT_STATS(time_debug12, get_sys_clock() - starttime);
 			break;
-/*		case TPCC_ORDER_STATUS :
-			return run_order_status(_query); break;
+		case TPCC_ORDER_STATUS :
+			assert(false);
+			rc = run_order_status(_query);
+			INC_INT_STATS(time_debug13, get_sys_clock() - starttime);
+			break;
 		case TPCC_DELIVERY :
-			return run_delivery(_query); break;
+			assert(false);
+			rc = run_delivery(_query);
+			INC_INT_STATS(time_debug14, get_sys_clock() - starttime);
+			break;
 		case TPCC_STOCK_LEVEL :
-			return run_stock_level(_query); break;*/
+			assert(false);
+			rc = run_stock_level(_query);
+			INC_INT_STATS(time_debug15, get_sys_clock() - starttime);
+			break;
 		default:
-			M_ASSERT(false, "type=%d num_commit=%ld\n", 
+		
+			M_ASSERT(false, "type=%d num_commit=%" PRIu64 "\n", 
 				_query->type, stats->_stats[GET_THD_ID]->_int_stats[STAT_num_commits]);
 	}
 	return rc;
@@ -48,17 +67,21 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 
 	uint64_t w_id = query->w_id;
     uint64_t c_w_id = query->c_w_id;
-	/*====================================================+
-    	EXEC SQL UPDATE warehouse SET w_ytd = w_ytd + :h_amount
-		WHERE w_id=:w_id;
-	+====================================================*/
+#if VERBOSE_LEVEL & VERBOSE_SQL_CONTENT
+    stringstream ss;
+    ss << GET_THD_ID << "EXEC SQL UPDATE warehouse SET w_ytd = w_ytd + :h_amount	WHERE w_id=:w_id;" << w_id << endl;
+    cout << ss.str();
+	/*====================================================+ \
+    	EXEC SQL UPDATE warehouse SET w_ytd = w_ytd + :h_amount \
+		WHERE w_id=:w_id; \
+	+====================================================*/ \
 	/*===================================================================+
 		EXEC SQL SELECT w_street_1, w_street_2, w_city, w_state, w_zip, w_name
 		INTO :w_street_1, :w_street_2, :w_city, :w_state, :w_zip, :w_name
 		FROM warehouse
 		WHERE w_id=:w_id;
 	+===================================================================*/
-
+#endif
 	// TODO for variable length variable (string). Should store the size of 
 	// the variable.
 	key = query->w_id;
@@ -85,6 +108,12 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 	char * tmp_str = row_t::get_value(r_wh->get_schema(), W_NAME, wh_data);
 	memcpy(w_name, tmp_str, 10);
 	w_name[10] = '\0';
+
+#if VERBOSE_LEVEL & VERBOSE_SQL_CONTENT
+    stringstream ss2;
+    ss2 << GET_THD_ID << "EXEC SQL UPDATE district SET d_ytd = d_ytd + :h_amount WHERE d_w_id=:w_id AND d_id=:d_id;"<< w_id << " " << query->d_id << endl;
+    cout << ss2.str();
+#endif
 	/*=====================================================+
 		EXEC SQL UPDATE district SET d_ytd = d_ytd + :h_amount
 		WHERE d_w_id=:w_id AND d_id=:d_id;
@@ -134,7 +163,12 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 			ORDER BY c_first;
 			EXEC SQL OPEN c_byname;
 		+===========================================================================*/
-
+#if VERBOSE_LEVEL & VERBOSE_SQL_CONTENT
+    stringstream ss3;
+    ss3 << GET_THD_ID << "EXEC SQL SELECT count(c_id) INTO :namecnt FROM customer WHERE c_last=:c_last AND c_d_id=:c_d_id AND c_w_id=:c_w_id;"
+    << query->c_last << " " << query->c_d_id << " " << query->c_w_id <<  endl;
+    cout << ss3.str();
+#endif
 		uint64_t key = custNPKey(query->c_last, query->c_d_id, query->c_w_id);
 		// XXX: the list is not sorted. But let's assume it's sorted... 
 		// The performance won't be much different.
@@ -181,7 +215,12 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 		assert(item != NULL);
 		r_cust = (row_t *) item->location;
 	}
-
+#if VERBOSE_LEVEL & VERBOSE_SQL_CONTENT
+    stringstream ss4;
+    ss4 << GET_THD_ID << "EXEC SQL UPDATE customer SET c_balance = :c_balance, c_data = :c_new_data WHERE c_w_id = :c_w_id AND c_d_id = :c_d_id AND c_id = :c_id;"
+    << query->c_w_id << " " << query->c_d_id << " " << query->c_id <<  endl;
+    cout << ss4.str();
+#endif
   	/*======================================================================+
 	   	EXEC SQL UPDATE customer SET c_balance = :c_balance, c_data = :c_new_data
    		WHERE c_w_id = :c_w_id AND c_d_id = :c_d_id AND c_id = :c_id;
@@ -221,11 +260,11 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 	}
 	
 	char h_data[25];
-	strncpy(h_data, w_name, 10);
+	strncpy(h_data, w_name, 11);
 	int length = strlen(h_data);
 	if (length > 10) length = 10;
 	strcpy(&h_data[length], "    ");
-	strncpy(&h_data[length + 4], d_name, 10);
+	strncpy(&h_data[length + 4], d_name, 11);
 	h_data[length+14] = '\0';
 	/*=============================================================================+
 	  EXEC SQL INSERT INTO
@@ -256,6 +295,7 @@ RC tpcc_txn_man::run_payment(tpcc_query * query) {
 }
 
 RC tpcc_txn_man::run_new_order(tpcc_query * query) {
+	uint64_t starttime = get_sys_clock();
 	RC rc = RCOK;
 	uint64_t key;
 	itemid_t * item;
@@ -321,10 +361,11 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
         return finish(Abort);
 
 
-	int64_t o_id = *(int64_t *) row_t::get_value(r_dist->get_schema(), D_NEXT_O_ID, r_dist_data);
+    int64_t o_id = *(int64_t *) row_t::get_value(r_dist->get_schema(), D_NEXT_O_ID, r_dist_data);
     o_id ++;
     row_t::set_value(r_dist->get_schema(), D_NEXT_O_ID, r_dist_data, (char *)&o_id);	
-
+	uint64_t tt1 = get_sys_clock();
+	INC_INT_STATS(time_phase1_1, tt1 - starttime);
 	/*========================================================================================+
 	EXEC SQL INSERT INTO ORDERS (o_id, o_d_id, o_w_id, o_c_id, o_entry_d, o_ol_cnt, o_all_local)
 		VALUES (:o_id, :d_id, :w_id, :c_id, :datetime, :o_ol_cnt, :o_all_local);
@@ -352,7 +393,7 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 //	r_no->set_value(NO_W_ID, w_id);
 //	insert_row(r_no, _wl->t_neworder);
 	for (UInt32 ol_number = 0; ol_number < ol_cnt; ol_number++) {
-
+		uint64_t tt_i = get_sys_clock();
 		uint64_t ol_i_id = query->items[ol_number].ol_i_id;
 		uint64_t ol_supply_w_id = query->items[ol_number].ol_supply_w_id;
 		uint64_t ol_quantity = query->items[ol_number].ol_quantity;
@@ -363,12 +404,18 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 			WHERE i_id = :ol_i_id;
 		+===========================================*/
 		key = ol_i_id;
-		item = index_read(_wl->i_item, key, 0);
+		item = index_read(_wl->i_item, key, 0); //<<<<<<<<<<<<<<<
+		uint64_t tt_2 = get_sys_clock();
+		INC_INT_STATS(time_phase1_2, tt_2 - tt_i);
+		COMPILER_BARRIER
 		assert(item != NULL);
 		row_t * r_item = ((row_t *)item->location);
 		
 		char * r_item_data = NULL;
-        rc = get_row(r_item, RD, r_item_data);
+        rc = get_row(r_item, RD, r_item_data); //<<<<<<<<<<<<<<<<
+		uint64_t tt_3 = get_sys_clock();
+		INC_INT_STATS(time_phase2, tt_3 - tt_2);
+		COMPILER_BARRIER
         if (rc != RCOK)
 			return finish(Abort);
 		
@@ -394,14 +441,25 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 		+===============================================*/
 
 		uint64_t stock_key = stockKey(ol_i_id, ol_supply_w_id);
+		
 		INDEX * stock_index = _wl->i_stock;
 		itemid_t * stock_item;
+		
 		index_read(stock_index, stock_key, wh_to_part(ol_supply_w_id), stock_item);
+		//<<<<<<<<<<<<<<<<<<<<<<<<<<
+		//uint64_t tt_iii = get_sys_clock();
+		//INC_INT_STATS(time_phase3_raw, tt_iii - tt_3);
+		
 		assert(item != NULL);
 		row_t * r_stock = ((row_t *)stock_item->location);
 		
+		uint64_t tt_4 = get_sys_clock();
+		INC_INT_STATS(time_phase3, tt_4 - tt_3);
+		COMPILER_BARRIER
 		char * r_stock_data = NULL;
-        rc = get_row(r_stock, WR, r_stock_data);
+        rc = get_row(r_stock, WR, r_stock_data); //<<<<<<<<<<<<<<<<
+		uint64_t tt_5 = get_sys_clock();
+		INC_INT_STATS(time_phase1_1_raw, tt_5 - tt_4);
 		if (rc != RCOK)
 			return finish(Abort);
 		
@@ -418,6 +476,8 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
         s_order_cnt ++;
         row_t::set_value(r_stock->get_schema(), S_ORDER_CNT, r_stock_data, (char *)&s_order_cnt);
 #endif
+		uint64_t tt_6 = get_sys_clock();
+		INC_INT_STATS(time_phase1_2_raw, tt_6 - tt_5);
 		if (remote) {
             s_remote_cnt = *(int64_t*)row_t::get_value(r_stock->get_schema(), S_REMOTE_CNT, r_stock_data);
             s_remote_cnt ++;
@@ -430,7 +490,8 @@ RC tpcc_txn_man::run_new_order(tpcc_query * query) {
 			quantity = s_quantity - ol_quantity + 91;
 		}
 		row_t::set_value(r_stock->get_schema(), S_QUANTITY, r_stock_data, (char *)&quantity);
-
+		uint64_t tt_7 = get_sys_clock();
+		INC_INT_STATS(time_phase2_raw, tt_7 - tt_6);
 		/*====================================================+
 		EXEC SQL INSERT
 			INTO order_line(ol_o_id, ol_d_id, ol_w_id, ol_number,
@@ -651,9 +712,51 @@ tpcc_txn_man::run_stock_level(tpcc_query * query) {
 	return RCOK;
 }
 
+
+void 
+tpcc_txn_man::get_cmd_log_entry(char * log_entry, uint32_t & log_entry_size)
+{
+	// Format
+	//  | stored_procedure_id | input_params
+	PACK(log_entry, _query->type, log_entry_size);
+
+	if (_query->type == TPCC_PAYMENT) {
+		// format
+        //  w_id | d_id | c_id |
+        //  d_w_id | c_w_id | c_d_id |
+        //  h_amount | by_last_name | c_last[LASTNAME_LEN] 
+		PACK(log_entry, _query->w_id, log_entry_size);
+		PACK(log_entry, _query->d_id, log_entry_size);
+		PACK(log_entry, _query->c_id, log_entry_size);
+		
+		PACK(log_entry, _query->d_w_id, log_entry_size);
+		PACK(log_entry, _query->c_w_id, log_entry_size);
+		PACK(log_entry, _query->c_d_id, log_entry_size);
+		
+		PACK(log_entry, _query->h_amount, log_entry_size);
+		PACK(log_entry, _query->by_last_name, log_entry_size);
+		PACK_SIZE(log_entry, _query->c_last, LASTNAME_LEN, log_entry_size);
+	} else if (_query->type == TPCC_NEW_ORDER) {
+        // format
+        //  uint64_t w_id | uint64_t d_id | uint64_t c_id |
+        //  bool remote | uint64_t ol_cnt | uint64_t o_entry_d |
+        //  Item_no * ol_cnt
+		PACK(log_entry, _query->w_id, log_entry_size);
+		PACK(log_entry, _query->d_id, log_entry_size);
+		PACK(log_entry, _query->c_id, log_entry_size);
+
+		PACK(log_entry, _query->remote, log_entry_size);
+		PACK(log_entry, _query->ol_cnt, log_entry_size);
+		PACK(log_entry, _query->o_entry_d, log_entry_size);
+		
+		PACK_SIZE(log_entry, _query->items, sizeof(Item_no) * _query->ol_cnt, log_entry_size);
+	}
+}
+
 void 
 tpcc_txn_man::get_cmd_log_entry()
 {
+	#if LOG_ALGORITHM != LOG_PLOVER
 	// Format
 	//  | stored_procedure_id | input_params
 	PACK(_log_entry, _query->type, _log_entry_size);
@@ -689,6 +792,35 @@ tpcc_txn_man::get_cmd_log_entry()
 		
 		PACK_SIZE(_log_entry, _query->items, sizeof(Item_no) * _query->ol_cnt, _log_entry_size);
 	}
+	#else
+	assert(false);
+	#endif
+}
+
+uint32_t 
+tpcc_txn_man::get_cmd_log_entry_length()
+{
+	// Format
+	//  | stored_procedure_id | input_params
+	uint32_t ret;
+	ret = sizeof(TPCCTxnType);
+
+	if (_query->type == TPCC_PAYMENT) {
+		// format
+        //  w_id | d_id | c_id |
+        //  d_w_id | c_w_id | c_d_id |
+        //  h_amount | by_last_name | c_last[LASTNAME_LEN] 
+		ret += sizeof(uint64_t) * 6 + sizeof(double) + sizeof(bool) + LASTNAME_LEN;
+		
+	} else if (_query->type == TPCC_NEW_ORDER) {
+        // format
+        //  uint64_t w_id | uint64_t d_id | uint64_t c_id |
+        //  bool remote | uint64_t ol_cnt | uint64_t o_entry_d |
+        //  Item_no * ol_cnt
+
+		ret += sizeof(uint64_t) * 3 + sizeof(bool) + sizeof(uint64_t) * 2 + sizeof(Item_no) * _query->ol_cnt;
+	}
+	return ret;
 }
 
 void
@@ -702,6 +834,7 @@ tpcc_txn_man::recover_txn(char * log_entry, uint64_t tid)
 	uint32_t num_keys; 
 	UNPACK(log_entry, num_keys, offset);
 	for (uint32_t i = 0; i < num_keys; i ++) {
+		uint64_t t2 = get_sys_clock();
 		uint32_t table_id;
 		uint64_t key;
 		uint32_t data_length;
@@ -710,21 +843,28 @@ tpcc_txn_man::recover_txn(char * log_entry, uint64_t tid)
 		UNPACK(log_entry, table_id, offset);
 		UNPACK(log_entry, key, offset);
 		UNPACK(log_entry, data_length, offset);
+		assert(data_length!=0);
 		data = log_entry + offset;
 		offset += data_length;
 		assert(table_id < NUM_TABLES);
 		itemid_t * m_item = index_read(_wl->tpcc_tables[(TableName)table_id]->get_primary_index(), key, 0);
+		uint64_t t3 = get_sys_clock();
+		INC_INT_STATS(time_debug5, t3 - t2);
 		row_t * row = ((row_t *)m_item->location);
 	#if LOG_ALGORITHM == LOG_BATCH
-		row->manager->lock();
+		row->manager->lock(this);
+		INC_INT_STATS(time_debug6, get_sys_clock() - t3);
 		uint64_t cur_tid = row->manager->get_tid();
 		if (tid > cur_tid) { 
 			row->set_data(data, data_length);
 			row->manager->set_tid(tid);
 		}
-		row->manager->release();
+		INC_INT_STATS(time_debug7, get_sys_clock() - t3);
+		row->manager->release(this, RCOK);
+		INC_INT_STATS(time_debug8, get_sys_clock() - t3);
 	#else
 		row->set_data(data, data_length);
+		INC_INT_STATS(time_debug8, get_sys_clock() - t3);
 	#endif
 	}
 #elif LOG_TYPE == LOG_COMMAND
@@ -762,12 +902,12 @@ tpcc_txn_man::recover_txn(char * log_entry, uint64_t tid)
 		assert(false);
 	run_txn(_query);
 #endif
-	INC_FLOAT_STATS(time_recover_txn, get_sys_clock() - tt);
+	INC_INT_STATS(time_recover_txn, get_sys_clock() - tt);
 }
 
 void 
 tpcc_query::print()
 {
-	printf("Type=%d, w_id=%ld, d_id=%ld, c_id=%ld, by_last_name=%d\n",
+	printf("Type=%d, w_id=%" PRIu64 ", d_id=%" PRIu64 ", c_id=%" PRIu64 ", by_last_name=%d\n",
 		type, w_id, d_id, c_id, by_last_name);	
 }

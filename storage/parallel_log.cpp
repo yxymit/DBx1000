@@ -29,8 +29,8 @@ PredecessorInfo::PredecessorInfo()
 	// For lower isolation levels. 
 	_raw_size = 0;
 	_waw_size = 0;
-	_preds_raw = (uint64_t *) _mm_malloc(sizeof(uint64_t) * MAX_ROW_PER_TXN, 64);
-	_preds_waw = (uint64_t *) _mm_malloc(sizeof(uint64_t) * MAX_ROW_PER_TXN, 64);
+	_preds_raw = (uint64_t *) MALLOC(sizeof(uint64_t) * MAX_ROW_PER_TXN, GET_THD_ID);
+	_preds_waw = (uint64_t *) MALLOC(sizeof(uint64_t) * MAX_ROW_PER_TXN, GET_THD_ID);
 }
 
 void 
@@ -108,7 +108,7 @@ ParallelLogManager::ParallelLogManager()
 {
 	num_txns_recovered = new uint64_t volatile * [g_thread_cnt];
 	for (uint32_t i = 0; i < g_thread_cnt; i++) {
-		num_txns_recovered[i] = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
+		num_txns_recovered[i] = (uint64_t *) MALLOC(sizeof(uint64_t), GET_THD_ID);
 		*num_txns_recovered[i] = 0;
 	}
 
@@ -134,13 +134,13 @@ void ParallelLogManager::init()
 			bench = "TPCC";
 		string dir; // = string(logging_dir) + "/f1";
 		if (i == 0) 
-			dir += "/f0/yxy";
+			dir += "/f0";
 		else if (i == 1)
-			dir += "/f1/yxy";
+			dir += "/f1";
 		else if (i == 2)
-			dir += "/f2/yxy";
+			dir += "/f2";
 		else if (i == 3)
-			dir += "/data/yxy";
+			dir += "/data";
 		else 
 			dir += ".";
 		//string dir = ".";

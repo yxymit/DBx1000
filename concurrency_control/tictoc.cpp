@@ -20,7 +20,7 @@ txn_man::validate_tictoc()
 	int cur_rd_idx = 0;
 #endif
 	int cur_wr_idx = 0;
-	for (int rid = 0; rid < row_cnt; rid ++) {
+	for (uint32_t rid = 0; rid < row_cnt; rid ++) {
 		if (accesses[rid]->type == WR)
 			write_set[cur_wr_idx ++] = rid;
 #if ISOLATION_LEVEL != REPEATABLE_READ
@@ -58,10 +58,10 @@ txn_man::validate_tictoc()
 		}
 	}
 #endif
-	int num_locks = 0;
+	uint32_t num_locks = 0;
 	ts_t commit_rts = _min_cts;
 	ts_t commit_wts = _min_cts;
-	for (int i = 0; i < row_cnt; i ++) {
+	for (uint32_t i = 0; i < row_cnt; i ++) {
 		Access * access = accesses[ i ];
 		if (access->type == RD && access->wts > commit_rts)
 			commit_rts = access->wts;
@@ -79,7 +79,7 @@ txn_man::validate_tictoc()
 	bool done = false;
 #endif
 	if (_pre_abort) {
-		for (int i = 0; i < wr_cnt; i++) {
+		for (uint32_t i = 0; i < wr_cnt; i++) {
 			row_t * row = accesses[ write_set[i] ]->orig_row;
 			if (row->manager->get_wts() != accesses[ write_set[i] ]->wts)
 			{	
@@ -88,7 +88,7 @@ txn_man::validate_tictoc()
 			}
 		}
 #if ISOLATION_LEVEL == SERIALIZABLE
-		for (int i = 0; i < row_cnt - wr_cnt; i++) {
+		for (uint32_t i = 0; i < row_cnt - wr_cnt; i++) {
 			row_t * row = accesses[ read_set[i] ]->orig_row;
 			bool lock;
 			uint64_t wts, rts;
@@ -114,7 +114,7 @@ txn_man::validate_tictoc()
 	if (_validation_no_wait) {
 		while (!done) {
 			num_locks = 0;
-			for (int i = 0; i < wr_cnt; i++) {
+			for (uint32_t i = 0; i < wr_cnt; i++) {
 				row_t * row = accesses[ write_set[i] ]->orig_row;
 				if (!row->manager->try_lock())
 					break;
@@ -128,11 +128,11 @@ txn_man::validate_tictoc()
 			if (num_locks == wr_cnt)
 				done = true;
 			else {
-				for (int i = 0; i < num_locks; i++)
+				for (uint32_t i = 0; i < num_locks; i++)
 					accesses[ write_set[i] ]->orig_row->manager->release();
 				if (_pre_abort) {
 					num_locks = 0;
-					for (int i = 0; i < wr_cnt; i++) {
+					for (uint32_t i = 0; i < wr_cnt; i++) {
 						row_t * row = accesses[ write_set[i] ]->orig_row;
 						if (row->manager->get_wts() != accesses[ write_set[i] ]->wts)
 						{
@@ -141,7 +141,7 @@ txn_man::validate_tictoc()
 						}
 					}
 			#if ISOLATION_LEVEL == SERIALIZABLE
-					for (int i = 0; i < row_cnt - wr_cnt; i++) {
+					for (uint32_t i = 0; i < row_cnt - wr_cnt; i++) {
 						Access * access = accesses[ read_set[i] ];
 						bool lock;
 						uint64_t wts, rts;
@@ -163,7 +163,7 @@ txn_man::validate_tictoc()
 		}
 	} 
 	else { // _validation_no_wait = false
-		for (int i = 0; i < wr_cnt; i++) {
+		for (uint32_t i = 0; i < wr_cnt; i++) {
 			row_t * row = accesses[ write_set[i] ]->orig_row;
 			row->manager->lock();
 			num_locks++;
@@ -174,7 +174,7 @@ txn_man::validate_tictoc()
 			}
 		}
 	}
-	for (int i = 0; i < wr_cnt; i++) {
+	for (uint32_t i = 0; i < wr_cnt; i++) {
 		row_t * row = accesses[ write_set[i] ]->orig_row;
 		if (row->manager->get_rts() + 1 > commit_wts)
 			commit_wts = row->manager->get_rts() + 1;
@@ -182,7 +182,7 @@ txn_man::validate_tictoc()
 
 	assert (num_locks == wr_cnt);
 	// Validate the read set.
-	for (int i = 0; i < row_cnt - wr_cnt; i ++) {
+	for (uint32_t i = 0; i < row_cnt - wr_cnt; i ++) {
     #if ISOLATION_LEVEL == SERIALIZABLE
 		Access * access = accesses[ read_set[i] ];
 		if ( access->rts < commit_wts ) {
@@ -236,7 +236,7 @@ txn_man::validate_tictoc()
 final:
 	if (rc == Abort) {
 #if WR_VALIDATION_SEPARATE 
-		for (int i = 0; i < num_locks; i++) 
+		for (uint32_t i = 0; i < num_locks; i++) 
 			accesses[ write_set[i] ]->orig_row->manager->release();
 #else 
 		for (int i = 0; i < num_locks; i++) 
@@ -286,7 +286,7 @@ final:
 
 		assert(!_write_copy_ptr);
 #if WR_VALIDATION_SEPARATE 
-		for (int i = 0; i < wr_cnt; i++) {
+		for (uint32_t i = 0; i < wr_cnt; i++) {
 			Access * access = accesses[ write_set[i] ];
 			access->orig_row->manager->write_data( 
 				access->data, commit_wts, this);
@@ -300,16 +300,19 @@ final:
 //				access->orig_row->manager->release();
 //			}
 #endif
+/*
 		if (g_prt_lat_distr)
 			stats.add_debug(get_thd_id(), commit_wts, 2);
-
+*/
 		//uint64_t tt = get_sys_clock();
 		rc = cleanup(rc);
+		/*
 		if (_atomic_timestamp && rc == RCOK) {
-			ts_t ts = glob_manager->get_ts(get_thd_id());
+			//ts_t ts = glob_manager->get_ts(get_thd_id());
+			
 			if (g_prt_lat_distr)
 				stats.add_debug(get_thd_id(), ts, 1);
-		}
+		}*/
 	}
 	return rc;
 }

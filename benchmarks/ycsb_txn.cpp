@@ -17,18 +17,20 @@
 #include "query.h"
 #include "row_silo.h"
 
+#define YCSB_REC_WORKLOAD 5
+
 void ycsb_txn_man::init(thread_t * h_thd, workload * h_wl, uint64_t thd_id) {
 	txn_man::init(h_thd, h_wl, thd_id);
 	_wl = (ycsb_wl *) h_wl;
 }
 
-RC ycsb_txn_man::run_txn(base_query * query) {
+RC ycsb_txn_man::run_txn(base_query * query, bool rec) {
+	uint64_t starttime = get_sys_clock();
 	RC rc;
 	_query = (ycsb_query *) query;
 	ycsb_wl * wl = (ycsb_wl *) h_wl;
 	itemid_t * m_item = NULL;
   	row_cnt = 0;
-
 	for (uint32_t rid = 0; rid < _query->request_cnt; rid ++) {
 		ycsb_request * req = &_query->requests[rid];
 		int part_id = wl->key_to_part( req->key );
@@ -36,6 +38,7 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 		UInt32 iteration = 0;
 		while ( !finish_req ) {
 			if (iteration == 0) {
+				
 				m_item = index_read(_wl->the_index, req->key, part_id);
 			} 
 #if INDEX_STRUCT == IDX_BTREE
@@ -47,28 +50,43 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 #endif
 			row_t * row = ((row_t *)m_item->location);
 			access_t type = req->rtype;
-			
 			char * data = NULL;	
+			//uint64_t before_get_row = get_sys_clock();
 			rc = get_row(row, type, data);
+			//INC_INT_STATS(time_recover8, get_sys_clock() - before_get_row);
 			if (rc == Abort) 
 				goto final;
 			assert(data);	
 			// Computation //
 			// Only do computation when there are more than 1 requests.
             if (_query->request_cnt > 1) {
+				//uint64_t beforeget = get_sys_clock();
                 if (req->rtype == RD || req->rtype == SCAN) {
 					for (uint32_t i = 0; i < _wl->the_table->get_schema()->get_field_cnt(); i++) { 
 						__attribute__((unused)) char * value = 
 							row_t::get_value(_wl->the_table->get_schema(), i, data);
 					}
+					//INC_INT_STATS(time_debug6, get_sys_clock() - beforeget);
                 } else {
 					for (uint32_t i = 0; i < _wl->the_table->get_schema()->get_field_cnt(); i++) { 
+						
 						char * value = row_t::get_value(_wl->the_table->get_schema(), i, data);
-						//for (uint32_t j = 0; j < _wl->the_table->get_schema()->get_field_size(i); j ++) 
-						//	value[j] = value[j] + 1;
-						value[0] = value[0] + 1;
+						/* if(rec)
+						{
+							for (uint32_t k = 0; k < YCSB_REC_WORKLOAD; k++)
+							{
+								for (uint32_t j = 0; j < _wl->the_table->get_schema()->get_field_size(i); j ++) 
+									value[j] = value[j] + 1;
+							}
+						}
+						else */
+						{
+							value[0] = value[0] + 1;
+						}
 						row_t::set_value(_wl->the_table->get_schema(), i, data, value);
+						
 					}
+					//INC_INT_STATS(time_debug7, get_sys_clock() - beforeget);
                 } 
             }
 			iteration ++;
@@ -78,6 +96,7 @@ RC ycsb_txn_man::run_txn(base_query * query) {
 	}
 	rc = RCOK;
 final:
+	INC_INT_STATS(time_txn, get_sys_clock() - starttime);
 	if (g_log_recover)
 		return RCOK;
 	else 
@@ -111,14 +130,21 @@ ycsb_txn_man::recover_txn(char * log_entry, uint64_t tid)
 		itemid_t * m_item = index_read(_wl->the_index, key, 0);
 		row_t * row = ((row_t *)m_item->location);
 	#if LOG_ALGORITHM == LOG_BATCH
-		row->manager->lock();
-		uint64_t cur_tid = row->manager->get_tid();
-		if (tid > cur_tid) { 
-			row->set_data(data, data_length);
-			row->manager->set_tid(tid);
-		}
-		row->manager->release();
+		// Silo needs to check versions
+        uint64_t cur_tid = row->manager->get_tid(); // non-conflicting trial
+        if (tid > cur_tid) { // optimization
+            row->manager->lock(this);
+            cur_tid = row->manager->get_tid();
+            if (tid > cur_tid) { 
+                row->set_data(data, data_length);
+                row->manager->set_tid(tid);
+            }
+            row->manager->release(this, RCOK);
+        }
 	#else
+		// Plover with 2PL has independent log streams following the dependency order
+		// Taurus resolve dependencies before calling recover
+		// Serial has log streams corresponding to the dependency order
 		row->set_data(data, data_length);
 	#endif
 	}
@@ -138,7 +164,9 @@ ycsb_txn_man::recover_txn(char * log_entry, uint64_t tid)
 		UNPACK(log_entry, _query->requests[i].rtype, offset);
 	}
 //	uint64_t tt = get_sys_clock();
-	run_txn(_query);
+    uint64_t ttrt = get_sys_clock();
+	run_txn(_query, true);
+	INC_INT_STATS(time_debug8, get_sys_clock() - ttrt);
 //	INC_STATS(GET_THD_ID, debug8, get_sys_clock() - tt);
 
 /*	#if LOG_ALGORITHM == LOG_PARALLEL
@@ -179,12 +207,13 @@ ycsb_txn_man::recover_txn(char * log_entry, uint64_t tid)
 #else
 	assert(false);
 #endif
-	INC_FLOAT_STATS(time_recover_txn, get_sys_clock() - tt);
+	INC_INT_STATS(time_recover_txn, get_sys_clock() - tt);
 }
 
 void 
 ycsb_txn_man::get_cmd_log_entry()
 {
+	#if LOG_ALGORITHM != LOG_PLOVER
 	// Format
 	//  | stored_procedure_id | num_keys | (key, type) * numk_eys
 	uint32_t sp_id = 0;
@@ -196,7 +225,38 @@ ycsb_txn_man::get_cmd_log_entry()
 		PACK(_log_entry, _query->requests[i].key, _log_entry_size);
 		PACK(_log_entry, _query->requests[i].rtype, _log_entry_size);
 	}
+	#else
+	assert(false);
+	#endif
 }
+
+void 
+ycsb_txn_man::get_cmd_log_entry(char * log_entry, uint32_t & log_entry_size)
+{
+	// Format
+	//  | stored_procedure_id | num_keys | (key, type) * numk_eys
+	uint32_t sp_id = 0;
+	uint32_t num_keys = _query->request_cnt;
+
+	PACK(log_entry, sp_id, log_entry_size);
+	PACK(log_entry, num_keys, log_entry_size);
+	for (uint32_t i = 0; i < num_keys; i ++) {
+		PACK(log_entry, _query->requests[i].key, log_entry_size);
+		PACK(log_entry, _query->requests[i].rtype, log_entry_size);
+	}
+}
+
+uint32_t 
+ycsb_txn_man::get_cmd_log_entry_length()
+{
+	// Format
+	//  | stored_procedure_id | num_keys | (key, type) * numk_eys
+	uint32_t num_keys = _query->request_cnt;
+	uint32_t ret;
+	ret = sizeof(uint32_t) * 2 + num_keys * (sizeof(uint64_t) + sizeof(access_t));
+	return ret;
+}
+
 /*
 uint32_t 
 ycsb_txn_man::get_cmd_log_size()

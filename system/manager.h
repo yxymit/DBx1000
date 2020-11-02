@@ -1,7 +1,9 @@
 #pragma once 
 
+#include <stdlib.h>
 #include "helper.h"
 #include "global.h"
+#include "config.h"
 
 class row_t;
 class txn_man;
@@ -38,7 +40,13 @@ public:
 	void 			remove_log_pending(uint64_t txn_id);
 
     // per-thread random number generator
-    void            init_rand(uint64_t thd_id) {  srand48_r(thd_id, &_buffer); }
+    void            init_rand(uint64_t thd_id) {  
+		#if __APPLE__
+			// we use erand48 so it's ok not having initialization functions.
+		#else
+			srand48_r(thd_id, &_buffer); 
+		#endif			
+					}
     uint64_t        rand_uint64();
     double          rand_double();
 
@@ -61,6 +69,13 @@ public:
 	uint64_t 		get_persistent_epoch(uint32_t logger) {
 		return *_persistent_epoch[logger];
 	}
+
+	uint32_t		evictLatch;
+	#if LOG_ALGORITHM == LOG_TAURUS && COMPRESS_LSN_LOG
+	uint64_t		** lastPSN;
+	#endif
+	// workload 
+	workload * _workload;
 private:
 	// for SILO
 	volatile uint64_t * 			_epoch;		
@@ -86,6 +101,5 @@ private:
     // thread id
 	static __thread uint64_t _thread_id;
 
-	// workload 
-	workload * _workload;
+	
 };

@@ -23,7 +23,7 @@ private:
 	string _file_name;
 	fstream _file;
 	uint64_t _block_size;
-	uint32_t _cur_block;
+	//uint32_t _cur_block;
 	char ** _blocks;
  	pthread_mutex_t _alloc_lock;
 	uint32_t _max_block_num;

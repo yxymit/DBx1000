@@ -389,7 +389,7 @@ RC index_btree::insert_into_leaf(glob_param params, bt_node * leaf, idx_key_t ke
 	}
     while (insertion_point < leaf->num_keys && leaf->keys[insertion_point] < key)
         insertion_point++;
-	for (i = leaf->num_keys; i > insertion_point; i--) {
+    for (i = leaf->num_keys; i > insertion_point; i--) {
         leaf->keys[i] = leaf->keys[i - 1];
         leaf->pointers[i] = leaf->pointers[i - 1];
     }
@@ -486,7 +486,7 @@ RC index_btree::insert_into_parent(
     if (parent == NULL)
         return insert_into_new_root(params, left, key, right);
     
-	UInt32 insert_idx = 0;
+    UInt32 insert_idx = 0;
 	while (parent->keys[insert_idx] < key && insert_idx < parent->num_keys)
 		insert_idx ++;
 	// the parent has enough space, just insert into it

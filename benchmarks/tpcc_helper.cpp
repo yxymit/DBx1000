@@ -100,9 +100,9 @@ uint64_t MakeAlphaString(int min, int max, char* str, uint64_t thd_id) {
                         'N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
     uint64_t cnt = URand(min, max, thd_id);
     for (uint32_t i = 0; i < cnt; i++) 
-		str[i] = char_list[URand(0L, 60L, thd_id)];
+			str[i] = char_list[URand(0L, 60L, thd_id)];
     for (int i = cnt; i < max; i++)
-		str[i] = '\0';
+			str[i] = '\0';
 
     return cnt;
 }

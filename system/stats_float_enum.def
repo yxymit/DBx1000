@@ -1,0 +1,6 @@
+DEF_STAT(run_time)
+DEF_STAT(log_bytes)
+DEF_STAT(log_dep_size)
+DEF_STAT(log_total_size)
+	
+DEF_STAT(latency)

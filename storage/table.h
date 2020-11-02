@@ -17,7 +17,8 @@ public:
 	// records for new rows. get_new_row returns the pointer to a 
 	// new row.	
 	RC get_new_row(row_t *& row); // this is equivalent to insert()
-	RC get_new_row(row_t *& row, uint64_t part_id, uint64_t &row_id);
+	RC get_new_row(row_t *& row, uint64_t part_id, uint64_t &row_id, uint64_t local_id);
+	RC get_new_row(row_t *& row, uint64_t part_id, uint64_t &row_id, void * mem, void * manager_mem, void * data_mem, void * lsn_vector_mem);
 
 	void delete_row(); // TODO delete_row is not supportet yet
 

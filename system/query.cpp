@@ -35,7 +35,7 @@ Query_queue::init(workload * h_wl) {
 
 void 
 Query_queue::init_per_thread(int thread_id) {	
-	all_queries[thread_id] = (Query_thd *) _mm_malloc(sizeof(Query_thd), 64);
+	all_queries[thread_id] = (Query_thd *) MALLOC(sizeof(Query_thd), thread_id);
 	all_queries[thread_id]->init(_wl, thread_id);
 }
 
@@ -71,7 +71,7 @@ Query_thd::init(workload * h_wl, int thread_id) {
 		mem_allocator.alloc(sizeof(ycsb_query) * request_cnt, thread_id);
 	buffer[0] = thread_id;
 #elif WORKLOAD == TPCC
-	queries = (tpcc_query *) _mm_malloc(sizeof(tpcc_query) * request_cnt, 64);
+	queries = (tpcc_query *) MALLOC(sizeof(tpcc_query) * request_cnt, thread_id);
 #endif
 	for (UInt32 qid = 0; qid < request_cnt; qid ++) {
 #if WORKLOAD == YCSB	

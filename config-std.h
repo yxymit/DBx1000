@@ -2,24 +2,37 @@
 #define _CONFIG_H_
 
 /***********************************************/
+#define VERBOSE_LEVEL               0 // 0 for nothing
+#define VERBOSE_TXNLV               1
+#define VERBOSE_TXNLV_UPDATE        2
+#define VERBOSE_LOCKTABLE_TXNLV_UPDATE  4
+#define VERBOSE_SQL_CONTENT         8
+/***********************************************/
+
+
+/***********************************************/
 // Simulation + Hardware
 /***********************************************/
-#define THREAD_CNT					16
+#define THREAD_CNT				 	6
 #define PART_CNT					1 
 // each transaction only accesses 1 virtual partition. But the lock/ts manager and index are not aware of such partitioning. VIRTUAL_PART_CNT describes the request distribution and is only used to generate queries. For HSTORE, VIRTUAL_PART_CNT should be the same as PART_CNT.
 #define VIRTUAL_PART_CNT			1
 #define PAGE_SIZE					4096 
 #define CL_SIZE						64
 // CPU_FREQ is used to get accurate timing info 
-#define CPU_FREQ 					2.13 	// in GHz/s
+#define CPU_FREQ 					2.5	// in GHz/s // TODO: change this
 
 // # of transactions to run for warmup
 #define WARMUP						0
 // YCSB or TPCC
-#define WORKLOAD 					YCSB
+#define WORKLOAD YCSB
 // print the transaction latency distribution
 #define PRT_LAT_DISTR				false
 #define STATS_ENABLE				true
+// 0 for only analysis related
+// 1 for debug
+// 2 for verbose
+#define STAT_VERBOSE				1
 #define COLLECT_LATENCY				false
 #define TIME_ENABLE					true 
 
@@ -40,9 +53,12 @@
 /***********************************************/
 // WAIT_DIE, NO_WAIT, DL_DETECT, TIMESTAMP, MVCC, HEKATON, HSTORE, OCC, VLL, TICTOC, SILO
 // TODO TIMESTAMP does not work at this moment
-#define CC_ALG 						SILO //WAIT_DIE
+#define CC_ALG 						NO_WAIT //SILO //WAIT_DIE
 #define ISOLATION_LEVEL 			SERIALIZABLE
 
+#define USE_LOCKTABLE				true
+#define LOCKTABLE_MODIFIER			(10003) // (256)
+#define LOCKTABLE_INIT_SLOTS		(0)
 // all transactions acquire tuples according to the primary key order.
 #define KEY_ORDER					false
 // transaction roll back changes after abort
@@ -103,20 +119,21 @@
 /***********************************************/
 // Logging
 /***********************************************/
-#define LOG_ALGORITHM 				LOG_PARALLEL
-#define LOG_TYPE 					LOG_COMMAND
+
+#define LOG_ALGORITHM               LOG_PLOVER // LOG_TAURUS
+#define LOG_TYPE                    LOG_DATA
 #define LOG_RAM_DISK				false
 #define LOG_NO_FLUSH			 	false
-#define LOG_RECOVER 				false
+#define LOG_RECOVER                 false
 #define LOG_BATCH_TIME				10 // in ms
-#define LOG_GARBAGE_COLLECT 		false
+#define LOG_GARBAGE_COLLECT         false
 #define LOG_BUFFER_SIZE				(1048576 * 50)	// in bytes
 // For LOG_PARALLEL
 #define LOG_PARALLEL_BUFFER_FILL	false 
-#define NUM_LOGGER					4 
-#define LOG_PARALLEL_NUM_BUCKETS    5000000	// should equal the number of recovered txns
-#define MAX_LOG_ENTRY_SIZE			8192 // in Bytes
-#define LOG_FLUSH_INTERVAL   		5000 // in us.
+#define NUM_LOGGER					1 // the number of loggers
+#define LOG_PARALLEL_NUM_BUCKETS    4000000	// should equal the number of recovered txns
+#define MAX_LOG_ENTRY_SIZE			16384 // in Bytes
+#define LOG_FLUSH_INTERVAL   		50000000 // in us. 
 #define TRACK_WAR_DEPENDENCY		true // necessary only for logical or command logging.  
 #define LOG_PARALLEL_REC_NUM_POOLS  THREAD_CNT 
 #define LOG_CHUNK_SIZE  			(1048576 * 10)
@@ -125,33 +142,33 @@
 // Benchmark
 /***********************************************/
 // max number of rows touched per transaction
-#define MAX_ROW_PER_TXN				64
+#define MAX_ROW_PER_TXN				1024
 #define QUERY_INTVL 				1UL
-#define MAX_TXNS_PER_THREAD 		1000000
+#define MAX_TXNS_PER_THREAD 		50000
 #define FIRST_PART_LOCAL 			true
 #define MAX_TUPLE_SIZE				1024 // in bytes
 // ==== [YCSB] ====
-#define INIT_PARALLELISM			32
-#define SYNTH_TABLE_SIZE 			(1024 * 1020 * 10)
-#define ZIPF_THETA 					0.6
+#define INIT_PARALLELISM			32 // 28
+#define SYNTH_TABLE_SIZE 			(1024 * 1024 * 10)
+#define ZIPF_THETA 					0.6 // .6
 #define READ_PERC 					0.5
 #define WRITE_PERC 					0.5
 #define SCAN_PERC 					0
 #define SCAN_LEN					20
 #define PART_PER_TXN 				1
 #define PERC_MULTI_PART				1
-#define REQ_PER_QUERY				2 
+#define REQ_PER_QUERY				8 //2 // 2 // 16 
 #define FIELD_PER_TUPLE				10
 // ==== [TPCC] ====
 // For large warehouse count, the tables do not fit in memory
 // small tpcc schemas shrink the table size.
-#define TPCC_SMALL					false
+#define TPCC_SMALL					false // false // true // false
 // Some of the transactions read the data but never use them. 
 // If TPCC_ACCESS_ALL == fales, then these parts of the transactions
 // are not modeled.
 #define TPCC_ACCESS_ALL 			false 
 #define WH_UPDATE					true
-#define NUM_WH 						16
+#define NUM_WH 						32 // 16 // 4 // 16
 //
 enum TPCCTxnType {TPCC_ALL, 
 				TPCC_PAYMENT, 
@@ -163,6 +180,10 @@ extern TPCCTxnType 					g_tpcc_txn_type;
 
 //#define TXN_TYPE					TPCC_ALL
 #define PERC_PAYMENT 				0.5
+#define PERC_NEWORDER				0.5
+#define PERC_ORDERSTATUS			0.03
+#define PERC_DELIVERY				0.294
+#define PERC_STOCKLEVEL				0.03
 #define FIRSTNAME_MINLEN 			8
 #define FIRSTNAME_LEN 				16
 #define LASTNAME_LEN 				16
@@ -233,15 +254,106 @@ extern TestCases					g_test_case;
 #define TS_HW						3
 #define TS_CLOCK					4
 // Buffer size for logging
-#define BUFFER_SIZE                                     10
+#define BUFFER_SIZE                 10
 
 // Logging Algorithm
 #define LOG_NO						1
 #define LOG_SERIAL                  2
 #define LOG_BATCH                   3
 #define LOG_PARALLEL                4
+#define LOG_TAURUS					5
+#define LOG_PLOVER					6
 // Logging type
 #define LOG_DATA					1
 #define LOG_COMMAND					2
+/************************************/
+// LOG TAURUS
+/************************************/
+#define EVICT_FREQ					10000
+#define WITHOLD_LOG					false 
+#define COMPRESS_LSN_LT				false
+#define COMPRESS_LSN_LOG			false // false
+#define PSN_FLUSH_FREQ				1000
+#define LOCKTABLE_EVICT_BUFFER		30000
+#define SOLVE_LIVELOCK				true
+#define POOLSIZE_WAIT				2000 // if pool size is too small it might cause live lock.
+#define RECOVER_BUFFER_PERC			(0.5)
+#define TAURUS_RECOVER_BATCH_SIZE	(500)
+#define ASYNC_IO					true
+#define DECODE_AT_WORKER			false
+#define UPDATE_SIMD					true
+#define SCAN_WINDOW					2
+#define BIG_HASH_TABLE_MODE			true // true // false
+#define PROCESS_DEPENDENCY_LOGGER   false
+#define PARTITION_AWARE				false // this switch does not bring much benefit for YCSB
+#define PER_WORKER_RECOVERY			true // false //true
+#define TAURUS_CHUNK				true
+#define TAURUS_CHUNK_MEMCPY			true
+#define DISTINGUISH_COMMAND_LOGGING	true
+// big hash table mode means locktable evict buffer is infinite.
+/************************************/
+// LOG BATCH
+/************************************/
+#define MAX_NUM_EPOCH				5000
+/************************************/
+// LOG GENERAL
+/************************************/
+#define RECOVERY_FULL_THR			false // true // false // true
+#define RECOVER_SINGLE_RECOVERLV	false // use only with a single queue
+
+#define RECOVER_TAURUS_LOCKFREE		false  // Use the SPMC-Pool for each logger
+#define POOL_SE_SPACE (8)
+
+#define FLUSH_BLOCK_SIZE		1048576 // twice as best among 4096 40960 409600 4096000
+#define READ_BLOCK_SIZE 419430400
+
+#define AFFINITY true // true
+
+/************************************/
+// LOG PLOVER
+/************************************/
+
+#define PLOVER_NO_WAIT				true
+
+
+/************************************/
+// SIMD Config
+/************************************/
+
+#define G_NUM_LOGGER g_num_logger
+#define MAX_LOGGER_NUM_SIMD 16
+#define SIMD_PREFIX __m512i // __m256i
+#define MM_MAX _mm512_max_epu32 //_mm256_max_epu32
+#define MM_MASK __mmask16
+#define MM_CMP _mm512_cmp_epu32_mask
+#define MM_EXP_LOAD _mm512_maskz_expandloadu_epi32
+#define MM_INTERLEAVE_MASK 0x5555
+#define NUM_CORES_PER_SLOT	(24)
+#define NUMA_NODE_NUM	(2)
+#define HYPER_THREADING_FACTOR (2) // in total 24 * 2 * 2 = 96
+
+/************************************/
+#define OUTPUT_AVG_RATIO 0.9
+
+#include "config-assertions.h"
+
+#define MM_MALLOC(x,y) _mm_malloc(x, ALIGN_SIZE)
+#define MM_FREE(x,y) _mm_free(x)
+#include "numa.h"
+#define NUMA_MALLOC(x,y) numa_alloc_onnode(x, ((y) % g_num_logger) % NUMA_NODE_NUM)
+#define NUMA_FREE(x,y) numa_free(x, y)
+
+#if WORKLOAD == YCSB
+#define MALLOC NUMA_MALLOC
+#define FREE NUMA_FREE
+#else
+// TPC-C workloads are generating too many memory allocations.
+// Each numa_alloc_onnode will create a separate mmap. It could be disastrous
+#define MALLOC MM_MALLOC
+#define FREE MM_FREE
+#endif
+
+///////// MISC
+#define WORK_IN_PROGRESS true
 
 #endif

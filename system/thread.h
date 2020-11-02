@@ -1,6 +1,7 @@
 #pragma once 
 
 #include "global.h"
+#include "stdlib.h"
 
 using namespace std;
 
@@ -25,6 +26,9 @@ public:
 	// to run with pthread.
 	// conversion is done within the function.
 	RC 			run();
+	~thread_t(){
+		FREE(_abort_buffer, sizeof(AbortBufferEntry) * _abort_buffer_size);
+	}
 private:
 	uint64_t 	_host_cid;
 	uint64_t 	_cur_cid;
@@ -45,3 +49,5 @@ private:
 	int _abort_buffer_empty_slots;
 	bool _abort_buffer_enable;
 };
+
+extern thread_t ** m_thds;

@@ -111,7 +111,7 @@ LogPendingTable::LogPendingTable()
 	_num_buckets = LOG_PARALLEL_NUM_BUCKETS * g_thread_cnt;
 	_buckets = new Bucket * [_num_buckets];
 	for (uint32_t i = 0; i < _num_buckets; i ++)
-		_buckets[i] = (Bucket *) _mm_malloc(sizeof(Bucket), 64);
+		_buckets[i] = (Bucket *) MALLOC(sizeof(Bucket), GET_THD_ID);
 
 	_free_nodes = new StackType * [g_thread_cnt];
 	//_free_nodes = new queue<TxnNode *> * [g_thread_cnt]; 
@@ -136,7 +136,7 @@ LogPendingTable::add_log_pending(txn_man * txn, uint64_t * predecessors,
 		new_node->txn_id = txn_id;
 		//assert(new_node->pred_size == 0);
 	} else { 
-		new_node = (TxnNode *) _mm_malloc(sizeof(TxnNode), 64);
+		new_node = (TxnNode *) MALLOC(sizeof(TxnNode), GET_THD_ID);
 		new_node->thd_id = GET_THD_ID;
 		new(new_node) TxnNode(txn_id);
 		//INC_STATS(GET_THD_ID, debug1, 1000);

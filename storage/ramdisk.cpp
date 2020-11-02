@@ -1,5 +1,9 @@
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
 #include "ramdisk.h"
 #include "manager.h"
+#include <inttypes.h>
 /*#include "parallel_log.h"
 #include <iostream>
 #include <fstream>
@@ -104,7 +108,7 @@ RamDisk::flush(uint64_t total_size)
 	_file.open(_file_name, ios::out | ios::binary | ios::trunc);
 	_file.seekg (0, _file.beg);
 	assert(!g_log_recover);
-	printf("total_size=%ld\n", total_size);
+	printf("total_size=%" PRIu64 "\n", total_size);
 	_file.write( (char *)&total_size, sizeof(total_size));
 	uint32_t i = 0;
 	for (; i < total_size / _block_size; i ++) 
@@ -126,7 +130,7 @@ void RamDisk::load()
 	_cur_offset = 0; //16;
   	_total_size = 0;
   	_file.read((char *)&_total_size, sizeof(_total_size));
-	printf("file=%s, thd=%ld, total_size=%ld, # of blocks=%ld\n", 
+	printf("file=%s, thd=%" PRIu64 ", total_size=%" PRIu64 ", # of blocks=%" PRIu64 "\n", 
 		_file_name.c_str(), glob_manager->get_thd_id(), _total_size, _total_size / _block_size + 1);
 	uint64_t i = 0;
 	for (; i < _total_size / _block_size; i ++) {

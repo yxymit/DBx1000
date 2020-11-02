@@ -13,8 +13,8 @@ void Row_mvcc::init(row_t * row) {
 	_his_len = 4;
 	_req_len = _his_len;
 
-	_write_history = (WriteHisEntry *) _mm_malloc(sizeof(WriteHisEntry) * _his_len, 64);
-	_requests = (ReqEntry *) _mm_malloc(sizeof(ReqEntry) * _req_len, 64);
+	_write_history = (WriteHisEntry *) MALLOC(sizeof(WriteHisEntry) * _his_len, GET_THD_ID, GET_THD_ID);
+	_requests = (ReqEntry *) MALLOC(sizeof(ReqEntry) * _req_len, GET_THD_ID);
 	for (uint32_t i = 0; i < _his_len; i++) {
 		_requests[i].valid = false;
 		_write_history[i].valid = false;
@@ -29,7 +29,7 @@ void Row_mvcc::init(row_t * row) {
 	_max_served_rts = 0;
 	
 	blatch = false;
-	latch = (pthread_mutex_t *) _mm_malloc(sizeof(pthread_mutex_t), 64);
+	latch = (pthread_mutex_t *) MALLOC(sizeof(pthread_mutex_t), GET_THD_ID);
 	pthread_mutex_init(latch, NULL);
 }
 
@@ -61,7 +61,7 @@ void
 Row_mvcc::double_list(uint32_t list)
 {
 	if (list == 0) {
-		WriteHisEntry * temp = (WriteHisEntry *) _mm_malloc(sizeof(WriteHisEntry) * _his_len * 2, 64);
+		WriteHisEntry * temp = (WriteHisEntry *) MALLOC(sizeof(WriteHisEntry) * _his_len * 2, GET_THD_ID);
 		for (uint32_t i = 0; i < _his_len; i++) {
 			temp[i].valid = _write_history[i].valid;
 			temp[i].reserved = _write_history[i].reserved;
@@ -73,12 +73,12 @@ Row_mvcc::double_list(uint32_t list)
 			temp[i].reserved = false;
 			temp[i].row = NULL;
 		}
-		_mm_free(_write_history);
+		FREE(_write_history, sizeof(WriteHisEntry) * _his_len);
 		_write_history = temp;
 		_his_len = _his_len * 2;
 	} else {
 		assert(list == 1);
-		ReqEntry * temp = (ReqEntry *) _mm_malloc(sizeof(ReqEntry) * _req_len * 2, 64);
+		ReqEntry * temp = (ReqEntry *) MALLOC(sizeof(ReqEntry) * _req_len * 2, GET_THD_ID);
 		for (uint32_t i = 0; i < _req_len; i++) {
 			temp[i].valid = _requests[i].valid;
 			temp[i].type = _requests[i].type;
@@ -88,7 +88,7 @@ Row_mvcc::double_list(uint32_t list)
 		}
 		for (uint32_t i = _req_len; i < _req_len * 2; i++) 
 			temp[i].valid = false;
-		_mm_free(_requests);
+		FREE(_requests, sizeof(ReqEntry) * _req_len);
 		_requests = temp;
 		_req_len = _req_len * 2;
 	}
@@ -298,7 +298,7 @@ Row_mvcc::reserveRow(ts_t ts, txn_man * txn)
 	assert(idx != _his_len);
 	// some entries are not taken. But the row of that entry is NULL.
 	if (!_write_history[idx].row) {
-		_write_history[idx].row = (row_t *) _mm_malloc(sizeof(row_t), 64);
+		_write_history[idx].row = (row_t *) MALLOC(sizeof(row_t), GET_THD_ID);
 		_write_history[idx].row->init(MAX_TUPLE_SIZE);
 	}
 	_write_history[idx].valid = false;

@@ -1,24 +1,36 @@
 #include "row.h"
 #include "txn.h"
+#include "helper.h"
 #include "row_lock.h"
 #include "mem_alloc.h"
 #include "manager.h"
 
 #if CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || CC_ALG == DL_DETECT
 
+#define CONFLICT(a, b) (a != LOCK_NONE_T && b != LOCK_NONE_T) && (a==LOCK_EX_T || b==LOCK_EX_T)
+
 void Row_lock::init(row_t * row) {
 	_row = row;
+	/*
 	owners = NULL;
 	waiters_head = NULL;
 	waiters_tail = NULL;
-	owner_cnt = 0;
-	waiter_cnt = 0;
+	*/
+	// owner_cnt = 0;
+	//waiter_cnt = 0;
 
-	latch = new pthread_mutex_t;
-	pthread_mutex_init(latch, NULL);
-	
-	lock_type = LOCK_NONE;
-	blatch = false;
+#if ATOMIC_WORD
+	lock = 0;
+#else
+	#if !USE_LOCKTABLE
+		//latch = new pthread_mutex_t;
+		//pthread_mutex_init(latch, NULL);
+		blatch = false;
+	#endif
+		
+		lock_type = LOCK_NONE_T;
+		ownerCounter = 0;
+#endif
 
 }
 
@@ -29,234 +41,149 @@ RC Row_lock::lock_get(lock_t type, txn_man * txn) {
 }
 
 RC Row_lock::lock_get(lock_t type, txn_man * txn, uint64_t* &txnids, int &txncnt) {
+	uint64_t starttime = get_sys_clock();
 	assert (CC_ALG == DL_DETECT || CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE);
 	RC rc;
-	int part_id =_row->get_part_id();
-	if (g_central_man)
-		glob_manager->lock_row(_row);
-	else 
-		pthread_mutex_lock( latch );
-	assert(owner_cnt <= g_thread_cnt);
-	assert(waiter_cnt < g_thread_cnt);
-/*#if DEBUG_ASSERT
-	if (owners != NULL)
-		assert(lock_type == owners->type); 
-	else 
-		assert(lock_type == LOCK_NONE);
-	LockEntry * en = owners;
-	UInt32 cnt = 0;
-	while (en) {
-		assert(en->txn->get_thd_id() != txn->get_thd_id());
-		cnt ++;
-		en = en->next;
+#if ATOMIC_WORD
+	//assert(type<3);
+	#if !USE_LOCKTABLE
+	uint64_t lock_local=lock;
+	if(CONFLICT(LOCK_TYPE(lock_local), type))
+	{
+		rc = Abort;
 	}
-	assert(cnt == owner_cnt);
-	en = waiters_head;
-	cnt = 0;
-	while (en) {
-		cnt ++;
-		en = en->next;
+	else
+	{
+		for(;;)
+		{
+			lock_local = lock;
+			if(CONFLICT(LOCK_TYPE(lock_local), type))
+			{
+				rc = Abort;
+				break;
+			}
+			if(ATOM_CAS(lock, lock_local, ADD_TYPE(COUNTER(lock_local)+1, type)))
+			{
+				rc = RCOK;
+				break;
+			}
+			PAUSE
+		}
+		/*
+		if(ATOM_CAS(lock, lock_local, ADD_TYPE(COUNTER(lock_local)+1, type)))
+		{
+			rc = RCOK;
+		}
+		else
+		{
+			rc = Abort;
+		}
+		*/
 	}
-	assert(cnt == waiter_cnt);
-#endif*/
-
-	bool conflict = conflict_lock(lock_type, type);
-//	if (CC_ALG == WAIT_DIE && !conflict) {
-//		if (waiters_head && txn->get_ts() < waiters_head->txn->get_ts())
-//			conflict = true;
-//	}
-	// Some txns coming earlier is waiting. Should also wait.
-//	if (CC_ALG == DL_DETECT && waiters_head != NULL)
-//		conflict = true;
 	
+	#else
+	// we are inside an atomic section
+	bool conflict = CONFLICT(LOCK_TYPE(lock), type);
+	if(conflict)
+	{
+		rc = Abort;
+	}
+	else
+	{
+		lock = ADD_TYPE(COUNTER(lock)+1, type);
+		rc = RCOK;
+	}
+	#endif
+#else
+#if !USE_LOCKTABLE  // otherwise we don't need a latch here.
+	if (g_central_man)
+	{
+		glob_manager->lock_row(_row);
+	}
+	else {
+		while(!ATOM_CAS(blatch, false, true)) PAUSE;
+		//pthread_mutex_lock( latch );
+	}
+#endif
+	bool conflict = CONFLICT(lock_type, type);// conflict_lock(lock_type, type);
 	if (conflict) { 
 		// Cannot be added to the owner list.
 		if (CC_ALG == NO_WAIT) {
 			rc = Abort;
-			//goto final;
-		} /*else if (CC_ALG == DL_DETECT) {
-			LockEntry * entry = get_entry();
-			entry->txn = txn;
-			entry->type = type;
-			LIST_PUT_TAIL(waiters_head, waiters_tail, entry);
-			waiter_cnt ++;
-            txn->lock_ready = false;
-            rc = WAIT;
-		} else if (CC_ALG == WAIT_DIE) {
-            ///////////////////////////////////////////////////////////
-            //  - T is the txn currently running
-			//	IF T.ts < ts of all owners
-			//		T can wait
-            //  ELSE
-            //      T should abort
-            //////////////////////////////////////////////////////////
-			bool canwait = true;
-			for (vector<LockEntry>::iterator it = owners.begin(); 
-			 	it != owners.end(); it ++)
-			{
-				LockEntry & en = *it;
-                if (en.txn->get_ts() < txn->get_ts()) {
-					canwait = false;
-					break;
-				}
-			}
-			if (canwait) {
-				// insert txn to the right position
-				// the waiter list is always in timestamp order
-				LockEntry entry = LockEntry{type, txn};
-				waiters.push_back(entry);
-				//entry->txn = txn;
-				//entry->type = type;
-				//en = waiters_head;
-				while (en != NULL && txn->get_ts() < en->txn->get_ts()) 
-					en = en->next;
-				if (en) {
-					LIST_INSERT_BEFORE(en, entry);
-					if (en == waiters_head)
-						waiters_head = entry;
-				} else 
-					LIST_PUT_TAIL(waiters_head, waiters_tail, entry);
-				waiter_cnt ++;
-                txn->lock_ready = false;
-                rc = WAIT;
-            }
-            else 
-                rc = Abort;
-        }*/
+		}
 	} else {
-
-		LockEntry entry = LockEntry {type, txn}; 
-		_owners.push_back(entry);
-//		LockEntry * entry = get_entry();
-//		entry->type = type;
-//		entry->txn = txn;
-//		STACK_PUSH(owners, entry);
-//		owner_cnt ++;
-//		lock_type = type;
-//		if (CC_ALG == DL_DETECT) 
-//			ASSERT(waiters_head == NULL);
+		INC_INT_STATS(time_debug6, get_sys_clock() - starttime);
+		ownerCounter ++;
+		lock_type = type;
         rc = RCOK;
 	}
-	
-/*	if (rc == WAIT && CC_ALG == DL_DETECT) {
-		// Update the waits-for graph
-		ASSERT(waiters_tail->txn == txn);
-		txnids = (uint64_t *) mem_allocator.alloc(sizeof(uint64_t) * (owner_cnt + waiter_cnt), part_id);
-		txncnt = 0;
-		LockEntry * en = waiters_tail->prev;
-		while (en != NULL) {
-			if (conflict_lock(type, en->type)) 
-				txnids[txncnt++] = en->txn->get_txn_id();
-			en = en->prev;
-		}
-		en = owners;
-		if (conflict_lock(type, lock_type)) 
-			while (en != NULL) {
-				txnids[txncnt++] = en->txn->get_txn_id();
-				en = en->next;
-			}
-		ASSERT(txncnt > 0);
-	}
-*/
+#if !USE_LOCKTABLE  // otherwise we don't need a latch here.
 	if (g_central_man)
 		glob_manager->release_row(_row);
 	else
-		pthread_mutex_unlock( latch );
-
+		blatch = false;
+		//pthread_mutex_unlock( latch );
+#endif
+#endif
+	INC_INT_STATS(time_debug7, get_sys_clock() - starttime);
 	return rc;
 }
 
 
 RC Row_lock::lock_release(txn_man * txn) {	
-
+#if ATOMIC_WORD
+#if USE_LOCKTABLE
+	lock --;
+	if (COUNTER(lock) == 0)
+		lock = 0;
+#else
+	for(;;)
+	{
+		uint64_t local_lock = lock;
+		uint64_t new_lock = local_lock - 1;
+		if (COUNTER(new_lock) == 0)
+		{
+			new_lock = 0;
+		}
+		if(ATOM_CAS(lock, local_lock, new_lock))
+			break;
+		PAUSE
+	}
+#endif
+#else
+#if !USE_LOCKTABLE  // otherwise we don't need a latch here.
 	if (g_central_man)
 		glob_manager->lock_row(_row);
-	else 
-		pthread_mutex_lock( latch );
-
-	// Try to find the entry in the owners
-//	LockEntry * en = owners;
-//	LockEntry * prev = NULL;
-	bool found = false;
-	// TODO. right now, just sequentially search the vector of _owners
-	for (vector<LockEntry>::iterator it = _owners.begin(); it != _owners.end(); it ++) {
-		if (it->txn == txn) {
-			//entry = &(*it);
-			found = true;
-			_owners.erase(it);
-			break;
-		}
-	}
-#if (CC_ALG == NO_WAIT)
-	assert(found);
+	else
+		while(!ATOM_CAS(blatch, false, true)) PAUSE;
+		//pthread_mutex_lock( latch );
 #endif
-	if (found) {
-		// TODO. continue from here.  
-		_row->set_last_writer( txn-> );
-	}
-	if (_owners.empty())
-		lock_type = LOCK_NONE;
-/*	while (en != NULL && en->txn != txn) {
-		prev = en;
-		en = en->next;
-	}
-	if (en) { // find the entry in the owner list
-		if (prev) prev->next = en->next;
-		else owners = en->next;
-		return_entry(en);
-		owner_cnt --;
-		if (owner_cnt == 0)
-			lock_type = LOCK_NONE;
-	} else {
-		// Not in owners list, try waiters list.
-		en = waiters_head;
-		while (en != NULL && en->txn != txn)
-			en = en->next;
-		ASSERT(en);
-		LIST_REMOVE(en);
-		if (en == waiters_head)
-			waiters_head = en->next;
-		if (en == waiters_tail)
-			waiters_tail = en->prev;
-		return_entry(en);
-		waiter_cnt --;
-	}
-*/
-//	if (owner_cnt == 0)
-//		ASSERT(lock_type == LOCK_NONE);
-//#if DEBUG_ASSERT && CC_ALG == WAIT_DIE 
-//		for (en = waiters_head; en != NULL && en->next != NULL; en = en->next)
-//			assert(en->next->txn->get_ts() < en->txn->get_ts());
-//#endif
-
-/*	LockEntry * entry;
-	// If any waiter can join the owners, just do it!
-	while (waiters_head && !conflict_lock(lock_type, waiters_head->type)) {
-		LIST_GET_HEAD(waiters_head, waiters_tail, entry);
-		STACK_PUSH(owners, entry);
-		owner_cnt ++;
-		waiter_cnt --;
-		ASSERT(entry->txn->lock_ready == false);
-		entry->txn->lock_ready = true;
-		lock_type = entry->type;
-	} 
-	ASSERT((owners == NULL) == (owner_cnt == 0));
-*/
+	ownerCounter --;
+	if (ownerCounter == 0)//(_owners.empty())
+		lock_type = LOCK_NONE_T;
+#if !USE_LOCKTABLE  // otherwise we don't need a latch here.
 	if (g_central_man)
 		glob_manager->release_row(_row);
 	else
-		pthread_mutex_unlock( latch );
-
+		blatch = 0;
+#endif
+#endif
 	return RCOK;
 }
 
 bool Row_lock::conflict_lock(lock_t l1, lock_t l2) {
-	if (l1 == LOCK_NONE || l2 == LOCK_NONE)
+	if (l1 == LOCK_NONE_T || l2 == LOCK_NONE_T)
+	{
 		return false;
-    else if (l1 == LOCK_EX || l2 == LOCK_EX)
+	}
+  else if (l1 == LOCK_EX_T || l2 == LOCK_EX_T)
+	{
         return true;
+	}
 	else
+	{
 		return false;
+	}
 }
 
 LockEntry * Row_lock::get_entry() {

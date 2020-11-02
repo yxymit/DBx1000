@@ -5,6 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include "log_pending_table.h"
+#include <stdlib.h>
 
 struct pending_entry {
 	uint32_t pred_size;
@@ -16,20 +17,21 @@ __thread drand48_data Manager::_buffer;
 unordered_map<uint64_t, pending_entry *> _log_pending_map;
 
 void Manager::init() {
-	timestamp = (uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
+	timestamp = (uint64_t *) MALLOC(sizeof(uint64_t), GET_THD_ID);
 	*timestamp = 1;
 	_last_min_ts_time = 0;
 	_min_ts = 0;
-	_epoch = (volatile uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
+	_epoch = (volatile uint64_t *) MALLOC(sizeof(uint64_t), GET_THD_ID);
 	_max_epochs = new volatile uint64_t * [g_thread_cnt];
-	_last_epoch_update_time = (ts_t *) _mm_malloc(sizeof(uint64_t), 64);
+	_last_epoch_update_time = (ts_t *) MALLOC(sizeof(uint64_t), GET_THD_ID);
 	// First epoch is epoch 1. 
 	*_epoch = 1;
+	COMPILER_BARRIER
 	*_last_epoch_update_time = get_sys_clock();
-	all_ts = (ts_t volatile **) _mm_malloc(sizeof(ts_t *) * g_thread_cnt, 64);
+	all_ts = (ts_t volatile **) MALLOC(sizeof(ts_t *) * g_thread_cnt, GET_THD_ID);
 	for (uint32_t i = 0; i < g_thread_cnt; i++) {
-		all_ts[i] = (ts_t *) _mm_malloc(sizeof(ts_t), 64);
-		_max_epochs[i] = (volatile uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
+		all_ts[i] = (ts_t *) MALLOC(sizeof(ts_t), GET_THD_ID);
+		_max_epochs[i] = (volatile uint64_t *) MALLOC(sizeof(uint64_t), GET_THD_ID);
 		*_max_epochs[i] = 0;
 	}
 
@@ -45,17 +47,29 @@ void Manager::init() {
 	// unorderedmap<uint64_t, * pred_entry> _log_pending_map = {};
 	//_log_pending_table = new LogPendingTable;
 	_persistent_epoch = new volatile uint64_t * [g_num_logger];
-	for (uint32_t i = 0; i < g_num_logger; i++) 
-		_persistent_epoch[i] = (volatile uint64_t *) _mm_malloc(sizeof(uint64_t), 64);
+	for (uint32_t i = 0; i < g_num_logger; i++) {
+		_persistent_epoch[i] = (volatile uint64_t *) MALLOC(sizeof(uint64_t), GET_THD_ID);
+		*_persistent_epoch[i] = 0;  // initialize
+	}
 	_epoch_mapping = new uint64_t * [g_thread_cnt];
 	_active_epoch = new uint64_t [g_thread_cnt];
 	for (uint32_t i = 0; i < g_thread_cnt; i++) {
 		// TODO.  assume we never more than 1M epoches.  
-		uint32_t max_epoch = 1024;
+		uint32_t max_epoch = g_max_num_epoch;
 		_active_epoch[i] = 0;
 		_epoch_mapping[i] = new uint64_t [max_epoch];
 		memset(_epoch_mapping[i], -1, sizeof(uint64_t) * max_epoch);
 	}
+    /*
+	#if LOG_ALGORITHM == LOG_TAURUS && COMPRESS_LSN_LOG    
+	lastPSN = (uint64_t**) MALLOC(sizeof(uint64_t*) * g_num_logger, GET_THD_ID);
+	for(uint32_t i=0; i<g_num_logger; i++)
+	{
+		lastPSN[i] = (uint64_t*) MALLOC(sizeof(uint64_t), GET_THD_ID);
+		lastPSN[i][0] = 0;
+	}
+	#endif
+    */
 }
 
 uint64_t 
@@ -89,8 +103,9 @@ Manager::get_ts(uint64_t thread_id) {
 	default :
 		assert(false);
 	}
-	INC_FLOAT_STATS(time_ts_alloc, get_sys_clock() - starttime);
+	INC_INT_STATS(time_ts_alloc, get_sys_clock() - starttime);
 	return time;
+	evictLatch = 0;
 }
 
 ts_t Manager::get_min_ts(uint64_t tid) {
@@ -163,7 +178,7 @@ Manager::update_epoch()
 {
 #if LOG_ALGORITHM == LOG_BATCH
 	ts_t time = get_sys_clock();
-	if (time - *_last_epoch_update_time > g_epoch_period * 1000 * 1000) {
+	if (time - *_last_epoch_update_time > uint64_t(g_epoch_period * 1000 * 1000)) {
 		*_epoch = *_epoch + 1;
 		*_last_epoch_update_time = time;
 	}
@@ -174,7 +189,11 @@ uint64_t
 Manager::rand_uint64()
 {
     int64_t rint64 = 0;
+#ifdef __APPLE__
+	rint64 = (uint64_t)(jrand48(_buffer.__x));
+#else
     lrand48_r(&_buffer, &rint64);
+#endif
     return rint64;
 }
 
@@ -182,7 +201,11 @@ double
 Manager::rand_double()
 {
     double r = 0;
-    drand48_r(&_buffer, &r);
+#ifdef __APPLE__
+	r = erand48(_buffer.__x);
+#else
+	drand48_r(&_buffer, &r);
+#endif
     return r;
 }
 
@@ -267,6 +290,7 @@ Manager::update_epoch_lsn_mapping(uint64_t epoch, uint64_t lsn)
 	//assert(epoch[logger] == _active_epoch[logger] || epoch[logger] == _active_epoch[logger] + 1);
 	uint32_t thd = GET_THD_ID;
 	while (epoch > _active_epoch[thd]) {
+		assert(_active_epoch[thd]<g_max_num_epoch);
 		_epoch_mapping[thd][_active_epoch[thd] ++] = lsn;
 //		printf("update_epoch_lsn_mapping.  epoch=%ld. active_epoch[%d] = %ld  => lsn=%ld\n", 
 //			 epoch, thd, _active_epoch[thd], lsn);

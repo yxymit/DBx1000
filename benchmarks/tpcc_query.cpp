@@ -12,8 +12,16 @@ void tpcc_query::init(uint64_t thd_id, workload * h_wl) {
 		mem_allocator.alloc(sizeof(uint64_t) * g_part_cnt, thd_id);
 	if (x < g_perc_payment)
 		gen_payment(thd_id);
-	else 
-		gen_new_order(thd_id);
+	else
+	{
+		//if (x < g_perc_payment + PERC_NEWORDER) 
+			gen_new_order(thd_id);
+		//else
+		//{
+		//	gen_order_status(thd_id);
+		//}
+	}
+	
 }
 
 void tpcc_query::gen_payment(uint64_t thd_id) {
@@ -59,10 +67,11 @@ void tpcc_query::gen_payment(uint64_t thd_id) {
 		by_last_name = false;
 		c_id = NURand(1023, 1, g_cust_per_dist,w_id-1);
 	}
+	assert(c_w_id!=0);
 }
 
 void tpcc_query::gen_new_order(uint64_t thd_id) {
-	_stored_procedure_id = TPCC_PAYMENT;
+	_stored_procedure_id = TPCC_NEW_ORDER;
 	type = TPCC_NEW_ORDER;
 	if (FIRST_PART_LOCAL)
 		w_id = thd_id % g_num_wh + 1;
@@ -73,7 +82,7 @@ void tpcc_query::gen_new_order(uint64_t thd_id) {
 	//rbk = URand(1, 100, w_id-1);
 	ol_cnt = URand(5, 15, w_id-1);
 	o_entry_d = 2013;
-	items = (Item_no *) _mm_malloc(sizeof(Item_no) * ol_cnt, 64);
+	items = (Item_no *) MALLOC(sizeof(Item_no) * ol_cnt, thd_id);
 	remote = false;
 	part_to_access[0] = wh_to_part(w_id);
 	part_num = 1;
@@ -88,6 +97,7 @@ void tpcc_query::gen_new_order(uint64_t thd_id) {
 			remote = true;
 		}
 		items[oid].ol_quantity = URand(1, 10, w_id-1);
+		//assert(items[oid].ol_i_id <= g_max_items);
 	}
 	// Remove duplicate items
 	for (UInt32 i = 0; i < ol_cnt; i ++) {
@@ -134,4 +144,14 @@ tpcc_query::gen_order_status(uint64_t thd_id) {
 		by_last_name = false;
 		c_id = NURand(1023, 1, g_cust_per_dist, w_id-1);
 	}
+}
+
+void 
+tpcc_query::gen_delivery(uint64_t thd_id) {
+	// TODO
+}
+
+void 
+tpcc_query::gen_stocklevel(uint64_t thd_id) {
+	// TODO: 
 }

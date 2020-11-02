@@ -66,9 +66,11 @@ class tpcc_txn_man : public txn_man
 {
 public:
 	void init(thread_t * h_thd, workload * h_wl, uint64_t part_id); 
-	RC run_txn(base_query * query);
+	RC run_txn(base_query * query, bool rec=false);
 	
 	void get_cmd_log_entry();
+	void get_cmd_log_entry(char * log_entry, uint32_t & log_entry_size);
+	uint32_t get_cmd_log_entry_length();
 private:
 	tpcc_wl * _wl;
 	RC run_payment(tpcc_query * m_query);
@@ -78,7 +80,7 @@ private:
 	RC run_stock_level(tpcc_query * query);
 
 	tpcc_query * _query; 	
-	TPCCTxnType	_txn_type;
+	//TPCCTxnType	_txn_type;
 
 	void recover_txn(char * log_entry, uint64_t tid = (uint64_t)-1);
 };

@@ -10,7 +10,7 @@
 void Row_hekaton::init(row_t * row) {
 	_his_len = 4;
 
-	_write_history = (WriteHisEntry *) _mm_malloc(sizeof(WriteHisEntry) * _his_len, 64);
+	_write_history = (WriteHisEntry *) MALLOC(sizeof(WriteHisEntry) * _his_len, GET_THD_ID);
 	for (uint32_t i = 0; i < _his_len; i++) 
 		_write_history[i].row = NULL;
 	_write_history[0].row = row;
@@ -29,7 +29,7 @@ void Row_hekaton::init(row_t * row) {
 void 
 Row_hekaton::doubleHistory()
 {
-	WriteHisEntry * temp = (WriteHisEntry *) _mm_malloc(sizeof(WriteHisEntry) * _his_len * 2, 64);
+	WriteHisEntry * temp = (WriteHisEntry *) MALLOC(sizeof(WriteHisEntry) * _his_len * 2, GET_THD_ID);
 	uint32_t idx = _his_oldest; 
 	for (uint32_t i = 0; i < _his_len; i++) {
 		temp[i] = _write_history[idx]; 
@@ -41,7 +41,7 @@ Row_hekaton::doubleHistory()
 
 	_his_oldest = 0;
 	_his_latest = _his_len - 1; 
-	_mm_free(_write_history);
+	FREE(_write_history, sizeof(WriteHisEntry) * _his_len);
 	_write_history = temp;
 
 	_his_len *= 2;
@@ -140,7 +140,7 @@ Row_hekaton::reserveRow(txn_man * txn)
 
 	// some entries are not taken. But the row of that entry is NULL.
 	if (!_write_history[idx].row) {
-		_write_history[idx].row = (row_t *) _mm_malloc(sizeof(row_t), 64);
+		_write_history[idx].row = (row_t *) MALLOC(sizeof(row_t), GET_THD_ID);
 		_write_history[idx].row->init(MAX_TUPLE_SIZE);
 	}
 	return idx;

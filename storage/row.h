@@ -37,10 +37,13 @@ class row_t
 public:
 
 	RC init(table_t * host_table, uint64_t part_id, uint64_t row_id = 0);
+	RC init(table_t * host_table, uint64_t part_id, uint64_t row_id, void * mem, void * lsn_vec_mem);
 	void init(int size);
 	RC switch_schema(table_t * host_table);
 	// not every row has a manager
+	static size_t get_manager_size();
 	void init_manager(row_t * row);
+	void init_manager(row_t * row, void* manager_ptr);
 
 	table_t * get_table();
 	Catalog * get_schema();
@@ -52,7 +55,10 @@ public:
 	void copy(row_t * src);
 	void copy(char * src);
 
-	void 		set_primary_key(uint64_t key) { _primary_key = key; };
+	void 		set_primary_key(uint64_t key) {
+		//cout << "Primary key setted" << endl;
+		_primary_key = key;
+	};
 	uint64_t 	get_primary_key() {return _primary_key; };
 	uint64_t 	get_part_id() { return _part_id; };
 
@@ -86,7 +92,7 @@ public:
 	// for concurrency control. can be lock, timestamp etc.
 	//RC get_row(access_t type, txn_man * txn, row_t *& row);
 	RC get_row(access_t type, txn_man * txn, char *&data);
-	void return_row(access_t type, txn_man * txn, char * data);
+	void return_row(access_t type, txn_man * txn, char * data, RC rc_in);
 	
 #if CC_ALG == DL_DETECT || CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE
     Row_lock * manager;
@@ -105,6 +111,19 @@ public:
 #elif CC_ALG == VLL
   	Row_vll * manager;
 #endif
+
+#if !USE_LOCKTABLE
+// metadata if not using locktable
+#if LOG_ALGORITHM == LOG_TAURUS
+	lsnType * lsn_vec;
+    lsnType * readLV;
+#elif LOG_ALGORITHM == LOG_SERIAL
+	lsnType * lsn;
+#elif LOG_ALGORITHM == LOG_BATCH
+	//
+#endif
+#endif
+
 	char * data;
 	table_t * table;
 
@@ -117,25 +136,12 @@ public:
 	volatile uint64_t 		_last_writer;
 	// TODO assume upto 4 loggers. 
 	//uint64_t		_pred_vector[4];
-
+	void *				_lti_addr;
+	
 private:
 	// primary key should be calculated from the data stored in the row.
 	uint64_t 		_primary_key;
 	uint64_t		_part_id;
 	uint64_t 		_row_id;
 
-/*#if LOG_ALGORITHM == LOG_PARALLEL && LOG_TYPE == LOG_COMMAND && LOG_RECOVER
-	// for paralle command recovery, should use multi-versioning.
-	struct Version {
-		uint64_t txn_id; // the writer's txn_id
-		uint64_t ts; // time stamp of the writer
-		char * data;
-		Version * next;
-	};
-	Version *       _version;
-	uint32_t 		_num_versions; // for debug 
-	uint64_t 		_min_ts; // the oldest version timestamp of the tuple
-	uint32_t		_gc_time;
-#endif
-*/
 };

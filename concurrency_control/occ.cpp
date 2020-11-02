@@ -77,7 +77,12 @@ OptCC::per_row_validate(txn_man * txn) {
 		txn->cleanup(Abort);
 		rc = Abort;
 	}
-
+/*
+	if(ok)
+	{
+		txn->create_log_entry();
+	}
+*/
 	for (int i = 0; i < lock_cnt; i++) 
 		txn->accesses[i]->orig_row->manager->release();
 #endif
