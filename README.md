@@ -6,9 +6,9 @@ DBx1000 is a single node OLTP database management system (DBMS). The goal of DBx
 
 The concurrency control scalability study is described in the following paper. 
 
-    Staring into the Abyss: An Evaluation of Concurrency Control with One Thousand Cores
-    Xiangyao Yu, George Bezerra, Andrew Pavlo, Srinivas Devadas, Michael Stonebraker
-    http://www.vldb.org/pvldb/vol8/p209-yu.pdf
+[1] Xiangyao Yu, George Bezerra, Andrew Pavlo, Srinivas Devadas, Michael Stonebraker, [Staring into the Abyss: An Evaluation of Concurrency Control with One Thousand Cores](http://www.vldb.org/pvldb/vol8/p209-yu.pdf), VLDB 2014
+    
+    
     
 Build & Test
 ------------
@@ -43,8 +43,8 @@ The DBMS can be run with
 
     ./rundb
 
-Output
-------
+Outputs
+-------
 
 txn_cnt: The total number of committed transactions. This number is close to but smaller than THREAD_CNT * MAX_TXN_PER_PART. When any worker thread commits MAX_TXN_PER_PART transactions, all the other worker threads will be terminated. This way, we can measure the steady state throughput where all worker threads are busy.
 
@@ -59,8 +59,21 @@ time_abort: The time spent on transaction executions that eventually aborted.
 latency: Average latency of transactions.
 
 
+Branches and Other Related Systems
+----------------------------------
+
+DBx1000 currently contains two branches: 
+
+1. The master branch focuses on implementations of different concurrency control protocols described [1]. The master branch also contains the implementation of TicToc [2]
+
+[2] Xiangyao Yu, Andrew Pavlo, Daniel Sanchez, Srinivas Devadas, [TicToc: Time Traveling Optimistic Concurrency Control](https://dl.acm.org/doi/abs/10.1145/2882903.2882935), SIGMOD 2016
 
 
+2. The logging branch implements the Taurus logging protocol as describe the [3]. The logging branch is a mirror of https://github.com/yuxiamit/DBx1000_logging.
+    
+[3] Yu Xia, Xiangyao Yu, Andrew Pavlo, Srinivas Devadas, [Taurus: Lightweight Parallel Logging for In-Memory Database Management Systems](http://vldb.org/pvldb/vol14/p189-xia.pdf), VLDB 2020
 
+The following two distributed DBMS testbeds have been developed based on DBx1000
 
-
+1. Deneva: https://github.com/mitdbg/deneva
+2. Sundial: https://github.com/yxymit/Sundial    
