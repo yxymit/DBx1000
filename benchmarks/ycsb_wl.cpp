@@ -126,11 +126,12 @@ void * ycsb_wl::init_table_slice() {
 		assert(rc == RCOK);
 		uint64_t primary_key = key;
 		new_row->set_primary_key(primary_key);
-		new_row->set_value(0, &primary_key);
+		char primary_value[11] = "value";
+		new_row->set_value(0, primary_value);
 		Catalog * schema = the_table->get_schema();
 		
 		for (UInt32 fid = 0; fid < schema->get_field_cnt(); fid ++) {
-			char value[6] = "hello";
+			char value[11] = "hello";
 			new_row->set_value(fid, value);
 		}
 
