@@ -35,7 +35,7 @@ public:
 	INDEX * 	i_orderline_wd; // key = (w_id, d_id). 
 	
 	bool ** delivering;
-	uint32_t next_tid;
+	uint32_t next_tid {0};
 private:
 	uint64_t num_wh;
 	void init_tab_item();
