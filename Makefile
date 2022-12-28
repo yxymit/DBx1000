@@ -6,7 +6,7 @@ CFLAGS=-Wall -g -std=c++0x
 SRC_DIRS = ./ ./benchmarks/ ./concurrency_control/ ./storage/ ./system/
 INCLUDE = -I. -I./benchmarks -I./concurrency_control -I./storage -I./system
 
-CFLAGS += $(INCLUDE) -D NOGRAPHITE=1 -Werror -O3
+CFLAGS += $(INCLUDE) -D NOGRAPHITE=1  -O3 -no-pie
 LDFLAGS = -Wall -L. -L./libs -pthread -g -lrt -std=c++0x -O3 -ljemalloc
 LDFLAGS += $(CFLAGS)
 
